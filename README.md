@@ -21,7 +21,7 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 
 ## 🚀 Features
 
-- **Minimalist Design:** A read‑only, no‑frills JDBC driver for Oracle Fusion reporting via WSDL.
+- **Minimalist Design:** A read‑only, no‑frills JDBC driver for Oracle Fusion exploring/reporting via WSDL.
 - **IDE Integration:** Run SQL queries directly from your favorite IDE - DbVisualizer, IntelliJ, etc. without the extra overhead.
 _**DBeaver**_
 ![dbeaver](pics/dbeaver.jpg)
