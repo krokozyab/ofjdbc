@@ -1,6 +1,8 @@
 package my.jdbc.wsdl_driver
 
 import org.apache.commons.text.StringEscapeUtils
+import org.w3c.dom.Document
+import org.w3c.dom.NodeList
 import java.sql.*
 
 class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMetaData {
@@ -350,24 +352,92 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
 
 
 
-    override fun getSchemas(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 309")
+    //override fun getSchemas(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 309")
+    override fun getSchemas(): ResultSet {
+        // Query ALL_USERS to list all schemas (usernames)
+        val sql = "SELECT username AS TABLE_SCHEM, '' AS TABLE_CATALOG FROM all_users ORDER BY username"
+        // Send the SQL query via the WSDL service using the connection parameters.
+        val responseXml = sendSqlViaWsdl(
+            connection.wsdlEndpoint,
+            sql,
+            connection.username,
+            connection.password,
+            connection.reportPath
+        )
+        val doc = parseXml(responseXml)
+        var rowNodes: NodeList = doc.getElementsByTagName("ROW")
+        if (rowNodes.length == 0) {
+            val resultNodes: NodeList = doc.getElementsByTagName("RESULT")
+            if (resultNodes.length > 0) {
+                val resultText: String = resultNodes.item(0).textContent.trim()
+                val unescapedXml: String = org.apache.commons.text.StringEscapeUtils.unescapeXml(resultText)
+                val rowDoc: Document = parseXml(unescapedXml)
+                rowNodes = rowDoc.getElementsByTagName("ROW")
+            }
+        }
+        return createResultSetFromRowNodes(rowNodes)
+    }
+
     override fun getSchemas(catalog: String?, schemaPattern: String?): ResultSet {
         TODO("Not yet implemented")
     }
 
-    override fun getCatalogs(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 310")
+    //override fun getCatalogs(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 310")
+    override fun getCatalogs(): ResultSet = createEmptyResultSet()
     override fun getTableTypes(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 311")
 //    override fun getColumns(catalog: String?, schemaPattern: String?, tableNamePattern: String?, columnNamePattern: String?): ResultSet =
 //        throw SQLFeatureNotSupportedException("Not implemented 312")
-    override fun getColumns(
-        catalog: String?,
-        schemaPattern: String?,
-        tableNamePattern: String?,
-        columnNamePattern: String?
-    ): ResultSet {
-        // Minimal implementation: return an empty result set
-        return createEmptyResultSet()
+override fun getColumns(
+    catalog: String?,
+    schemaPattern: String?,
+    tableNamePattern: String?,
+    columnNamePattern: String?
+): ResultSet {
+    // Build Oracle filter conditions.
+    // In Oracle, the "schema" is the OWNER and the table name is stored in TABLE_NAME.
+    val schemaCond = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${schemaPattern.uppercase()}'" else ""
+    val tableCond = if (!tableNamePattern.isNullOrBlank()) " AND table_name LIKE '${tableNamePattern.uppercase()}'" else ""
+    val columnCond = if (!columnNamePattern.isNullOrBlank()) " AND column_name LIKE '${columnNamePattern.uppercase()}'" else ""
+
+    // Minimal set of columns that a JDBC driver is expected to return:
+    // TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME,
+    // COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION, etc.
+    // For this minimal implementation we will select a subset.
+    val sql = """
+        SELECT 
+            NULL AS TABLE_CAT,
+            owner AS TABLE_SCHEM,
+            table_name AS TABLE_NAME,
+            column_name AS COLUMN_NAME,
+            /* For simplicity, we use a constant for DATA_TYPE (VARCHAR) */
+            ${java.sql.Types.VARCHAR} AS DATA_TYPE,
+            data_type AS TYPE_NAME,
+            data_length AS COLUMN_SIZE,
+            data_precision AS DECIMAL_DIGITS,
+            data_scale AS NUM_PREC_RADIX,
+            CASE WHEN nullable = 'Y' THEN 1 ELSE 0 END AS NULLABLE,
+            column_id AS ORDINAL_POSITION
+        FROM all_tab_columns
+        WHERE 1=1 $schemaCond $tableCond $columnCond
+        ORDER BY owner, table_name, column_id
+    """.trimIndent()
+
+    // Execute the query via our helper (this sends the SQL via WSDL and returns an XML response).
+    val responseXml = sendSqlViaWsdl(connection.wsdlEndpoint, sql, connection.username, connection.password, connection.reportPath)
+    val doc = parseXml(responseXml)
+    var rowNodes = doc.getElementsByTagName("ROW")
+    if (rowNodes.length == 0) {
+        val resultNodes = doc.getElementsByTagName("RESULT")
+        if (resultNodes.length > 0) {
+            val resultText = resultNodes.item(0).textContent.trim()
+            val unescapedXml = org.apache.commons.text.StringEscapeUtils.unescapeXml(resultText)
+            val rowDoc = parseXml(unescapedXml)
+            rowNodes = rowDoc.getElementsByTagName("ROW")
+        }
     }
+    return createResultSetFromRowNodes(rowNodes)
+}
+
     override fun getColumnPrivileges(catalog: String?, schema: String?, table: String?, columnNamePattern: String?): ResultSet =
         throw SQLFeatureNotSupportedException("Not implemented 313")
     override fun getTablePrivileges(catalog: String?, schemaPattern: String?, tableNamePattern: String?): ResultSet =
@@ -376,8 +446,13 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         throw SQLFeatureNotSupportedException("Not implemented 315")
     override fun getVersionColumns(catalog: String?, schema: String?, table: String?): ResultSet =
         throw SQLFeatureNotSupportedException("Not implemented 316")
-    override fun getPrimaryKeys(catalog: String?, schema: String?, table: String?): ResultSet =
-        throw SQLFeatureNotSupportedException("Not implemented 317")
+    //override fun getPrimaryKeys(catalog: String?, schema: String?, table: String?): ResultSet =
+    //    throw SQLFeatureNotSupportedException("Not implemented 317")
+    override fun getPrimaryKeys(catalog: String?, schema: String?, table: String?): ResultSet {
+        // This minimal driver does not support retrieving primary keys.
+        // Returning an empty ResultSet.
+        return createEmptyResultSet()
+    }
     override fun getImportedKeys(catalog: String?, schema: String?, table: String?): ResultSet =
         throw SQLFeatureNotSupportedException("Not implemented 318")
     override fun getExportedKeys(catalog: String?, schema: String?, table: String?): ResultSet =
@@ -393,6 +468,8 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
     override fun getTypeInfo(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 321")
     override fun getIndexInfo(catalog: String?, schema: String?, table: String?, unique: Boolean, approximate: Boolean): ResultSet =
         throw SQLFeatureNotSupportedException("Not implemented 322")
+
+
     override fun supportsResultSetType(type: Int): Boolean = false
     override fun supportsResultSetConcurrency(type: Int, concurrency: Int): Boolean = false
     override fun ownUpdatesAreVisible(type: Int): Boolean = false

@@ -1,9 +1,10 @@
 package my.jdbc.wsdl_driver
 
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
+import org.apache.http.client.methods.HttpPost
+import org.apache.http.entity.StringEntity
+import org.apache.http.impl.client.HttpClients
+import org.apache.http.util.EntityUtils
+import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
 import org.w3c.dom.Element
 import org.w3c.dom.Node
@@ -13,12 +14,14 @@ import java.io.StringReader
 import java.io.StringWriter
 import java.sql.ResultSet
 import java.sql.SQLException
-import java.util.*
+import java.util.Base64
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.transform.OutputKeys
 import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.StreamResult
+
+private val logger = LoggerFactory.getLogger("Utils")
 
 fun encodeCredentials(username: String, password: String): String =
     "Basic " + Base64.getEncoder().encodeToString("$username:$password".toByteArray(Charsets.UTF_8))
@@ -126,33 +129,25 @@ fun sendSqlViaWsdl(
     password: String,
     reportPath: String
 ): String {
-    val soapEnvelope = createSoapEnvelope(sql, reportPath)
+    val normalizedSql = sql.replace("\\s+".toRegex(), " ").trim()
+    val soapEnvelope = createSoapEnvelope(normalizedSql, reportPath)
     val authHeader = encodeCredentials(username, password)
-    val client = OkHttpClient()
-    val requestBody = soapEnvelope.toRequestBody("application/soap+xml;charset=UTF-8".toMediaType())
-    val request = Request.Builder()
-        .url(wsdlEndpoint)
-        .addHeader("Content-Type", "application/soap+xml;charset=UTF-8")
-        .addHeader("SOAPAction", "#POST")
-        .addHeader("Authorization", authHeader)
-        .post(requestBody)
-        .build()
+    // Create an Apache HttpClient instance
+    val httpClient = HttpClients.createDefault()
+    val httpPost = HttpPost(wsdlEndpoint)
+    httpPost.setHeader("Content-Type", "application/soap+xml;charset=UTF-8")
+    httpPost.setHeader("SOAPAction", "#POST")
+    httpPost.setHeader("Authorization", authHeader)
+    httpPost.setHeader("User-Agent", "Apache-HttpClient/4.5.13 (Java/1.8.0_271)")
+    httpPost.entity = StringEntity(soapEnvelope, "UTF-8")
 
-    val response = client.newCall(request).execute()
-    val status = response.code
-    // Read the response body.
-    val body = response.body?.string()
-
-    // Check if the body is null or empty.
+    val response = httpClient.execute(httpPost)
+    val status = response.statusLine.statusCode
+    val body = response.entity?.let { EntityUtils.toString(it, "UTF-8") }
     if (body.isNullOrBlank()) {
-        throw SQLException("Empty SOAP response from WSDL service. HTTP Status: $status ")
+        throw SQLException("Empty SOAP response from WSDL service. HTTP Status: $status")
     }
-
-    println("SOAP Response: $body")
-
-    // Parse the XML from the response.
     val doc = parseXml(body)
-
     if (status == 200) {
         val reportNode = findNodeEndingWith(doc.documentElement, "reportBytes")
         if (reportNode != null) {
@@ -162,12 +157,10 @@ fun sendSqlViaWsdl(
             throw SQLException("Invalid response format: No reportBytes found")
         }
     } else {
-        //val errorMessage = extractSoapError(body)
         val errorMessage = extractSoapFaultReason(body)
         throw SQLException("WSDL service error ($status): $errorMessage")
     }
 }
-
 
 fun createResultSetFromRowNodes(rowNodes: NodeList): ResultSet {
     val rows = mutableListOf<Map<String, String>>()
