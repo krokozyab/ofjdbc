@@ -58,7 +58,7 @@ Before using this driver, ensure you have the following:
    In you fusion instance un-archive _DM_ARB.xdm.catalog_ and _RP_ARB.xdo.catalog_ from **otbireport** catalog of this repository
 into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you will, see logic in source code). 
 
----
+
 
 ## ⚙️ Configuration
 
