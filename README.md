@@ -12,11 +12,8 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 - [🛠 Prerequisites](#-prerequisites)
 - [📝 Installation](#-installation)
 - [⚙️ Configuration](#-configuration)
-- [📜 Logging](#-logging)
 - [📝 TODO](#-todo)
 - [📫 Contact](#-contact)
-- [📝 License](#-license)
-- [📚 Additional Resources](#-additional-resources)
 
 ---
 
@@ -90,5 +87,7 @@ This project is a minimal viable implementation, and there are several areas for
 
 Check back on the GitHub repository for updates and improvements as the project evolves.
 
+## 📫 Contact
+If you have questions, feel free to reach out via GitHub Issues or [email@sergey.rudenko.ba@gmail.com].
 
 
