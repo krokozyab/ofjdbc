@@ -13,6 +13,7 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 - [📝 Installation](#-installation)
 - [⚙️ Configuration](#-configuration)
 - [📜 Logging](#-logging)
+- [📝 TODO](#-todo)
 - [📫 Contact](#-contact)
 - [📝 License](#-license)
 - [📚 Additional Resources](#-additional-resources)
@@ -63,5 +64,27 @@ Before using this driver, ensure you have the following:
 ## ⚙️ Configuration
 
 Use a JDBC URL of the form:
+
+## 📝 TODO
+
+This project is a minimal viable implementation, and there are several areas for future enhancement:
+
+- **Additional JDBC Features:**
+   - Support for advanced JDBC methods (batch updates, scrollable ResultSets, etc.).
+
+- **Error Handling:**
+   - Improve the integration with IDE-specific features (e.g., better error messages in DBeaver).
+
+- **Performance & Scalability:**
+   - Optimize query pagination and fetch size management.
+
+- **Extended Metadata:**
+   - Implement additional DatabaseMetaData methods to provide richer metadata support.
+
+- **Customizability:**
+   - Explore supporting additional authentication mechanisms beyond Basic Auth.
+
+Check back on the GitHub repository for updates and improvements as the project evolves.
+
 
 
