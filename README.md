@@ -49,7 +49,7 @@ Before using this driver, ensure you have the following:
 
    Download the latest version of the driver from the link below:
 
-   [Download Driver and Instructions](https://objectstorage.us-ashburn-1.oraclecloud.com/p/wz55enC105qvFt3aBm4WsFrFy9O-wiUbWKt_QbUs_-ArviwHHvcQYggaIgN_DURD/n/idkmipa5fqwx/b/orafusjdbc/o/ofjdbc.zip)
+   [compiled driver](https://github.com/krokozyab/ofjdbc/releases/tag/initial)
 
 2. **Add to Your Project:**
 
