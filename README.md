@@ -30,7 +30,6 @@ _**DBVisualizer**_
 ![dbvisualizer](pics/dbvisualizer.jpg)
 - **JVM-Hosted Flexibility:** Use this driver not only from Java but from any JVM‑hosted language for building custom data pipelines.
 - **Easy to Configure:** Simple setup by providing your connection URL and credentials.
-- **Lightweight & Focused:** Designed to provide only the essential functionality needed to retrieve report data.
 
 ---
 
