@@ -51,7 +51,7 @@ Before using this driver, ensure you have the following:
 
    [release driver](https://github.com/krokozyab/ofjdbc/releases/tag/initial)
 
-2. **Or clone repository and build the driver yourself from the sources**
+2. **Or clone repository and build the driver yourself from the source code**
 
 3. **Create report in OTBI**
 
