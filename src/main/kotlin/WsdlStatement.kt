@@ -51,9 +51,7 @@ class WsdlStatement(
         } else {
             sql
         }
-        logger.info("Executing SQL: {}", effectiveSql)
 
-        // Send the SQL query via your WSDL service.
         val responseXml = sendSqlViaWsdl(wsdlEndpoint, effectiveSql, username, password, reportPath)
         val doc: Document = parseXml(responseXml)
 

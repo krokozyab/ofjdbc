@@ -11,6 +11,11 @@ import java.util.*
 class XmlResultSet(private val rows: List<Map<String, String>>) : ResultSet {
     private var currentIndex = -1
 
+    private var statement: Statement? = null
+    fun setStatement(statement: Statement) {
+        this.statement = statement
+    }
+
     private fun currentRow(): Map<String, String> {
         if (currentIndex !in rows.indices) {
             throw SQLException("No current row available")
@@ -79,7 +84,12 @@ class XmlResultSet(private val rows: List<Map<String, String>>) : ResultSet {
     override fun getByte(columnLabel: String?): Byte = throw UnsupportedOperationException("Not implemented 5")
     override fun getShort(columnIndex: Int): Short = throw UnsupportedOperationException("Not implemented 6")
     override fun getShort(columnLabel: String?): Short = throw UnsupportedOperationException("Not implemented 7")
-    override fun getInt(columnIndex: Int): Int = throw UnsupportedOperationException("Not implemented 8")
+    //override fun getInt(columnIndex: Int): Int = throw UnsupportedOperationException("Not implemented 8")
+    override fun getInt(columnIndex: Int): Int {
+        val meta = metaData
+        val columnName = meta.getColumnName(columnIndex)
+        return getInt(columnName)
+    }
     override fun getLong(columnIndex: Int): Long = throw UnsupportedOperationException("Not implemented 9")
     override fun getLong(columnLabel: String?): Long = throw UnsupportedOperationException("Not implemented 10")
     override fun getFloat(columnIndex: Int): Float = throw UnsupportedOperationException("Not implemented 11")
@@ -249,7 +259,10 @@ class XmlResultSet(private val rows: List<Map<String, String>>) : ResultSet {
     override fun cancelRowUpdates() = throw UnsupportedOperationException("Not implemented 103")
     override fun moveToInsertRow() = throw UnsupportedOperationException("Not implemented 104")
     override fun moveToCurrentRow() = throw UnsupportedOperationException("Not implemented 105")
-    override fun getStatement(): Statement = throw UnsupportedOperationException("Not implemented 106")
+    //override fun getStatement(): Statement = throw UnsupportedOperationException("Not implemented 106")
+    override fun getStatement(): Statement {
+        return statement ?: throw SQLException("Statement not available for this ResultSet")
+    }
     override fun getRef(columnIndex: Int): Ref {
         TODO("Not yet implemented")
     }
