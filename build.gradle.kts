@@ -26,6 +26,7 @@ tasks.test {
     useJUnitPlatform()
 }
 
+
 tasks {
     // Configure the ShadowJar (uberjar) task.
     named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
@@ -50,5 +51,5 @@ tasks {
 
 kotlin {
     // Configure the JVM toolchain (adjust version as desired)
-    jvmToolchain(21)
+    jvmToolchain(8)
 }
