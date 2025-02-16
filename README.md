@@ -51,7 +51,7 @@ Before using this driver, ensure you have the following:
 
    [release driver](https://github.com/krokozyab/ofjdbc/releases/tag/initial)
 
-2. **Or clone repository and build the driver yourself**
+2. **Or clone repository and build the driver yourself from the sources**
 
 3. **Create report in OTBI**
 
@@ -61,7 +61,10 @@ Before using this driver, ensure you have the following:
 
 ## ⚙️ Configuration
 
-Use a JDBC URL of the form:
+1. **Place driver file into designated folder
+2. **In you IDE (Dbeaver, DBVisualizer, IntelliJ) register new driver pointing on driver file.
+3. **Chose my.jdbc.wsdl_driver.WsdlDriver for the class name.
+4. 
 
 ## 📝 TODO
 
