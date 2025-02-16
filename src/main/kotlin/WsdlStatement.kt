@@ -9,9 +9,6 @@ import java.sql.ResultSet
 import java.sql.SQLWarning
 import java.sql.Statement
 
-// Assume that sendSqlViaWsdl(), parseXml(), and createResultSetFromRowNodes()
-// are defined elsewhere in your project.
-
 class WsdlStatement(
     private val wsdlEndpoint: String,
     private val username: String,
