@@ -24,13 +24,10 @@ And it isn’t just for Java—it can be used from any JVM‑hosted language to 
 
 - **Minimalist Design:** A read‑only, no‑frills JDBC driver for Oracle Fusion reporting via WSDL.
 - **IDE Integration:** Run SQL queries directly from your favorite IDE—DbVisualizer, IntelliJ, etc.—without the extra overhead.
-
 _**DBeaver**_
 ![dbeaver](pics/dbeaver.jpg)
-
 _**DBVisualizer**_ 
 ![dbvisualizer](pics/dbvisualizer.jpg)
-
 - **JVM-Hosted Flexibility:** Use this driver not only from Java but from any JVM‑hosted language for building custom data pipelines.
 - **Easy to Configure:** Simple setup by providing your connection URL and credentials.
 - **Lightweight & Focused:** Designed to provide only the essential functionality needed to retrieve report data.
