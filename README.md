@@ -1,4 +1,4 @@
-# Oracle Fusion WSDL JDBC Driver
+# Oracle Fusion JDBC Driver
 
 A read‑only JDBC driver that lets you run SQL queries against Oracle Fusion.
 This minimal viable implementation works seamlessly in mature IDEs 
