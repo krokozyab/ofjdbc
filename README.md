@@ -55,7 +55,8 @@ Before using this driver, ensure you have the following:
 
 3. **Create report in OTBI**
 
-   In you fusion instance un-archive DM_ARB.xdm.catalog and RP_ARB.xdo.catalog from otbireport catalog of this repository. 
+   In you fusion instance un-archive DM_ARB.xdm.catalog and RP_ARB.xdo.catalog from otbireport catalog of this repository
+into /Shared Foldrs/Custom/Financials folder (that can br different see logic in souce code). 
 
 ---
 
