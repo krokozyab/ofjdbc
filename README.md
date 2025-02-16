@@ -51,7 +51,7 @@ Before using this driver, ensure you have the following:
 
    [release driver](https://github.com/krokozyab/ofjdbc/releases/tag/initial)
 
-2. **Or clone repository and build the driver yourself from the source code.**
+2. **Alternatively, clone the repository and build the driver from source.**
 
 3. **Create report in OTBI**
 
@@ -61,12 +61,12 @@ into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you wil
 
 
 ## ⚙️ Configuration
-1. **Place driver file into designated folder**
-2. **In you IDE (Dbeaver, DBVisualizer, IntelliJ) register new driver pointing on driver file.**
-3. **Chose my.jdbc.wsdl_driver.WsdlDriver for the class name.**
-4. **In you IDE create new database connection using the driver from above**
-5. **In connection string (JDBC URL) enter: jdbc:wsdl://you-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo**
-6. **Enter Username and password for basic authentication.**
+1. **Place the Driver File: Place the driver JAR file into your designated folder.**
+2. **Register the Driver in Your IDE: In your IDE (DBeaver, DBVisualizer, IntelliJ), register a new driver pointing to the driver JAR file.**
+3. **Set the Driver Class: Choose my.jdbc.wsdl_driver.WsdlDriver as the driver class name.**
+4. **Create a New Database Connection: In your IDE, create a new database connection using the driver you just registered.**
+5. **Enter the Connection String (JDBC URL): jdbc:wsdl://you-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo**
+6. **Enter Your Credentials: Provide the username and password for basic authentication.**
 
 ## 📝 TODO
 
@@ -80,8 +80,7 @@ This project is a minimal viable implementation, and there are several areas for
 
 - **Performance & Scalability:**
    - Optimize query pagination and fetch size management.
-   - Now pagination is not fully implemented. Mean if you enter 'select * from xyz' the driver automatically converted it into 'select * from xyz FETCH FIRST 50 ROWS ONLY'
-  but if you enter 'select * from xyz FETCH FIRST 100 ROWS ONLY' it leave it as it is. Pagination is you responsibility.
+   - Currently, if you enter select * from xyz, the driver automatically converts it to select * from xyz FETCH FIRST 50 ROWS ONLY. However, if you enter a query that already includes pagination (e.g., select * from xyz FETCH FIRST 100 ROWS ONLY), it remains unchanged. Pagination is currently your responsibility.
 
 - **Extended Metadata:**
    - Implement additional DatabaseMetaData methods to provide richer metadata support.
