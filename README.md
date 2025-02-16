@@ -40,7 +40,7 @@ Before using this driver, ensure you have the following:
 
 - **Oracle Fusion Access:** Valid credentials with access to Oracle Fusion reporting (via WSDL).
 - **JDK/JRE:** A Java 8 (or later) runtime installed on your machine.
-- **Your IDE of Choice:** DbVisualizer, IntelliJ IDEA, or any other mature development environment.
+- **Your IDE of Choice:** DBeaver, DbVisualizer, IntelliJ IDEA (or any other mature development environment I don't know and tested yet :)) .
 
 ---
 
