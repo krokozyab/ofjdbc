@@ -65,9 +65,9 @@ into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you wil
 1. **Place driver file into designated folder
 2. **In you IDE (Dbeaver, DBVisualizer, IntelliJ) register new driver pointing on driver file.
 3. **Chose my.jdbc.wsdl_driver.WsdlDriver for the class name.
-4. In you IDE create new database connection using the driver from above
-5. In connection string (JDBC URL) enter: jdbc:wsdl://you-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo
-6. Username and password for basic authentication.
+4. **In you IDE create new database connection using the driver from above
+5. **In connection string (JDBC URL) enter: jdbc:wsdl://you-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo
+6. **Username and password for basic authentication.
 
 ## 📝 TODO
 
