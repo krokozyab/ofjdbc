@@ -51,13 +51,11 @@ Before using this driver, ensure you have the following:
 
    [release driver](https://github.com/krokozyab/ofjdbc/releases/tag/initial)
 
-2. **Add to Your Project:**
+2. **Or clone repository and build the driver yourself**
 
-   Add the JAR to your project’s classpath. (If you’re using an IDE, simply add it as a library.)
+3. **Create report in OTBI**
 
-3. **Register the Driver:**
-
-   The driver automatically registers itself via its companion object. You may also register it manually if desired.
+   In you fusion instance un-archive DM_ARB.xdm.catalog and RP_ARB.xdo.catalog from otbireport catalog of this repository. 
 
 ---
 
