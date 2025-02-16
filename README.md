@@ -61,7 +61,7 @@ into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you wil
 
 
 ## ⚙️ Configuration
-
+3. **Create report in OTBI**
 1. **Place driver file into designated folder**
 2. **In you IDE (Dbeaver, DBVisualizer, IntelliJ) register new driver pointing on driver file.**
 3. **Chose my.jdbc.wsdl_driver.WsdlDriver for the class name.**
