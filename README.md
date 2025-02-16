@@ -47,9 +47,9 @@ Before using this driver, ensure you have the following:
 
 1. **Download the Driver:**
 
-   Download the latest version of the driver from the link below:
+   Download the latest version of the driver from the releases of this repository linked below:
 
-   [compiled driver](https://github.com/krokozyab/ofjdbc/releases/tag/initial)
+   [release driver](https://github.com/krokozyab/ofjdbc/releases/tag/initial)
 
 2. **Add to Your Project:**
 
