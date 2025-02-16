@@ -12,7 +12,6 @@ class WsdlDriver : Driver {
     var wsdlEndpoint: String = ""
     var reportPath: String = ""
 
-    // Use SLF4J for logging.
     private val logger = LoggerFactory.getLogger(WsdlStatement::class.java)
 
     override fun connect(url: String?, info: Properties?): Connection? {
@@ -39,7 +38,6 @@ class WsdlDriver : Driver {
     override fun getParentLogger(): Logger = Logger.getLogger("WsdlDriver")
 
     companion object {
-        // Use SLF4J for logging.
         private val logger = LoggerFactory.getLogger(WsdlStatement::class.java)
         init {
             try {
