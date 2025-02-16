@@ -21,7 +21,7 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 ---
 
 ## 🚀 Features
-
+- **Your Credentials, Your Control:** Unlike many closed‑source solutions, this driver keeps your credentials under your control, ensuring peace of mind and security.
 - **Minimalist Design:** A read‑only, no‑frills JDBC driver for Oracle Fusion exploring/reporting via WSDL.
 - **IDE Integration:** Run SQL queries directly from your favorite IDE - DbVisualizer, IntelliJ, etc. without the extra overhead.
 _**DBeaver**_
@@ -70,10 +70,10 @@ Use a JDBC URL of the form:
 This project is a minimal viable implementation, and there are several areas for future enhancement:
 
 - **Additional JDBC Features:**
-   - Support for advanced JDBC methods (batch updates, scrollable ResultSets, etc.).
+   - Support for advanced JDBC methods (scrollable ResultSets, etc.).
 
 - **Error Handling:**
-   - Improve the integration with IDE-specific features (e.g., better error messages in DBeaver).
+   - Improve the integration with IDE-specific features (e.g., better error messages).
 
 - **Performance & Scalability:**
    - Optimize query pagination and fetch size management.
