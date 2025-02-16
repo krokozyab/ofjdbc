@@ -30,7 +30,7 @@ class WsdlStatement(
 
     /**
      * Rewrites a SELECT SQL query to include Oracle-style OFFSET/FETCH pagination.
-     * If the query already contains an OFFSET clause or does not start with SELECT,
+     * If the query already contains an FETCH clause or does not start with SELECT,
      * the query is returned unchanged.
      */
     private fun rewriteQueryForPagination(originalSql: String, offset: Int, fetchSize: Int): String {

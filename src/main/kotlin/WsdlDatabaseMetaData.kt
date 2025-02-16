@@ -6,7 +6,7 @@ import org.w3c.dom.NodeList
 import java.sql.*
 
 class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMetaData {
-    override fun getDatabaseProductName(): String = "Oracle Fusion WSDL JDBC Driver"
+    override fun getDatabaseProductName(): String = "Oracle Fusion JDBC Driver"
     override fun getDatabaseProductVersion(): String = "1.0"
     override fun getDriverName(): String = "sergey.rudenko.ba@gmail.com"
     override fun getDriverVersion(): String = "1.0"
@@ -331,7 +331,6 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         }
         if (queries.isEmpty()) return createEmptyResultSet()
         val finalSql = queries.joinToString(" UNION ALL ")
-        // Use your sendSqlViaWsdl to run the query
         val responseXml = sendSqlViaWsdl(connection.wsdlEndpoint, finalSql, connection.username, connection.password, connection.reportPath)
         val doc = parseXml(responseXml)
         var rowNodes = doc.getElementsByTagName("ROW")
