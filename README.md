@@ -1,7 +1,7 @@
 # Oracle Fusion JDBC Driver
 
 A read‑only JDBC driver that lets you run SQL queries against Oracle Fusion.
-This minimal viable implementation works seamlessly in mature IDEs 
+This minimal viable implementation works seamlessly in mature IDEs - 
 DBeaver, DbVisualizer and IntelliJ. 
 And it isn’t just for Java - it can be used from any JVM‑hosted language to build custom data pipelines.
 
