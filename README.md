@@ -76,8 +76,9 @@ This project is a minimal viable implementation, and there are several areas for
    - Improve the integration with IDE-specific features (e.g., better error messages).
 
 - **Performance & Scalability:**
-   - Optimize query pagination and fetch size management.
-   - Currently, if you enter 'select * from xyz', the driver automatically converts it to 'select * from xyz FETCH FIRST 50 ROWS ONLY'. However, if you enter a query that already includes pagination (e.g., 'select * from xyz FETCH FIRST 1000 ROWS ONLY'), it remains unchanged. Pagination is currently your responsibility.
+   ~~- Optimize query pagination and fetch size management.~~
+   ~~- Currently, if you enter 'select * from xyz', the driver automatically converts it to 'select * from xyz FETCH FIRST 50 ROWS ONLY'. However, if you enter a query that already includes pagination (e.g., 'select * from xyz FETCH FIRST 1000 ROWS ONLY'), it remains unchanged. Pagination is currently your responsibility.~~
+   - Done
 
 - **Extended Metadata:**
    - Implement additional DatabaseMetaData methods to provide richer metadata support.
