@@ -1,9 +1,6 @@
 package my.jdbc.wsdl_driver
 
-import org.apache.commons.text.StringEscapeUtils
 import org.slf4j.LoggerFactory
-import org.w3c.dom.Document
-import org.w3c.dom.NodeList
 import java.sql.Connection
 import java.sql.ResultSet
 import java.sql.SQLWarning
@@ -22,51 +19,23 @@ class WsdlStatement(
     // Field to store the fetch size (page size).
     private var fetchSize: Int = 50
 
-    // Field to store the current offset for pagination.
-    private var currentOffset: Int = 0
 
-    // Use SLF4J for logging.
     private val logger = LoggerFactory.getLogger(WsdlStatement::class.java)
 
-    /**
-     * Rewrites a SELECT SQL query to include Oracle-style OFFSET/FETCH pagination.
-     * If the query already contains an FETCH clause or does not start with SELECT,
-     * the query is returned unchanged.
-     */
-    private fun rewriteQueryForPagination(originalSql: String, offset: Int, fetchSize: Int): String {
-        val trimmedSql = originalSql.trim()
-        if (!trimmedSql.uppercase().startsWith("SELECT") || trimmedSql.uppercase().contains("FETCH")) {
-            return originalSql
-        }
-        return "$originalSql OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY"
-    }
 
     override fun executeQuery(sql: String): ResultSet {
-        // If a fetch size is set, rewrite the SQL query to limit the returned rows.
-        val effectiveSql = if (fetchSize > 0) {
-            rewriteQueryForPagination(sql, currentOffset, fetchSize)
-        } else {
-            sql
-        }
-
-        val responseXml = sendSqlViaWsdl(wsdlEndpoint, effectiveSql, username, password, reportPath)
-        val doc: Document = parseXml(responseXml)
-
-        // Try to extract <ROW> nodes from the response.
-        var rowNodes: NodeList = doc.getElementsByTagName("ROW")
-        if (rowNodes.length == 0) {
-            val resultNodes: NodeList = doc.getElementsByTagName("RESULT")
-            if (resultNodes.length > 0) {
-                val resultText: String = resultNodes.item(0).textContent.trim()
-                val unescapedXml: String = StringEscapeUtils.unescapeXml(resultText)
-                val rowDoc: Document = parseXml(unescapedXml)
-                rowNodes = rowDoc.getElementsByTagName("ROW")
-            }
-        }
-        logger.info("Found {} <ROW> elements.", rowNodes.length)
-        val rs = createResultSetFromRowNodes(rowNodes)
-        lastResultSet = rs
-        return rs
+        // Instead of fetching just one page, return a PaginatedResultSet
+        val paginatedRs = PaginatedResultSet(
+            originalSql = sql,
+            wsdlEndpoint = wsdlEndpoint,
+            username = username,
+            password = password,
+            reportPath = reportPath,
+            fetchSize = fetchSize,
+            logger = logger
+        )
+        lastResultSet = paginatedRs
+        return paginatedRs
     }
 
     override fun close() {
