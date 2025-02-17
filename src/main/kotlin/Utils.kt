@@ -96,12 +96,16 @@ fun extractSoapFaultReason(body: String): String {
     }
 }
 
+
 fun parseXml(xml: String): Document {
+    // Replace any '&' not followed by one of the allowed entity names.
+    val sanitizedXml = xml.replace(Regex("&(?!amp;|lt;|gt;|quot;|apos;)"), "&amp;")
     val factory = DocumentBuilderFactory.newInstance()
     factory.isNamespaceAware = true
     val builder = factory.newDocumentBuilder()
-    return builder.parse(InputSource(StringReader(xml)))
+    return builder.parse(InputSource(StringReader(sanitizedXml)))
 }
+
 
 fun findNodeEndingWith(node: Node, suffix: String): Node? {
     if (node.nodeType == Node.ELEMENT_NODE && node.nodeName.endsWith(suffix)) return node
