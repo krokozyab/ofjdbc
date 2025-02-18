@@ -13,6 +13,7 @@ class WsdlConnection(
     // For a minimal implementation, we assume the connection is always read-only.
     private var readOnly: Boolean = true
     private var autoCommit: Boolean = false
+    private var currentSchema: String? = "FUSION"
 
     companion object {
         private val logger = LoggerFactory.getLogger(WsdlConnection::class.java)
@@ -88,9 +89,14 @@ class WsdlConnection(
     override fun getClientInfo(): Properties = throw UnsupportedOperationException("Not implemented 247")
     override fun createArrayOf(typeName: String?, elements: Array<out Any>?): java.sql.Array = throw UnsupportedOperationException("Not implemented 248")
     override fun createStruct(typeName: String?, attributes: Array<out Any>?): Struct = throw UnsupportedOperationException("Not implemented 249")
-    override fun setSchema(schema: String?) = throw UnsupportedOperationException("Not implemented 250")
+    //override fun setSchema(schema: String?) = throw UnsupportedOperationException("Not implemented 250")
+    override fun setSchema(schema: String?) {
+        currentSchema = schema
+        logger.info("Schema set to: {}", schema)
+    }
     //override fun getSchema(): String = throw UnsupportedOperationException("Not implemented 251")
-    override fun getSchema(): String = username
+    //override fun getSchema(): String = username
+    override fun getSchema(): String = currentSchema ?: "FUSION"
     override fun abort(executor: java.util.concurrent.Executor?) = throw UnsupportedOperationException("Not implemented 252")
     override fun setNetworkTimeout(executor: java.util.concurrent.Executor?, milliseconds: Int) = throw UnsupportedOperationException("Not implemented 253")
     override fun getNetworkTimeout(): Int = throw UnsupportedOperationException("Not implemented 254")
