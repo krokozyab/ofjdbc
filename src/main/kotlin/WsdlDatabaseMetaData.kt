@@ -12,6 +12,8 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
     override fun getDriverVersion(): String = "1.0"
     override fun getDriverMajorVersion(): Int = 1
     override fun getDriverMinorVersion(): Int = 0
+
+
     override fun usesLocalFiles(): Boolean {
         TODO("Not yet implemented")
     }
@@ -20,267 +22,146 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         TODO("Not yet implemented")
     }
 
-    override fun supportsMixedCaseIdentifiers(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun supportsMixedCaseIdentifiers(): Boolean = false
 
-    override fun storesUpperCaseIdentifiers(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun storesUpperCaseIdentifiers(): Boolean = true
 
-    override fun storesLowerCaseIdentifiers(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun storesLowerCaseIdentifiers(): Boolean = false
 
-    override fun storesMixedCaseIdentifiers(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun storesMixedCaseIdentifiers(): Boolean = false
 
-    override fun supportsMixedCaseQuotedIdentifiers(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun supportsMixedCaseQuotedIdentifiers(): Boolean = true
 
-    override fun storesUpperCaseQuotedIdentifiers(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun storesUpperCaseQuotedIdentifiers(): Boolean = false
 
-    override fun storesLowerCaseQuotedIdentifiers(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun storesLowerCaseQuotedIdentifiers(): Boolean = false
 
-    override fun storesMixedCaseQuotedIdentifiers(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun storesMixedCaseQuotedIdentifiers(): Boolean = true
 
-    override fun getIdentifierQuoteString(): String {
-        TODO("Not yet implemented")
-    }
+    // For Oracle, the identifier quote string is a double quote.
+    override fun getIdentifierQuoteString(): String = "\""
+
 
     override fun getSQLKeywords(): String {
-        TODO("Not yet implemented")
+        // Return an empty string since there are no additional non-SQL92 keywords to report.
+        return ""
     }
+
 
     override fun getURL(): String = connection.wsdlEndpoint
     override fun getUserName(): String = connection.username
-    override fun isReadOnly(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun isReadOnly(): Boolean = true
 
-    override fun nullsAreSortedHigh(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun nullsAreSortedHigh(): Boolean = true
 
-    override fun nullsAreSortedLow(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun nullsAreSortedLow(): Boolean = false
 
-    override fun nullsAreSortedAtStart(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun nullsAreSortedAtStart(): Boolean = false
 
-    override fun nullsAreSortedAtEnd(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun nullsAreSortedAtEnd(): Boolean = false
 
     // All other methods throw SQLFeatureNotSupportedException with sequential numbers starting at 257.
-    override fun allProceduresAreCallable(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 257")
-    override fun allTablesAreSelectable(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 258")
-    override fun getExtraNameCharacters(): String = throw SQLFeatureNotSupportedException("Not implemented 259")
-    override fun supportsAlterTableWithAddColumn(): Boolean {
+    override fun allProceduresAreCallable(): Boolean = false //throw SQLFeatureNotSupportedException("Not implemented 257")
+    override fun allTablesAreSelectable(): Boolean = true //throw SQLFeatureNotSupportedException("Not implemented 258")
+    //override fun getExtraNameCharacters(): String = throw SQLFeatureNotSupportedException("Not implemented 259")
+    override fun getExtraNameCharacters(): String = ""
+    override fun supportsAlterTableWithAddColumn(): Boolean = true
+    override fun supportsAlterTableWithDropColumn(): Boolean =true
+    override fun supportsColumnAliasing(): Boolean = true
+    override fun nullPlusNonNullIsNull(): Boolean = true
+    override fun supportsConvert(): Boolean = false
+    override fun supportsConvert(fromType: Int, toType: Int): Boolean = false
+    override fun supportsTableCorrelationNames(): Boolean = false
+    override fun supportsDifferentTableCorrelationNames(): Boolean = false
+    override fun supportsExpressionsInOrderBy(): Boolean = true
+    override fun supportsOrderByUnrelated(): Boolean = true
+    override fun supportsGroupBy(): Boolean = true
+    override fun supportsGroupByUnrelated(): Boolean = true
+    override fun supportsGroupByBeyondSelect(): Boolean = false
+    override fun supportsLikeEscapeClause(): Boolean = true
+    override fun supportsMultipleResultSets(): Boolean = false
+    override fun supportsMultipleTransactions(): Boolean = false
+    override fun supportsNonNullableColumns(): Boolean = true
+    override fun supportsMinimumSQLGrammar(): Boolean = true
+    override fun supportsCoreSQLGrammar(): Boolean = true
+    override fun supportsExtendedSQLGrammar(): Boolean = false
+    override fun supportsANSI92EntryLevelSQL(): Boolean = true
+    override fun supportsANSI92IntermediateSQL(): Boolean = false
+    override fun supportsANSI92FullSQL(): Boolean = false
+    override fun supportsIntegrityEnhancementFacility(): Boolean = false
+    override fun supportsOuterJoins(): Boolean = true
+    override fun supportsFullOuterJoins(): Boolean = false
+    override fun supportsLimitedOuterJoins(): Boolean = true
+
+    override fun getSchemaTerm(): String {
         TODO("Not yet implemented")
     }
 
-    override fun supportsAlterTableWithDropColumn(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun getNumericFunctions(): String = "ABS,ACOS,ASIN,ATAN,ATAN2,CEIL,COS,COT,DEGREES,EXP,FLOOR,LOG,LOG10,MOD,POWER,ROUND,SIN,SQRT,TAN"
+    override fun getStringFunctions(): String = "LCASE,UPPER,INITCAP,LTRIM,RTRIM,CONCAT,SUBSTR,INSTR,REPLACE,LPAD,RPAD"
+    override fun getSystemFunctions(): String = "USER,SYSDATE,CURRENT_DATE"
+    override fun getTimeDateFunctions(): String = "NOW,CURDATE,CURTIME,SYSDATE"
+    //override fun getSchemaTerm(): String = throw SQLFeatureNotSupportedException("Not implemented 265")
+    override fun getSearchStringEscape(): String = "\\"
+    //override fun getProcedureTerm(): String = throw SQLFeatureNotSupportedException("Not implemented 266")
+    // In Oracle, the standard term for stored procedures is "PROCEDURE"
+    override fun getProcedureTerm(): String = "PROCEDURE"
+    //override fun getCatalogTerm(): String = throw SQLFeatureNotSupportedException("Not implemented 267")
+    // In Oracle, the concept of a catalog isn’t used
+    override fun getCatalogTerm(): String = ""
+    //override fun isCatalogAtStart(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 268")
+    override fun isCatalogAtStart(): Boolean = false
+    //override fun getCatalogSeparator(): String = throw SQLFeatureNotSupportedException("Not implemented 269")
+    override fun getCatalogSeparator(): String = "."
+    override fun supportsSchemasInDataManipulation(): Boolean = true
+    override fun supportsSchemasInProcedureCalls(): Boolean = true
+    override fun supportsSchemasInTableDefinitions(): Boolean = true
+    override fun supportsSchemasInIndexDefinitions(): Boolean = false
+    override fun supportsSchemasInPrivilegeDefinitions(): Boolean = false
+    override fun supportsCatalogsInDataManipulation(): Boolean = false
+    override fun supportsCatalogsInProcedureCalls(): Boolean = false
+    override fun supportsCatalogsInTableDefinitions(): Boolean = false
+    override fun supportsCatalogsInIndexDefinitions(): Boolean = false
+    override fun supportsCatalogsInPrivilegeDefinitions(): Boolean = false
 
-    override fun supportsColumnAliasing(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun nullPlusNonNullIsNull(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsConvert(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsConvert(fromType: Int, toType: Int): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsTableCorrelationNames(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsDifferentTableCorrelationNames(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsExpressionsInOrderBy(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsOrderByUnrelated(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsGroupBy(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsGroupByUnrelated(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsGroupByBeyondSelect(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsLikeEscapeClause(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsMultipleResultSets(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsMultipleTransactions(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsNonNullableColumns(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsMinimumSQLGrammar(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsCoreSQLGrammar(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsExtendedSQLGrammar(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsANSI92EntryLevelSQL(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsANSI92IntermediateSQL(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsANSI92FullSQL(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsIntegrityEnhancementFacility(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsOuterJoins(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsFullOuterJoins(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsLimitedOuterJoins(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun getNumericFunctions(): String = throw SQLFeatureNotSupportedException("Not implemented 260")
-    override fun getStringFunctions(): String = throw SQLFeatureNotSupportedException("Not implemented 261")
-    override fun getSystemFunctions(): String = throw SQLFeatureNotSupportedException("Not implemented 262")
-    override fun getTimeDateFunctions(): String = throw SQLFeatureNotSupportedException("Not implemented 263")
-    override fun getSearchStringEscape(): String = throw SQLFeatureNotSupportedException("Not implemented 264")
-    override fun getSchemaTerm(): String = throw SQLFeatureNotSupportedException("Not implemented 265")
-    override fun getProcedureTerm(): String = throw SQLFeatureNotSupportedException("Not implemented 266")
-    override fun getCatalogTerm(): String = throw SQLFeatureNotSupportedException("Not implemented 267")
-    override fun isCatalogAtStart(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 268")
-    override fun getCatalogSeparator(): String = throw SQLFeatureNotSupportedException("Not implemented 269")
-    override fun supportsSchemasInDataManipulation(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsSchemasInProcedureCalls(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsSchemasInTableDefinitions(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsSchemasInIndexDefinitions(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsSchemasInPrivilegeDefinitions(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsCatalogsInDataManipulation(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsCatalogsInProcedureCalls(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsCatalogsInTableDefinitions(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsCatalogsInIndexDefinitions(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsCatalogsInPrivilegeDefinitions(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsPositionedDelete(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 270")
-    override fun supportsPositionedUpdate(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 271")
-    override fun supportsSelectForUpdate(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 272")
+    override fun supportsPositionedDelete(): Boolean = false //throw SQLFeatureNotSupportedException("Not implemented 270")
+    override fun supportsPositionedUpdate(): Boolean = false //throw SQLFeatureNotSupportedException("Not implemented 271")
+    override fun supportsSelectForUpdate(): Boolean = false //throw SQLFeatureNotSupportedException("Not implemented 272")
     override fun supportsStoredProcedures(): Boolean = false
-    override fun supportsSubqueriesInComparisons(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 273")
-    override fun supportsSubqueriesInExists(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 274")
-    override fun supportsSubqueriesInIns(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 275")
-    override fun supportsSubqueriesInQuantifieds(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 276")
-    override fun supportsCorrelatedSubqueries(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 277")
-    override fun supportsUnion(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 278")
-    override fun supportsUnionAll(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 279")
-    override fun supportsOpenCursorsAcrossCommit(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 280")
-    override fun supportsOpenCursorsAcrossRollback(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 281")
-    override fun supportsOpenStatementsAcrossCommit(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 282")
-    override fun supportsOpenStatementsAcrossRollback(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 283")
-    override fun getMaxBinaryLiteralLength(): Int = throw SQLFeatureNotSupportedException("Not implemented 284")
-    override fun getMaxCharLiteralLength(): Int = throw SQLFeatureNotSupportedException("Not implemented 285")
-    override fun getMaxColumnNameLength(): Int = throw SQLFeatureNotSupportedException("Not implemented 286")
-    override fun getMaxColumnsInGroupBy(): Int = throw SQLFeatureNotSupportedException("Not implemented 287")
-    override fun getMaxColumnsInIndex(): Int = throw SQLFeatureNotSupportedException("Not implemented 288")
-    override fun getMaxColumnsInOrderBy(): Int = throw SQLFeatureNotSupportedException("Not implemented 289")
-    override fun getMaxColumnsInSelect(): Int = throw SQLFeatureNotSupportedException("Not implemented 290")
-    override fun getMaxColumnsInTable(): Int = throw SQLFeatureNotSupportedException("Not implemented 291")
-    override fun getMaxConnections(): Int = throw SQLFeatureNotSupportedException("Not implemented 292")
-    override fun getMaxCursorNameLength(): Int = throw SQLFeatureNotSupportedException("Not implemented 293")
-    override fun getMaxIndexLength(): Int = throw SQLFeatureNotSupportedException("Not implemented 294")
-    override fun getMaxSchemaNameLength(): Int = throw SQLFeatureNotSupportedException("Not implemented 295")
-    override fun getMaxProcedureNameLength(): Int = throw SQLFeatureNotSupportedException("Not implemented 296")
-    override fun getMaxCatalogNameLength(): Int = throw SQLFeatureNotSupportedException("Not implemented 297")
-    override fun getMaxRowSize(): Int = throw SQLFeatureNotSupportedException("Not implemented 298")
-    override fun doesMaxRowSizeIncludeBlobs(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 299")
-    override fun getMaxStatementLength(): Int = throw SQLFeatureNotSupportedException("Not implemented 300")
-    override fun getMaxStatements(): Int = throw SQLFeatureNotSupportedException("Not implemented 301")
-    override fun getMaxTableNameLength(): Int = throw SQLFeatureNotSupportedException("Not implemented 302")
-    override fun getMaxTablesInSelect(): Int = throw SQLFeatureNotSupportedException("Not implemented 303")
-    override fun getMaxUserNameLength(): Int = throw SQLFeatureNotSupportedException("Not implemented 304")
-    override fun getDefaultTransactionIsolation(): Int = throw SQLFeatureNotSupportedException("Not implemented 305")
+    override fun supportsSubqueriesInComparisons(): Boolean = true //throw SQLFeatureNotSupportedException("Not implemented 273")
+    override fun supportsSubqueriesInExists(): Boolean = true //throw SQLFeatureNotSupportedException("Not implemented 274")
+    override fun supportsSubqueriesInIns(): Boolean = true //throw SQLFeatureNotSupportedException("Not implemented 275")
+    override fun supportsSubqueriesInQuantifieds(): Boolean = true //throw SQLFeatureNotSupportedException("Not implemented 276")
+    override fun supportsCorrelatedSubqueries(): Boolean = true
+    override fun supportsUnion(): Boolean = true //throw SQLFeatureNotSupportedException("Not implemented 278")
+    override fun supportsUnionAll(): Boolean = true //throw SQLFeatureNotSupportedException("Not implemented 279")
+    override fun supportsOpenCursorsAcrossCommit(): Boolean = false //throw SQLFeatureNotSupportedException("Not implemented 280")
+    override fun supportsOpenCursorsAcrossRollback(): Boolean = false //throw SQLFeatureNotSupportedException("Not implemented 281")
+    override fun supportsOpenStatementsAcrossCommit(): Boolean = false //throw SQLFeatureNotSupportedException("Not implemented 282")
+    override fun supportsOpenStatementsAcrossRollback(): Boolean = false //throw SQLFeatureNotSupportedException("Not implemented 283")
+
+    override fun getMaxBinaryLiteralLength(): Int = 0 //throw SQLFeatureNotSupportedException("Not implemented 284")
+    override fun getMaxCharLiteralLength(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 285")
+    override fun getMaxColumnNameLength(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 286")
+    override fun getMaxColumnsInGroupBy(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 287")
+    override fun getMaxColumnsInIndex(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 288")
+    override fun getMaxColumnsInOrderBy(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 289")
+    override fun getMaxColumnsInSelect(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 290")
+    override fun getMaxColumnsInTable(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 291")
+    override fun getMaxConnections(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 292")
+    override fun getMaxCursorNameLength(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 293")
+    override fun getMaxIndexLength(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 294")
+    override fun getMaxSchemaNameLength(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 295")
+    override fun getMaxProcedureNameLength(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 296")
+    override fun getMaxCatalogNameLength(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 297")
+    override fun getMaxRowSize(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 298")
+    override fun doesMaxRowSizeIncludeBlobs(): Boolean = false //throw SQLFeatureNotSupportedException("Not implemented 299")
+    override fun getMaxStatementLength(): Int = 0 // throw SQLFeatureNotSupportedException("Not implemented 300")
+    override fun getMaxStatements(): Int = 0 //  throw SQLFeatureNotSupportedException("Not implemented 301")
+    override fun getMaxTableNameLength(): Int = 0 //  throw SQLFeatureNotSupportedException("Not implemented 302")
+    override fun getMaxTablesInSelect(): Int = 0 //  throw SQLFeatureNotSupportedException("Not implemented 303")
+    override fun getMaxUserNameLength(): Int = 0 //  throw SQLFeatureNotSupportedException("Not implemented 304")
+    override fun getDefaultTransactionIsolation(): Int = Connection.TRANSACTION_NONE //throw SQLFeatureNotSupportedException("Not implemented 305")
     override fun supportsTransactions(): Boolean = false
     override fun supportsTransactionIsolationLevel(level: Int): Boolean = false
     override fun supportsDataDefinitionAndDataManipulationTransactions(): Boolean = false
@@ -464,7 +345,99 @@ override fun getColumns(
         foreignSchema: String?,
         foreignTable: String?
     ): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 320")
-    override fun getTypeInfo(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 321")
+    //override fun getTypeInfo(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 321")
+    override fun getTypeInfo(): ResultSet {
+        // For Oracle Fusion, we provide type information for several common Oracle data types.
+        val typesList: List<Map<String, Any?>> = listOf(
+            mapOf(
+                "TYPE_NAME" to "VARCHAR2",
+                "DATA_TYPE" to Types.VARCHAR,
+                "PRECISION" to 4000,
+                "LITERAL_PREFIX" to "'",
+                "LITERAL_SUFFIX" to "'",
+                "CREATE_PARAMS" to "length",
+                "NULLABLE" to DatabaseMetaData.typeNullable,
+                "CASE_SENSITIVE" to true,
+                "SEARCHABLE" to DatabaseMetaData.typeSearchable,
+                "UNSIGNED_ATTRIBUTE" to false,
+                "FIXED_PREC_SCALE" to false,
+                "AUTO_INCREMENT" to false,
+                "LOCAL_TYPE_NAME" to "VARCHAR2",
+                "MINIMUM_SCALE" to 0,
+                "MAXIMUM_SCALE" to 0,
+                "SQL_DATA_TYPE" to 0,
+                "SQL_DATETIME_SUB" to 0,
+                "NUM_PREC_RADIX" to 10
+            ),
+            mapOf(
+                "TYPE_NAME" to "NUMBER",
+                "DATA_TYPE" to Types.NUMERIC,
+                "PRECISION" to 38,
+                "LITERAL_PREFIX" to null,
+                "LITERAL_SUFFIX" to null,
+                "CREATE_PARAMS" to null,
+                "NULLABLE" to DatabaseMetaData.typeNullable,
+                "CASE_SENSITIVE" to false,
+                "SEARCHABLE" to DatabaseMetaData.typeSearchable,
+                "UNSIGNED_ATTRIBUTE" to false,
+                "FIXED_PREC_SCALE" to false,
+                "AUTO_INCREMENT" to false,
+                "LOCAL_TYPE_NAME" to "NUMBER",
+                "MINIMUM_SCALE" to 0,
+                "MAXIMUM_SCALE" to 38,
+                "SQL_DATA_TYPE" to 0,
+                "SQL_DATETIME_SUB" to 0,
+                "NUM_PREC_RADIX" to 10
+            ),
+            mapOf(
+                "TYPE_NAME" to "DATE",
+                "DATA_TYPE" to Types.DATE,
+                "PRECISION" to 7,
+                "LITERAL_PREFIX" to "'",
+                "LITERAL_SUFFIX" to "'",
+                "CREATE_PARAMS" to null,
+                "NULLABLE" to DatabaseMetaData.typeNullable,
+                "CASE_SENSITIVE" to false,
+                "SEARCHABLE" to DatabaseMetaData.typeSearchable,
+                "UNSIGNED_ATTRIBUTE" to false,
+                "FIXED_PREC_SCALE" to false,
+                "AUTO_INCREMENT" to false,
+                "LOCAL_TYPE_NAME" to "DATE",
+                "MINIMUM_SCALE" to 0,
+                "MAXIMUM_SCALE" to 0,
+                "SQL_DATA_TYPE" to 0,
+                "SQL_DATETIME_SUB" to 0,
+                "NUM_PREC_RADIX" to 10
+            ),
+            mapOf(
+                "TYPE_NAME" to "TIMESTAMP",
+                "DATA_TYPE" to Types.TIMESTAMP,
+                "PRECISION" to 11,
+                "LITERAL_PREFIX" to "'",
+                "LITERAL_SUFFIX" to "'",
+                "CREATE_PARAMS" to null,
+                "NULLABLE" to DatabaseMetaData.typeNullable,
+                "CASE_SENSITIVE" to false,
+                "SEARCHABLE" to DatabaseMetaData.typeSearchable,
+                "UNSIGNED_ATTRIBUTE" to false,
+                "FIXED_PREC_SCALE" to false,
+                "AUTO_INCREMENT" to false,
+                "LOCAL_TYPE_NAME" to "TIMESTAMP",
+                "MINIMUM_SCALE" to 0,
+                "MAXIMUM_SCALE" to 9,
+                "SQL_DATA_TYPE" to 0,
+                "SQL_DATETIME_SUB" to 0,
+                "NUM_PREC_RADIX" to 10
+            )
+        )
+
+        // Convert each value to a String (using empty string for null) so our minimal XmlResultSet works.
+        val rowsAsString = typesList.map { row ->
+            row.mapValues { (_, v) -> v?.toString() ?: "" }
+        }
+        return XmlResultSet(rowsAsString)
+    }
+
     override fun getIndexInfo(catalog: String?, schema: String?, table: String?, unique: Boolean, approximate: Boolean): ResultSet =
         throw SQLFeatureNotSupportedException("Not implemented 322")
 
@@ -480,9 +453,7 @@ override fun getColumns(
     override fun updatesAreDetected(type: Int): Boolean = false
     override fun deletesAreDetected(type: Int): Boolean = false
     override fun insertsAreDetected(type: Int): Boolean = false
-    override fun supportsBatchUpdates(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun supportsBatchUpdates(): Boolean = false
 
     override fun getUDTs(
         catalog: String?,
@@ -490,35 +461,24 @@ override fun getColumns(
         typeNamePattern: String?,
         types: IntArray?
     ): ResultSet {
-        TODO("Not yet implemented")
+        throw SQLFeatureNotSupportedException("Not implemented 325")
     }
 
     override fun getConnection(): Connection {
-        TODO("Not yet implemented")
+        throw SQLFeatureNotSupportedException("Not implemented 326")
     }
 
-    override fun supportsSavepoints(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsNamedParameters(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsMultipleOpenResults(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun supportsGetGeneratedKeys(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun supportsSavepoints(): Boolean = false
+    override fun supportsNamedParameters(): Boolean = false
+    override fun supportsMultipleOpenResults(): Boolean = false
+    override fun supportsGetGeneratedKeys(): Boolean = false
 
     override fun getSuperTypes(catalog: String?, schemaPattern: String?, typeNamePattern: String?): ResultSet {
-        TODO("Not yet implemented")
+        throw SQLFeatureNotSupportedException("Not implemented 327")
     }
 
     override fun getSuperTables(catalog: String?, schemaPattern: String?, tableNamePattern: String?): ResultSet {
-        TODO("Not yet implemented")
+        throw SQLFeatureNotSupportedException("Not implemented 328")
     }
 
     override fun getAttributes(
@@ -527,54 +487,47 @@ override fun getColumns(
         typeNamePattern: String?,
         attributeNamePattern: String?
     ): ResultSet {
-        TODO("Not yet implemented")
+        throw SQLFeatureNotSupportedException("Not implemented 329")
     }
 
     override fun supportsResultSetHoldability(holdability: Int): Boolean {
-        TODO("Not yet implemented")
+        throw SQLFeatureNotSupportedException("Not implemented 330")
     }
 
     override fun getResultSetHoldability(): Int {
-        TODO("Not yet implemented")
+        throw SQLFeatureNotSupportedException("Not implemented 331")
     }
+
 
     override fun getDatabaseMajorVersion(): Int {
-        TODO("Not yet implemented")
+        // Return a static major version for Oracle Fusion.
+        return 1
     }
 
-    override fun getDatabaseMinorVersion(): Int {
-        TODO("Not yet implemented")
-    }
+    override fun getDatabaseMinorVersion(): Int = 0
 
-    override fun getJDBCMajorVersion(): Int {
-        TODO("Not yet implemented")
-    }
 
-    override fun getJDBCMinorVersion(): Int {
-        TODO("Not yet implemented")
-    }
+    override fun getJDBCMajorVersion(): Int = 4
 
-    override fun getSQLStateType(): Int = throw SQLFeatureNotSupportedException("Not implemented 323")
-    override fun locatorsUpdateCopy(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 324")
-    override fun supportsStatementPooling(): Boolean = throw SQLFeatureNotSupportedException("Not implemented 325")
+    override fun getJDBCMinorVersion(): Int = 2
+
+    //override fun getSQLStateType(): Int = throw SQLFeatureNotSupportedException("Not implemented 323")
+    override fun getSQLStateType(): Int = DatabaseMetaData.sqlStateSQL99
+    override fun locatorsUpdateCopy(): Boolean = false //throw SQLFeatureNotSupportedException("Not implemented 324")
+    override fun supportsStatementPooling(): Boolean = false //throw SQLFeatureNotSupportedException("Not implemented 325")
     override fun getRowIdLifetime(): RowIdLifetime {
-        TODO("Not yet implemented")
+        return RowIdLifetime.ROWID_VALID_FOREVER
     }
 
-    override fun supportsStoredFunctionsUsingCallSyntax(): Boolean {
-        TODO("Not yet implemented")
-    }
-
-    override fun autoCommitFailureClosesAllResultSets(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun supportsStoredFunctionsUsingCallSyntax(): Boolean = false
+    override fun autoCommitFailureClosesAllResultSets(): Boolean = false
 
     override fun getClientInfoProperties(): ResultSet {
-        TODO("Not yet implemented")
+        throw SQLFeatureNotSupportedException("Not implemented 332")
     }
 
     override fun getFunctions(catalog: String?, schemaPattern: String?, functionNamePattern: String?): ResultSet {
-        TODO("Not yet implemented")
+        throw SQLFeatureNotSupportedException("Not implemented 333")
     }
 
     override fun getFunctionColumns(
@@ -583,7 +536,7 @@ override fun getColumns(
         functionNamePattern: String?,
         columnNamePattern: String?
     ): ResultSet {
-        TODO("Not yet implemented")
+        throw SQLFeatureNotSupportedException("Not implemented 334")
     }
 
     override fun getPseudoColumns(
@@ -592,13 +545,14 @@ override fun getColumns(
         tableNamePattern: String?,
         columnNamePattern: String?
     ): ResultSet {
-        TODO("Not yet implemented")
+        throw SQLFeatureNotSupportedException("Not implemented 335")
     }
 
-    override fun generatedKeyAlwaysReturned(): Boolean {
-        TODO("Not yet implemented")
-    }
+    override fun generatedKeyAlwaysReturned(): Boolean = false
 
-    override fun <T : Any?> unwrap(iface: Class<T>?): T = throw SQLFeatureNotSupportedException("Not implemented 326")
+    override fun <T : Any?> unwrap(iface: Class<T>?): T = throw SQLFeatureNotSupportedException("Not implemented 336")
     override fun isWrapperFor(iface: Class<*>?): Boolean = false
+
+
 }
+

@@ -55,7 +55,8 @@ class WsdlConnection(
     //override fun getCatalog(): String? = throw UnsupportedOperationException("Not implemented 217")
     override fun getCatalog(): String? = ""
     override fun setTransactionIsolation(level: Int) = throw UnsupportedOperationException("Not implemented 218")
-    override fun getTransactionIsolation(): Int = throw UnsupportedOperationException("Not implemented 219")
+    //override fun getTransactionIsolation(): Int = throw UnsupportedOperationException("Not implemented 219")
+    override fun getTransactionIsolation(): Int = Connection.TRANSACTION_READ_COMMITTED
     //override fun getWarnings(): SQLWarning? = throw UnsupportedOperationException("Not implemented 220")
     override fun getWarnings(): SQLWarning? = null
     //override fun clearWarnings() = throw UnsupportedOperationException("Not implemented 221")
