@@ -12,7 +12,7 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 - [🛠 Prerequisites](#-prerequisites)
 - [📝 Installation](#-installation)
 - [⚙️ Configuration](#-configuration)
-- [❗ Shortcomings](#-Shortcomings)
+- [❗ Limitations](#-Limitations)
 - [📝 TODO](#-todo)
 - [📫 Contact](#-contact)
 
@@ -66,7 +66,7 @@ into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you wil
 5. **Enter the Connection String (JDBC URL): jdbc:wsdl://you-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo**
 6. **Enter Your Credentials: Provide the username and password for basic authentication.**
 
-## ❗ Shortcomings
+## ❗ Limitations
 
 While this driver offers a lightweight and open‑source alternative to closed‑source solutions, it is important to note that:
 
