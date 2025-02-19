@@ -12,6 +12,7 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 - [🛠 Prerequisites](#-prerequisites)
 - [📝 Installation](#-installation)
 - [⚙️ Configuration](#-configuration)
+- ❗ Shortcomings
 - [📝 TODO](#-todo)
 - [📫 Contact](#-contact)
 
@@ -64,6 +65,16 @@ into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you wil
 4. **Create a New Database Connection: In your IDE, create a new database connection using the driver you just registered.**
 5. **Enter the Connection String (JDBC URL): jdbc:wsdl://you-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo**
 6. **Enter Your Credentials: Provide the username and password for basic authentication.**
+
+## ❗ Shortcomings
+
+While this driver offers a lightweight and open‑source alternative to closed‑source solutions, it is important to note that:
+
+It is a minimal implementation designed as a proxy for executing SQL via WSDL, so it may not support all advanced JDBC features.
+Some limitations are inherent to the underlying Oracle Fusion reporting architecture.
+For further insights on some of these challenges, see this article on using synchronous BIP for data extraction.
+https://www.ateam-oracle.com/post/using-synchronous-bip-for-extracting-data-dont
+
 
 ## 📝 TODO
 
