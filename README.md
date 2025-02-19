@@ -12,7 +12,7 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 - [🛠 Prerequisites](#-prerequisites)
 - [📝 Installation](#-installation)
 - [⚙️ Configuration](#-configuration)
-- ❗ Shortcomings
+- [❗ Shortcomings](#-Shortcomings)
 - [📝 TODO](#-todo)
 - [📫 Contact](#-contact)
 
