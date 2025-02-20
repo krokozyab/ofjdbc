@@ -13,7 +13,7 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 - [📝 Installation](#-installation)
 - [⚙️ Configuration](#-configuration)
 - [❗ Limitations](#-Limitations)
-- [⚠️ Important Disclaimer](#-Importand Disclaimer)
+- [⚠️ Important Disclaimer](#-important-disclaimer)
 - [📝 TODO](#-todo)
 - [📫 Contact](#-contact)
 
