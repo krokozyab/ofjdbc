@@ -77,7 +77,7 @@ For further insights on some of these challenges, see this article on using sync
 https://www.ateam-oracle.com/post/using-synchronous-bip-for-extracting-data-dont
 
 
-## ❗ Important Disclaimer
+## ⚠️ Important Disclaimer
 Before using this driver in your organization, please ensure that you consult with your company’s security team or other responsible personnel. It is important to verify that the driver complies with your organization’s security policies and standards. By using this driver, you acknowledge that you have reviewed and obtained the necessary approvals regarding the security implications of its deployment.
 
 
