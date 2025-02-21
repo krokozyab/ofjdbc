@@ -21,7 +21,10 @@ class WsdlConnection(
 
     override fun createStatement(): Statement =
         WsdlStatement(wsdlEndpoint, username, password, reportPath)
-    override fun close() { logger.info("Connection closed") }
+    override fun close() { logger.info("Connection closed")
+        //LocalMetadataCache.close()
+        }
+
     override fun isClosed(): Boolean = false
 
     // Implement getMetaData() by returning a minimal DatabaseMetaData.
@@ -30,8 +33,7 @@ class WsdlConnection(
     override fun prepareStatement(sql: String?): PreparedStatement = throw UnsupportedOperationException("Not implemented 207")
     override fun prepareCall(sql: String?): CallableStatement = throw UnsupportedOperationException("Not implemented 208")
     override fun nativeSQL(sql: String?): String = throw UnsupportedOperationException("Not implemented 209")
-    //override fun setAutoCommit(autoCommit: Boolean) = throw UnsupportedOperationException("Not implemented 210")
-    // Implement setAutoCommit as a no-op that simply stores the value.
+
     override fun setAutoCommit(autoCommit: Boolean) {
         this.autoCommit = autoCommit
         // Optionally log that this is a no-op for read-only connections.
