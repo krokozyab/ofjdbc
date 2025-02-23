@@ -264,5 +264,4 @@ open class WsdlPreparedStatement(
     }
 
     // All other methods required by PreparedStatement can be implemented similarly to throw unsupported exceptions.
-    // For brevity, they are omitted here.
 }
