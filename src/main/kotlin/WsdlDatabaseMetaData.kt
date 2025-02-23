@@ -288,7 +288,7 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         // If the cache is empty, build the remote query.
         //val schemaCond = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${schemaPattern.uppercase()}'" else ""
 
-        /*
+
         val schemaCond = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${defSchema.uppercase()}'" else ""
         val tableCond = if (!tableNamePattern.isNullOrBlank()) " AND table_name LIKE '${tableNamePattern.uppercase()}'" else ""
         val viewCond = if (!tableNamePattern.isNullOrEmpty()) " AND view_name LIKE '$tableNamePattern'" else ""
@@ -312,10 +312,11 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         }
         if (queries.isEmpty()) return createEmptyResultSet()
 
-        */
 
-        //val finalSql = queries.joinToString(" UNION ALL ")
-        val finalSql = """SELECT
+
+        val finalSql = queries.joinToString(" UNION ") //ALL ")
+
+        /*val finalSql = """SELECT
 	                        NULL AS TABLE_CAT,
                             owner AS TABLE_SCHEM,
                             object_name AS TABLE_NAME,
@@ -331,7 +332,9 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
                             WHERE
                                 owner = 'FUSION'
                                 AND object_type IN ('TABLE', 'VIEW')
-                                AND TEMPORARY ='N'"""
+                                """
+                                */
+
 
         logger.info("Executing remote getTables SQL: {}", finalSql)
         val responseXml = sendSqlViaWsdl(
