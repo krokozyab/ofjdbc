@@ -64,7 +64,15 @@ class WsdlConnection(
     //override fun clearWarnings() = throw UnsupportedOperationException("Not implemented 221")
     override fun clearWarnings() { /* no warnings to clear */ }
     override fun createStatement(resultSetType: Int, resultSetConcurrency: Int): Statement = throw UnsupportedOperationException("Not implemented 222")
-    override fun prepareStatement(sql: String?, resultSetType: Int, resultSetConcurrency: Int): PreparedStatement = throw UnsupportedOperationException("Not implemented 223")
+    //override fun prepareStatement(sql: String?, resultSetType: Int, resultSetConcurrency: Int): PreparedStatement = throw UnsupportedOperationException("Not implemented 223")
+    override fun prepareStatement(sql: String?, resultSetType: Int, resultSetConcurrency: Int): PreparedStatement {
+        if (sql == null) {
+            throw SQLException("SQL cannot be null")
+        }
+        // You may log the requested types if needed.
+        logger.info("Preparing statement: {} (type={}, concurrency={})", sql, resultSetType, resultSetConcurrency)
+        return WsdlPreparedStatement(sql, wsdlEndpoint, username, password, reportPath)
+    }
     override fun prepareCall(sql: String?, resultSetType: Int, resultSetConcurrency: Int): CallableStatement = throw UnsupportedOperationException("Not implemented 224")
     override fun getTypeMap(): MutableMap<String, Class<*>> = throw UnsupportedOperationException("Not implemented 225")
     override fun setTypeMap(map: MutableMap<String, Class<*>>?) = throw UnsupportedOperationException("Not implemented 226")

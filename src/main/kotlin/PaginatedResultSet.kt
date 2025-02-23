@@ -188,10 +188,33 @@ class PaginatedResultSet(
     override fun getByte(columnLabel: String?): Byte = throw UnsupportedOperationException("Not implemented 5")
     override fun getShort(columnIndex: Int): Short = throw UnsupportedOperationException("Not implemented 6")
     override fun getShort(columnLabel: String?): Short = throw UnsupportedOperationException("Not implemented 7")
-    override fun getLong(columnIndex: Int): Long = throw UnsupportedOperationException("Not implemented 8")
-    override fun getLong(columnLabel: String?): Long = throw UnsupportedOperationException("Not implemented 9")
-    override fun getFloat(columnIndex: Int): Float = throw UnsupportedOperationException("Not implemented 10")
-    override fun getFloat(columnLabel: String?): Float = throw UnsupportedOperationException("Not implemented 11")
+    //override fun getLong(columnIndex: Int): Long = throw UnsupportedOperationException("Not implemented 8")
+    //override fun getLong(columnLabel: String?): Long = throw UnsupportedOperationException("Not implemented 9")
+    override fun getLong(columnLabel: String): Long {
+        val value = getString(columnLabel)
+        return if (!value.isNullOrBlank()) {
+            value.toLongOrNull() ?: 0L
+        } else {
+            0L
+        }
+    }
+
+    override fun getLong(columnIndex: Int): Long {
+        val meta = metaData
+        val colName = meta.getColumnName(columnIndex)
+        return getLong(colName)
+    }
+
+    //override fun getFloat(columnIndex: Int): Float = throw UnsupportedOperationException("Not implemented 10")
+    //override fun getFloat(columnLabel: String?): Float = throw UnsupportedOperationException("Not implemented 11")
+    override fun getFloat(columnLabel: String): Float =
+        getString(columnLabel)?.toFloatOrNull() ?: throw SQLException("Cannot convert value to float")
+
+    override fun getFloat(columnIndex: Int): Float {
+        val meta = metaData
+        val colName = meta.getColumnName(columnIndex)
+        return getFloat(colName)
+    }
     override fun getDouble(columnIndex: Int): Double = throw UnsupportedOperationException("Not implemented 12")
     override fun getDouble(columnLabel: String?): Double = throw UnsupportedOperationException("Not implemented 13")
     @Deprecated("Deprecated in Java")

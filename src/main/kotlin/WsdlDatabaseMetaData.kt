@@ -287,6 +287,8 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
 
         // If the cache is empty, build the remote query.
         //val schemaCond = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${schemaPattern.uppercase()}'" else ""
+
+        /*
         val schemaCond = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${defSchema.uppercase()}'" else ""
         val tableCond = if (!tableNamePattern.isNullOrBlank()) " AND table_name LIKE '${tableNamePattern.uppercase()}'" else ""
         val viewCond = if (!tableNamePattern.isNullOrEmpty()) " AND view_name LIKE '$tableNamePattern'" else ""
@@ -309,7 +311,28 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
             )
         }
         if (queries.isEmpty()) return createEmptyResultSet()
-        val finalSql = queries.joinToString(" UNION ALL ")
+
+        */
+
+        //val finalSql = queries.joinToString(" UNION ALL ")
+        val finalSql = """SELECT
+	                        NULL AS TABLE_CAT,
+                            owner AS TABLE_SCHEM,
+                            object_name AS TABLE_NAME,
+                            object_type AS TABLE_TYPE,
+                            NULL AS REMARKS,
+                            NULL AS TYPE_CAT,
+                            NULL AS TYPE_SCHEM,
+                            NULL AS TYPE_NAME,
+                            NULL AS SELF_REFERENCING_COL_NAME,
+                            NULL AS REF_GENERATION
+                            FROM
+                                all_objects
+                            WHERE
+                                owner = 'FUSION'
+                                AND object_type IN ('TABLE', 'VIEW')
+                                AND TEMPORARY ='N'"""
+
         logger.info("Executing remote getTables SQL: {}", finalSql)
         val responseXml = sendSqlViaWsdl(
             connection.wsdlEndpoint,
@@ -502,8 +525,16 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
 
     //override fun getCatalogs(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 310")
     override fun getCatalogs(): ResultSet = createEmptyResultSet()
-    override fun getTableTypes(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 311")
-//    override fun getColumns(catalog: String?, schemaPattern: String?, tableNamePattern: String?, columnNamePattern: String?): ResultSet =
+    //override fun getTableTypes(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 311")
+    override fun getTableTypes(): ResultSet {
+        val typesList = listOf(
+            mapOf("TABLE_TYPE" to "TABLE"),
+            mapOf("TABLE_TYPE" to "VIEW")
+        )
+        return XmlResultSet(typesList)
+    }
+
+    //    override fun getColumns(catalog: String?, schemaPattern: String?, tableNamePattern: String?, columnNamePattern: String?): ResultSet =
 //        throw SQLFeatureNotSupportedException("Not implemented 312")
 override fun getColumns(
     catalog: String?,
@@ -796,8 +827,10 @@ override fun getColumns(
         typeNamePattern: String?,
         types: IntArray?
     ): ResultSet {
-        throw SQLFeatureNotSupportedException("Not implemented 325")
+        // Return an empty result set for UDT queries.
+        return createEmptyResultSet()
     }
+
 
     override fun getConnection(): Connection {
         throw SQLFeatureNotSupportedException("Not implemented 326")

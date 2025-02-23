@@ -6,7 +6,7 @@ import java.sql.ResultSet
 import java.sql.SQLWarning
 import java.sql.Statement
 
-class WsdlStatement(
+open class WsdlStatement(
     private val wsdlEndpoint: String,
     private val username: String,
     private val password: String,

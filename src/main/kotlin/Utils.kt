@@ -148,6 +148,17 @@ fun sendSqlViaWsdl(
     val response = httpClient.execute(httpPost)
     val status = response.statusLine.statusCode
     val body = response.entity?.let { EntityUtils.toString(it, "UTF-8") }
+
+    // Check if the response seems to be an HTML error page instead of valid SOAP XML.
+    if (body != null) {
+        if (body.trim().startsWith("<html", ignoreCase = true) || body.trim().startsWith("<!DOCTYPE html", ignoreCase = true)) {
+            logger.error("Received an HTML error response (HTTP {}): {}", status, body)
+            throw SQLException("WSDL service error ($status): Received an HTML error response. Details: $body")
+        }
+    }
+    // Log the raw response for debugging
+    //logger.info("Raw SOAP response (status {}): {}", status, body)
+
     if (body.isNullOrBlank()) {
         throw SQLException("Empty SOAP response from WSDL service. HTTP Status: $status")
     }
