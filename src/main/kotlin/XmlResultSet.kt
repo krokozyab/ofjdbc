@@ -6,9 +6,18 @@ import java.io.StringReader
 import java.math.BigDecimal
 import java.sql.*
 import java.sql.ResultSetMetaData.columnNullable
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.*
 
-class XmlResultSet(private val rows: List<Map<String, String>>) : ResultSet {
+data class ColumnMetadata(val name: String, val type: Int, val typeName: String)
+
+class XmlResultSet(private val rows: List<Map<String, String>>,
+    // If metadata is not provided, default all columns to VARCHAR.
+                   private val columns: List<ColumnMetadata> = if (rows.isNotEmpty())
+                       rows[0].keys.map { key -> ColumnMetadata(key, Types.VARCHAR, "VARCHAR") }
+                   else
+                       emptyList()) : ResultSet {
     private var currentIndex = -1
 
     private var statement: Statement? = null
@@ -37,16 +46,18 @@ class XmlResultSet(private val rows: List<Map<String, String>>) : ResultSet {
         return getString(colName)
     }
 
+    //override fun getInt(columnLabel: String): Int =
+    //    getString(columnLabel)?.toIntOrNull() ?: throw SQLException("Cannot convert value to int")
+    // Instead of throwing an exception if conversion fails, return 0.
     override fun getInt(columnLabel: String): Int =
-        getString(columnLabel)?.toIntOrNull() ?: throw SQLException("Cannot convert value to int")
-
+        getString(columnLabel)?.toIntOrNull() ?: 0
     //override fun getObject(columnLabel: String): Any? = getString(columnLabel)
 
+
     override fun getMetaData(): ResultSetMetaData {
-        val columns = if (rows.isNotEmpty()) rows[0].keys.toList() else emptyList()
         return object : ResultSetMetaData {
             override fun getColumnCount(): Int = columns.size
-            override fun getColumnName(column: Int): String = columns[column - 1]
+            override fun getColumnName(column: Int): String = columns[column - 1].name
             override fun getColumnLabel(column: Int): String = getColumnName(column)
             override fun isAutoIncrement(column: Int): Boolean = false
             override fun isCaseSensitive(column: Int): Boolean = true
@@ -55,8 +66,8 @@ class XmlResultSet(private val rows: List<Map<String, String>>) : ResultSet {
             override fun isNullable(column: Int): Int = columnNullable
             override fun isSigned(column: Int): Boolean = false
             override fun getColumnDisplaySize(column: Int): Int = 50
-            override fun getColumnType(column: Int): Int = Types.VARCHAR
-            override fun getColumnTypeName(column: Int): String = "VARCHAR"
+            override fun getColumnType(column: Int): Int = columns[column - 1].type
+            override fun getColumnTypeName(column: Int): String = columns[column - 1].typeName
             override fun getPrecision(column: Int): Int = 0
             override fun getScale(column: Int): Int = 0
             override fun getSchemaName(column: Int): String = ""
@@ -65,7 +76,14 @@ class XmlResultSet(private val rows: List<Map<String, String>>) : ResultSet {
             override fun isReadOnly(column: Int): Boolean = true
             override fun isWritable(column: Int): Boolean = false
             override fun isDefinitelyWritable(column: Int): Boolean = false
-            override fun getColumnClassName(column: Int): String = "java.lang.String"
+            override fun getColumnClassName(column: Int): String =
+                when (columns[column - 1].type) {
+                    Types.INTEGER -> "java.lang.Integer"
+                    Types.DOUBLE -> "java.lang.Double"
+                    Types.DECIMAL, Types.NUMERIC -> "java.math.BigDecimal"
+                    Types.DATE -> "java.sql.Date"
+                    else -> "java.lang.String"
+                }
             override fun <T : Any?> unwrap(iface: Class<T>?): T =
                 throw SQLFeatureNotSupportedException("Not implemented 1")
             override fun isWrapperFor(iface: Class<*>?): Boolean = false
@@ -90,8 +108,25 @@ class XmlResultSet(private val rows: List<Map<String, String>>) : ResultSet {
         val columnName = meta.getColumnName(columnIndex)
         return getInt(columnName)
     }
-    override fun getLong(columnIndex: Int): Long = throw UnsupportedOperationException("Not implemented 9")
-    override fun getLong(columnLabel: String?): Long = throw UnsupportedOperationException("Not implemented 10")
+    //override fun getLong(columnIndex: Int): Long = throw UnsupportedOperationException("Not implemented 9")
+    //override fun getLong(columnLabel: String?): Long = throw UnsupportedOperationException("Not implemented 10")
+
+    override fun getLong(columnLabel: String): Long {
+        val value = getString(columnLabel)
+        return if (!value.isNullOrBlank()) {
+            value.toLongOrNull() ?: 0L
+        } else {
+            0L
+        }
+    }
+
+    override fun getLong(columnIndex: Int): Long {
+        val meta = metaData
+        val colName = meta.getColumnName(columnIndex)
+        return getLong(colName)
+    }
+
+
     override fun getFloat(columnIndex: Int): Float = throw UnsupportedOperationException("Not implemented 11")
     override fun getFloat(columnLabel: String?): Float = throw UnsupportedOperationException("Not implemented 12")
     override fun getDouble(columnIndex: Int): Double = throw UnsupportedOperationException("Not implemented 13")
@@ -126,12 +161,41 @@ class XmlResultSet(private val rows: List<Map<String, String>>) : ResultSet {
         // No warnings are stored, so nothing to clear.
     }
     override fun getCursorName(): String = throw UnsupportedOperationException("Not implemented 32")
-    override fun getObject(columnLabel: String): Any? = getString(columnLabel)
+    //override fun getObject(columnLabel: String): Any? = getString(columnLabel)
+    /**
+     * Returns an Object converted based on the provided column metadata.
+     */
+    override fun getObject(columnLabel: String): Any? {
+        val value = getString(columnLabel) ?: return null
+        val colMeta = columns.find { it.name.equals(columnLabel, ignoreCase = true) } ?: return value
+        logger.info("Column metadata: {} {}", columnLabel, colMeta)
+        return when (colMeta.type) {
+            Types.INTEGER -> value.toIntOrNull() ?: 0
+            Types.DOUBLE -> value.toDoubleOrNull() ?: value
+            Types.DECIMAL, Types.NUMERIC -> try { BigDecimal(value) } catch (e: Exception) { value }
+            Types.DATE -> try {
+                val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
+                java.sql.Date.valueOf(LocalDate.parse(value, formatter))
+            } catch (e: Exception) { value }
+            else -> value
+        }
+    }
+
     override fun getObject(columnIndex: Int): Any? {
         val meta = metaData
         val colName = meta.getColumnName(columnIndex)
         return getObject(colName)
     }
+
+    // Overloads that take a mapping parameter delegate to the basic methods.
+    /*override fun getObject(columnLabel: String, map: MutableMap<String, Class<*>>): Any? {
+        return getObject(columnLabel)
+    }
+
+    override fun getObject(columnIndex: Int, map: MutableMap<String, Class<*>>): Any? {
+        return getObject(columnIndex)
+    }
+    */
     //override fun findColumn(columnLabel: String): Int = throw UnsupportedOperationException("Not implemented 35")
     override fun getCharacterStream(columnIndex: Int): StringReader = throw UnsupportedOperationException("Not implemented 36")
     override fun getCharacterStream(columnLabel: String): StringReader = throw UnsupportedOperationException("Not implemented 37")
