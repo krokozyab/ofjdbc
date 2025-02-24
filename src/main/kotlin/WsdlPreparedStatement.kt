@@ -1,21 +1,21 @@
 package my.jdbc.wsdl_driver
 
-import java.sql.*
 import org.slf4j.LoggerFactory
 import java.io.InputStream
 import java.io.Reader
 import java.math.BigDecimal
 import java.net.URL
+import java.sql.*
 import java.sql.Array
 import java.sql.Date
 import java.util.*
 
 /**
- * A minimal PreparedStatement implementation.
- * This version does not support parameter binding; it simply stores the SQL
- * and delegates execution to the WsdlStatement implementation.
+ * A minimal PreparedStatement implementation with parameter binding.
+ * It uses a simple substitution mechanism to replace each '?' in the SQL
+ * with the corresponding parameter value.
  */
-open class WsdlPreparedStatement(
+class WsdlPreparedStatement(
     private val sql: String,
     wsdlEndpoint: String,
     username: String,
@@ -24,244 +24,226 @@ open class WsdlPreparedStatement(
 ) : WsdlStatement(wsdlEndpoint, username, password, reportPath), PreparedStatement {
 
     private val logger = LoggerFactory.getLogger(WsdlPreparedStatement::class.java)
+    // Store parameters by their 1-indexed position.
+    private val parameters = mutableMapOf<Int, Any?>()
 
-    // Execute the SQL as-is.
-    override fun executeQuery(): ResultSet {
-        logger.info("Executing prepared query: {}", sql)
-        return executeQuery(sql)
-    }
-
-    override fun executeUpdate(): Int {
-        throw SQLFeatureNotSupportedException("Update operations are not supported in this read-only driver")
-    }
-
-    override fun execute(): Boolean {
-        // For our read-only driver, simply delegate to our execute method.
-        return execute(sql)
-    }
-
-    // All parameter binding methods throw unsupported operation.
-    override fun setNull(parameterIndex: Int, sqlType: Int) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setNull(parameterIndex: Int, sqlType: Int, typeName: String?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setBoolean(parameterIndex: Int, x: Boolean) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setByte(parameterIndex: Int, x: Byte) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setShort(parameterIndex: Int, x: Short) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setInt(parameterIndex: Int, x: Int) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setLong(parameterIndex: Int, x: Long) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setFloat(parameterIndex: Int, x: Float) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setDouble(parameterIndex: Int, x: Double) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setBigDecimal(parameterIndex: Int, x: BigDecimal?) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setString(parameterIndex: Int, x: String?) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setBytes(parameterIndex: Int, x: ByteArray?) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setDate(parameterIndex: Int, x: java.sql.Date?) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setDate(parameterIndex: Int, x: Date?, cal: Calendar?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setTime(parameterIndex: Int, x: Time?) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setTime(parameterIndex: Int, x: Time?, cal: Calendar?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setTimestamp(parameterIndex: Int, x: Timestamp?) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setTimestamp(parameterIndex: Int, x: Timestamp?, cal: Calendar?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setAsciiStream(parameterIndex: Int, x: java.io.InputStream?, length: Int) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setAsciiStream(parameterIndex: Int, x: InputStream?, length: Long) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setAsciiStream(parameterIndex: Int, x: InputStream?) {
-        TODO("Not yet implemented")
-    }
-
-    @Deprecated("Deprecated in Java")
-    override fun setUnicodeStream(parameterIndex: Int, x: java.io.InputStream?, length: Int) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setBinaryStream(parameterIndex: Int, x: java.io.InputStream?, length: Int) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
-    }
-
-    override fun setBinaryStream(parameterIndex: Int, x: InputStream?, length: Long) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setBinaryStream(parameterIndex: Int, x: InputStream?) {
-        TODO("Not yet implemented")
+    // Build final SQL string by substituting each '?' with its parameter value.
+    private fun buildSql(): String {
+        var finalSql = sql
+        // Count number of '?' in the SQL.
+        val paramCount = sql.count { it == '?' }
+        for (i in 1..paramCount) {
+            val paramValue = parameters[i] ?: "NULL"
+            val formattedValue = when (paramValue) {
+                null -> "NULL"
+                is String -> "'${paramValue.replace("'", "''")}'"
+                is Boolean -> if (paramValue) "1" else "0"
+                else -> paramValue.toString()
+            }
+            // Replace the first occurrence of '?' with the formatted value.
+            finalSql = finalSql.replaceFirst("?", formattedValue)
+        }
+        return finalSql
     }
 
     override fun clearParameters() {
-        // Nothing to clear since parameter binding is not supported.
+        parameters.clear()
     }
 
-    override fun setObject(parameterIndex: Int, x: Any?) {
+    override fun setNull(parameterIndex: Int, sqlType: Int) {
+        parameters[parameterIndex] = null
+    }
+
+    override fun setNull(parameterIndex: Int, sqlType: Int, typeName: String?) {
+        parameters[parameterIndex] = null
+    }
+
+    override fun setBoolean(parameterIndex: Int, x: Boolean) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setByte(parameterIndex: Int, x: Byte) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setShort(parameterIndex: Int, x: Short) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setInt(parameterIndex: Int, x: Int) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setLong(parameterIndex: Int, x: Long) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setFloat(parameterIndex: Int, x: Float) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setDouble(parameterIndex: Int, x: Double) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setBigDecimal(parameterIndex: Int, x: BigDecimal?) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setString(parameterIndex: Int, x: String?) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setBytes(parameterIndex: Int, x: ByteArray?) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setDate(parameterIndex: Int, x: Date?) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setDate(parameterIndex: Int, x: Date?, cal: Calendar?) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setTime(parameterIndex: Int, x: Time?) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setTime(parameterIndex: Int, x: Time?, cal: Calendar?) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setTimestamp(parameterIndex: Int, x: Timestamp?) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setTimestamp(parameterIndex: Int, x: Timestamp?, cal: Calendar?) {
+        parameters[parameterIndex] = x
+    }
+
+    // For stream parameters, we do not support binding in this minimal implementation.
+    override fun setAsciiStream(parameterIndex: Int, x: InputStream?, length: Int) =
+        throw UnsupportedOperationException("Stream parameter binding is not supported")
+
+    override fun setAsciiStream(parameterIndex: Int, x: InputStream?, length: Long) =
+        throw UnsupportedOperationException("Stream parameter binding is not supported")
+
+    override fun setAsciiStream(parameterIndex: Int, x: InputStream?) =
+        throw UnsupportedOperationException("Stream parameter binding is not supported")
+
+    // Implementations for other stream-related methods (binary, character, etc.) are omitted.
+    override fun setUnicodeStream(parameterIndex: Int, x: InputStream?, length: Int) =
         throw UnsupportedOperationException("Parameter binding is not supported")
+
+    override fun setBinaryStream(parameterIndex: Int, x: InputStream?, length: Int) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
+
+    override fun setBinaryStream(parameterIndex: Int, x: InputStream?, length: Long) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
+
+    override fun setBinaryStream(parameterIndex: Int, x: InputStream?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
+
+    override fun setObject(parameterIndex: Int, x: Any?) {
+        parameters[parameterIndex] = x
     }
 
     override fun setObject(parameterIndex: Int, x: Any?, targetSqlType: Int) {
-        throw UnsupportedOperationException("Parameter binding is not supported")
+        parameters[parameterIndex] = x
     }
 
     override fun setObject(parameterIndex: Int, x: Any?, targetSqlType: Int, scaleOrLength: Int) {
+        parameters[parameterIndex] = x
+    }
+
+    override fun setCharacterStream(parameterIndex: Int, reader: Reader?, length: Int) =
         throw UnsupportedOperationException("Parameter binding is not supported")
-    }
 
-    override fun setCharacterStream(parameterIndex: Int, reader: Reader?, length: Int) {
-        TODO("Not yet implemented")
-    }
+    override fun setCharacterStream(parameterIndex: Int, reader: Reader?, length: Long) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun setCharacterStream(parameterIndex: Int, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
-    }
+    override fun setCharacterStream(parameterIndex: Int, reader: Reader?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun setCharacterStream(parameterIndex: Int, reader: Reader?) {
-        TODO("Not yet implemented")
-    }
+    override fun setRef(parameterIndex: Int, x: Ref?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun setRef(parameterIndex: Int, x: Ref?) {
-        TODO("Not yet implemented")
-    }
+    override fun setBlob(parameterIndex: Int, x: Blob?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun setBlob(parameterIndex: Int, x: Blob?) {
-        TODO("Not yet implemented")
-    }
+    override fun setBlob(parameterIndex: Int, inputStream: InputStream?, length: Long) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun setBlob(parameterIndex: Int, inputStream: InputStream?, length: Long) {
-        TODO("Not yet implemented")
-    }
+    override fun setBlob(parameterIndex: Int, inputStream: InputStream?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun setBlob(parameterIndex: Int, inputStream: InputStream?) {
-        TODO("Not yet implemented")
-    }
+    override fun setClob(parameterIndex: Int, x: Clob?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun setClob(parameterIndex: Int, x: Clob?) {
-        TODO("Not yet implemented")
-    }
+    override fun setClob(parameterIndex: Int, reader: Reader?, length: Long) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun setClob(parameterIndex: Int, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
-    }
+    override fun setClob(parameterIndex: Int, reader: Reader?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun setClob(parameterIndex: Int, reader: Reader?) {
-        TODO("Not yet implemented")
-    }
+    override fun setArray(parameterIndex: Int, x: Array?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun setArray(parameterIndex: Int, x: Array?) {
-        TODO("Not yet implemented")
-    }
 
     override fun getMetaData(): ResultSetMetaData {
         TODO("Not yet implemented")
     }
 
-    override fun setURL(parameterIndex: Int, x: URL?) {
-        TODO("Not yet implemented")
-    }
+    override fun setURL(parameterIndex: Int, x: URL?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun getParameterMetaData(): ParameterMetaData {
-        TODO("Not yet implemented")
-    }
+    override fun getParameterMetaData(): ParameterMetaData =
+        throw SQLFeatureNotSupportedException("Parameter metadata is not supported")
 
-    override fun setRowId(parameterIndex: Int, x: RowId?) {
-        TODO("Not yet implemented")
-    }
+    override fun setRowId(parameterIndex: Int, x: RowId?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
 
     override fun setNString(parameterIndex: Int, value: String?) {
+        parameters[parameterIndex] = value
+    }
+
+    override fun setNCharacterStream(parameterIndex: Int, value: Reader?, length: Long) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
+
+    override fun setNCharacterStream(parameterIndex: Int, value: Reader?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
+
+    override fun setNClob(parameterIndex: Int, value: NClob?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
+
+    override fun setNClob(parameterIndex: Int, reader: Reader?, length: Long) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
+
+    override fun setNClob(parameterIndex: Int, reader: Reader?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
+
+    override fun setSQLXML(parameterIndex: Int, xmlObject: SQLXML?) =
+        throw UnsupportedOperationException("Parameter binding is not supported")
+
+    // Override the execute methods to use parameter binding.
+    override fun executeQuery(): ResultSet {
+        val finalSql = buildSql()
+        logger.info("Executing prepared query: {}", finalSql)
+        return super.executeQuery(finalSql)
+    }
+
+    override fun executeUpdate(): Int {
         TODO("Not yet implemented")
     }
 
-    override fun setNCharacterStream(parameterIndex: Int, value: Reader?, length: Long) {
-        TODO("Not yet implemented")
+    override fun execute(): Boolean {
+        val finalSql = buildSql()
+        logger.info("Executing prepared query: {}", finalSql)
+        return super.execute(finalSql)
     }
 
-    override fun setNCharacterStream(parameterIndex: Int, value: Reader?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setNClob(parameterIndex: Int, value: NClob?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setNClob(parameterIndex: Int, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setNClob(parameterIndex: Int, reader: Reader?) {
-        TODO("Not yet implemented")
-    }
-
-    override fun setSQLXML(parameterIndex: Int, xmlObject: SQLXML?) {
-        TODO("Not yet implemented")
-    }
-
-    // The following methods (for batch updates, generated keys, etc.) are not supported in this minimal implementation.
     override fun addBatch() {
-        throw UnsupportedOperationException("Batch operations are not supported")
+        TODO("Not yet implemented")
     }
-
-    override fun clearBatch(): Nothing {
-        throw UnsupportedOperationException("Batch operations are not supported")
-    }
-
-    override fun executeBatch(): IntArray {
-        throw UnsupportedOperationException("Batch operations are not supported")
-    }
-
-    override fun getResultSet(): ResultSet? {
-        return super.getResultSet()
-    }
-
-    // All other methods required by PreparedStatement can be implemented similarly to throw unsupported exceptions.
 }

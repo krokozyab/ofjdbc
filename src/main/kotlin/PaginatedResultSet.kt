@@ -52,6 +52,10 @@ class PaginatedResultSet(
      */
     private fun rewriteQueryForPagination(originalSql: String, offset: Int, fetchSize: Int): String {
         val trimmed = originalSql.trim()
+        // If fetchSize is <= 0, do not modify the query.
+        if (fetchSize <= 0) {
+            return trimmed
+        }
         // If query does not start with SELECT or already contains FETCH, do not rewrite.
         if (!trimmed.uppercase().startsWith("SELECT") || trimmed.uppercase().contains("FETCH")) {
             return originalSql
