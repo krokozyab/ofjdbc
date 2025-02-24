@@ -26,6 +26,10 @@ tasks.test {
     useJUnitPlatform()
 }
 
+tasks.wrapper {
+    gradleVersion = "8.12.1"
+}
+
 
 tasks {
     // Configure the ShadowJar (uberjar) task.
