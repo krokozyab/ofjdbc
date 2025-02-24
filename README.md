@@ -1,4 +1,4 @@
-# Oracle Fusion JDBC Driver
+# Oracle Fusion JDBC Driver / Oracle Fusion SQL query tool
 
 A read‑only JDBC driver that lets you run SQL queries against Oracle Fusion.
 This minimal viable implementation works seamlessly in mature IDE's - DBeaver, DbVisualizer and IntelliJ. 
