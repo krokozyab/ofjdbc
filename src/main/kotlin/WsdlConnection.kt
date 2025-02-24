@@ -30,7 +30,13 @@ class WsdlConnection(
     // Implement getMetaData() by returning a minimal DatabaseMetaData.
     override fun getMetaData(): DatabaseMetaData = WsdlDatabaseMetaData(this)
 
-    override fun prepareStatement(sql: String?): PreparedStatement = throw UnsupportedOperationException("Not implemented 207")
+    override fun prepareStatement(sql: String?): PreparedStatement {
+        if (sql == null) {
+            throw SQLException("SQL query cannot be null")
+        }
+        return WsdlPreparedStatement(sql, wsdlEndpoint, username, password, reportPath)
+    }
+
     override fun prepareCall(sql: String?): CallableStatement = throw UnsupportedOperationException("Not implemented 208")
     override fun nativeSQL(sql: String?): String = throw UnsupportedOperationException("Not implemented 209")
 
