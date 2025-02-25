@@ -26,7 +26,7 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
   - **IDE Integration:** Run SQL queries directly from your favorite IDE - DBeaver, DbVisualizer, IntelliJ, etc. without the extra overhead.
   _**DBeaver**_
   ![dbeaver](pics/dbeaver.jpg)
-  ![dbeaver](pics/dbv1.jpg)
+  ![dbeaver](pics/dbv1.png)
   ![dbeaver](pics/dbv2.png)
 
 - **JVM-Hosted Flexibility:** Use this driver not only from Java but from any JVM‑hosted language for building custom data pipelines.
