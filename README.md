@@ -28,6 +28,7 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
   ![dbeaver](pics/dbeaver.jpg)
   ![dbeaver](pics/dbv1.png)
   ![dbeaver](pics/dbv2.png)
+  ![dbeaver](pics/dbv3.png)
 
 - **JVM-Hosted Flexibility:** Use this driver not only from Java but from any JVM‑hosted language for building custom data pipelines.
 - **Easy to Configure:** Simple setup by providing your connection URL and credentials.
