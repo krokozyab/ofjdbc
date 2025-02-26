@@ -55,8 +55,8 @@ fun main() {
 
         // Define your JDBC URL, username, and password.
         val jdbcUrl = "jdbc:wsdl://you-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo"
-        val username = "xxx" // Never ever put creds in the code, nobody hires you :) use env vars, secrets managers etc
-        val password = "xxx"
+        val username = System.getenv("DB_USERNAME")
+        val password = System.getenv("DB_PASSWORD")
 
         // Obtain a connection.
         val connection = DriverManager.getConnection(jdbcUrl, username, password)
