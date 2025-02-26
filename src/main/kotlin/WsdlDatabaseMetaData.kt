@@ -169,8 +169,8 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
 
     override fun getNumericFunctions(): String = "ABS,ACOS,ASIN,ATAN,ATAN2,CEIL,COS,COT,DEGREES,EXP,FLOOR,LOG,LOG10,MOD,POWER,ROUND,SIN,SQRT,TAN"
     override fun getStringFunctions(): String = "LCASE,UPPER,INITCAP,LTRIM,RTRIM,CONCAT,SUBSTR,INSTR,REPLACE,LPAD,RPAD"
-    override fun getSystemFunctions(): String = "USER,SYSDATE,CURRENT_DATE"
-    override fun getTimeDateFunctions(): String = "NOW,CURDATE,CURTIME,SYSDATE"
+    override fun getSystemFunctions(): String = "USER,SYSDATE,CURRENT_DATE,SYS_GUID()"
+    override fun getTimeDateFunctions(): String = "NOW,CURRENT_DATE,CURRENT_TIMESTAMP,SYSDATE,SYSTIMESTAMP,LOCALTIMESTAMP,SESSIONTIMEZONE,DBTIMEZONE"
     //override fun getSchemaTerm(): String = throw SQLFeatureNotSupportedException("Not implemented 265")
     override fun getSearchStringEscape(): String = "\\"
     //override fun getProcedureTerm(): String = throw SQLFeatureNotSupportedException("Not implemented 266")
