@@ -23,11 +23,13 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 - **Your Credentials, Your Control:** Unlike many closed‑source solutions, this driver keeps your credentials under your control, ensuring peace of mind and security.
 - **Incremental Introspection**: Enjoy real‑time code completions as you type! The driver leverages a local metadata cache that incrementally introspects and stores schema information, dramatically speeding up completion suggestions in DBeaver. (maybe slow only at 1-st run, wait a minute)
 - **Minimalist Design:** A read‑only, no‑frills JDBC driver for Oracle Fusion exploring/reporting via WSDL.
-- **IDE Integration:** Run SQL queries directly from your favorite IDE - DBeaver, DbVisualizer, IntelliJ, etc. without the extra overhead.
-_**DBeaver**_
-![dbeaver](pics/dbeaver.jpg)
-_**DBVisualizer**_ 
-![dbvisualizer](pics/dbvisualizer.jpg)
+  - **IDE Integration:** Run SQL queries directly from your favorite IDE - DBeaver, DbVisualizer, IntelliJ, etc. without the extra overhead.
+  _**DBeaver**_
+  ![dbeaver](pics/dbeaver.jpg)
+  ![dbeaver](pics/dbv1.png)
+  ![dbeaver](pics/dbv2.png)
+  ![dbeaver](pics/dbv3.png)
+
 - **JVM-Hosted Flexibility:** Use this driver not only from Java but from any JVM‑hosted language for building custom data pipelines.
 - **Easy to Configure:** Simple setup by providing your connection URL and credentials.
 
