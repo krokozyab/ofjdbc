@@ -73,9 +73,9 @@ into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you wil
 4. **Create a New Database Connection: In your IDE, create a new database connection using the driver you just registered.**
 5. **Enter the Connection String (JDBC URL): jdbc:wsdl://you-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo**
 6. **Enter Your Credentials: Provide the username and password for basic authentication.**
-   <font color="orange">
+<font color="orange">
 0. **After February 27, 2025, the incremental cache algorithm has been updated. In addition to installing the new release JAR file, please refresh your local cache by deleting the metadata.db and metadata.db.wal files from your user folder.**
-   </font>
+</font>
 ## ❗ Limitations
 
 While this driver offers a lightweight and open‑source alternative to closed‑source solutions, it is important to note that:
