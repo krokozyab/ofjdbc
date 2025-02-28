@@ -76,6 +76,7 @@ into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you wil
 <font color="orange">
 0. **After February 27, 2025, the incremental cache algorithm has been updated. In addition to installing the new release JAR file, please refresh your local cache by deleting the metadata.db and metadata.db.wal files from your user folder.**
 </font>
+
 ## ❗ Limitations
 
 While this driver offers a lightweight and open‑source alternative to closed‑source solutions, it is important to note that:
