@@ -288,12 +288,14 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         // If the cache is empty, build the remote query.
         //val schemaCond = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${schemaPattern.uppercase()}'" else ""
 
-
+        /*
         val schemaCond = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${defSchema.uppercase()}'" else ""
         val tableCond = if (!tableNamePattern.isNullOrBlank()) " AND table_name LIKE '${tableNamePattern.uppercase()}'" else ""
         val viewCond = if (!tableNamePattern.isNullOrEmpty()) " AND view_name LIKE '$tableNamePattern'" else ""
         val typesList = types?.map { it.uppercase() } ?: listOf("TABLE", "VIEW")
         val queries = mutableListOf<String>()
+
+
         if (typesList.isEmpty() || typesList.contains("TABLE")) {
             queries.add(
                 "SELECT null AS TABLE_CAT, owner AS TABLE_SCHEM, table_name AS TABLE_NAME, 'TABLE' AS TABLE_TYPE, " +
@@ -310,17 +312,24 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
                         "FROM all_views WHERE 1=1$schemaCond$viewCond"
             )
         }
+
+
         if (queries.isEmpty()) return createEmptyResultSet()
 
 
 
         val finalSql = queries.joinToString(" UNION ") //ALL ")
 
-        /*val finalSql = """SELECT
+        logger.info(
+            "Executing remote getTables SQL: {}", finalSql
+        )
+        */
+
+        val finalSql = """SELECT distinct
 	                        NULL AS TABLE_CAT,
                             owner AS TABLE_SCHEM,
-                            object_name AS TABLE_NAME,
-                            object_type AS TABLE_TYPE,
+                            upper(object_name) AS TABLE_NAME,
+                            NULL AS TABLE_TYPE,
                             NULL AS REMARKS,
                             NULL AS TYPE_CAT,
                             NULL AS TYPE_SCHEM,
@@ -333,8 +342,6 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
                                 owner = 'FUSION'
                                 AND object_type IN ('TABLE', 'VIEW')
                                 """
-                                */
-
 
         logger.info("Executing remote getTables SQL: {}", finalSql)
         val responseXml = sendSqlViaWsdl(
