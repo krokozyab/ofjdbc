@@ -51,16 +51,17 @@ class PaginatedResultSet(
      * Rewrite a SELECT SQL query to include Oracle‑style OFFSET/FETCH pagination.
      */
     private fun rewriteQueryForPagination(originalSql: String, offset: Int, fetchSize: Int): String {
-        val trimmed = originalSql.trim()
-        // If fetchSize is <= 0, do not modify the query.
-        if (fetchSize <= 0) {
-            return trimmed
+        if (fetchSize <= 0) return originalSql.trim()
+        val trimmed = originalSql.trim().uppercase()
+        if (!trimmed.startsWith("SELECT") || trimmed.contains("FETCH")) return originalSql
+        // Basic check to ensure ORDER BY is placed correctly
+        val orderByIndex = trimmed.indexOf("ORDER BY")
+        return if (orderByIndex != -1) {
+            val orderByClause = originalSql.substring(orderByIndex)
+            originalSql.substring(0, orderByIndex) + " OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY " + orderByClause
+        } else {
+            "$originalSql OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY"
         }
-        // If query does not start with SELECT or already contains FETCH, do not rewrite.
-        if (!trimmed.uppercase().startsWith("SELECT") || trimmed.uppercase().contains("FETCH")) {
-            return originalSql
-        }
-        return "$originalSql OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY"
     }
 
     /**
@@ -147,7 +148,17 @@ class PaginatedResultSet(
         getString(columnIndex)?.toIntOrNull() ?: throw SQLException("Cannot convert value to int")
 
     // For simplicity, we implement getObject() as getString() here.
-    override fun getObject(columnLabel: String): Any? = getString(columnLabel)
+    //override fun getObject(columnLabel: String): Any? = getString(columnLabel)
+    override fun getObject(columnLabel: String): Any? {
+        val value = getString(columnLabel)
+        return when {
+            value == null -> null
+            value.matches(Regex("^-?\\d+$")) -> value.toInt() // Integer
+            value.matches(Regex("^-?\\d+\\.\\d+$")) -> value.toDouble() // Double
+            value.matches(Regex("^-?\\d+\\.?\\d*[Ee][+-]?\\d+$")) -> value.toDouble()// Exponential Notation
+            else -> value // String
+        }
+    }
     override fun getObject(columnIndex: Int): Any? = getString(columnIndex)
 
     override fun getMetaData(): ResultSetMetaData {
