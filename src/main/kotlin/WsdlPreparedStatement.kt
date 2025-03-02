@@ -192,7 +192,7 @@ class WsdlPreparedStatement(
 
 
     override fun getMetaData(): ResultSetMetaData {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 56")
     }
 
     override fun setURL(parameterIndex: Int, x: URL?) =
@@ -234,7 +234,7 @@ class WsdlPreparedStatement(
     }
 
     override fun executeUpdate(): Int {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 57")
     }
 
     override fun execute(): Boolean {
@@ -244,6 +244,6 @@ class WsdlPreparedStatement(
     }
 
     override fun addBatch() {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 58")
     }
 }

@@ -133,7 +133,7 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
     override fun getDouble(columnLabel: String?): Double = throw UnsupportedOperationException("Not implemented 14")
     @Deprecated("Deprecated in Java")
     override fun getBigDecimal(columnIndex: Int, scale: Int): BigDecimal {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 59")
     }
 
     @Deprecated("Deprecated in Java")
@@ -257,60 +257,60 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
     override fun updateTimestamp(columnLabel: String, x: Timestamp?) = throw UnsupportedOperationException("Not implemented 93")
     override fun updateAsciiStream(columnLabel: String, x: java.io.InputStream?, length: Int) = throw UnsupportedOperationException("Not implemented 94")
     override fun updateAsciiStream(columnIndex: Int, x: InputStream?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 60")
     }
 
     override fun updateAsciiStream(columnLabel: String?, x: InputStream?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 61")
     }
 
     override fun updateAsciiStream(columnIndex: Int, x: InputStream?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 62")
     }
 
     override fun updateAsciiStream(columnLabel: String?, x: InputStream?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 63")
     }
 
     override fun updateBinaryStream(columnLabel: String, x: java.io.InputStream?, length: Int) = throw UnsupportedOperationException("Not implemented 95")
     override fun updateBinaryStream(columnIndex: Int, x: InputStream?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 64")
     }
 
     override fun updateBinaryStream(columnLabel: String?, x: InputStream?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 65")
     }
 
     override fun updateBinaryStream(columnIndex: Int, x: InputStream?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 66")
     }
 
     override fun updateBinaryStream(columnLabel: String?, x: InputStream?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 67")
     }
 
     override fun updateCharacterStream(columnIndex: Int, x: Reader?, length: Int) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 68")
     }
 
     override fun updateCharacterStream(columnLabel: String?, reader: Reader?, length: Int) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 69")
     }
 
     override fun updateCharacterStream(columnIndex: Int, x: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 70")
     }
 
     override fun updateCharacterStream(columnLabel: String?, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 71")
     }
 
     override fun updateCharacterStream(columnIndex: Int, x: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 72")
     }
 
     override fun updateCharacterStream(columnLabel: String?, reader: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 73")
     }
 
     //override fun updateCharacterStream(columnLabel: String?, reader: Reader?, length: Int) = throw UnsupportedOperationException("Not implemented 96")
@@ -328,34 +328,34 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
         return statement ?: throw SQLException("Statement not available for this ResultSet")
     }
     override fun getRef(columnIndex: Int): Ref {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 74")
     }
 
     override fun getObject(columnIndex: Int, map: MutableMap<String, Class<*>>?): Any = throw UnsupportedOperationException("Not implemented 107")
     override fun getObject(columnLabel: String?, map: MutableMap<String, Class<*>>?): Any {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 75")
     }
 
     override fun <T : Any?> getObject(columnIndex: Int, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 108")
     override fun <T : Any?> getObject(columnLabel: String?, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 109")
     override fun findColumn(columnLabel: String?): Int {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 76")
     }
 
     //override fun findColumn(columnLabel: String?): Int = throw UnsupportedOperationException("Not implemented 110")
     override fun getRef(columnLabel: String): Ref = throw UnsupportedOperationException("Not implemented 111")
     override fun getBlob(columnIndex: Int): Blob {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 77")
     }
 
     override fun getBlob(columnLabel: String): Blob = throw UnsupportedOperationException("Not implemented 112")
     override fun getClob(columnIndex: Int): Clob {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 78")
     }
 
     override fun getClob(columnLabel: String): Clob = throw UnsupportedOperationException("Not implemented 113")
     override fun getArray(columnIndex: Int): java.sql.Array {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 79")
     }
 
     override fun getArray(columnLabel: String): java.sql.Array = throw UnsupportedOperationException("Not implemented 114")
@@ -378,19 +378,19 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
     override fun updateClob(columnIndex: Int, x: Clob?) = throw UnsupportedOperationException("Not implemented 131")
     override fun updateClob(columnLabel: String?, x: Clob?) = throw UnsupportedOperationException("Not implemented 132")
     override fun updateClob(columnIndex: Int, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 80")
     }
 
     override fun updateClob(columnLabel: String?, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 81")
     }
 
     override fun updateClob(columnIndex: Int, reader: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 82")
     }
 
     override fun updateClob(columnLabel: String?, reader: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 83")
     }
 
     //override fun updateClob(columnIndex: Int, reader: Reader?, length: Long) = throw UnsupportedOperationException("Not implemented 133")
@@ -410,19 +410,19 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
     override fun updateNClob(columnIndex: Int, nClob: NClob?) = throw UnsupportedOperationException("Not implemented 146")
     override fun updateNClob(columnLabel: String?, nClob: NClob?) = throw UnsupportedOperationException("Not implemented 147")
     override fun updateNClob(columnIndex: Int, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 84")
     }
 
     override fun updateNClob(columnLabel: String?, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 85")
     }
 
     override fun updateNClob(columnIndex: Int, reader: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 86")
     }
 
     override fun updateNClob(columnLabel: String?, reader: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 87")
     }
 
     //override fun updateNClob(columnIndex: Int, reader: Reader?, length: Long) = throw UnsupportedOperationException("Not implemented 148")
@@ -440,19 +440,19 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
     override fun getNCharacterStream(columnIndex: Int): StringReader = throw UnsupportedOperationException("Not implemented 160")
     override fun getNCharacterStream(columnLabel: String?): StringReader = throw UnsupportedOperationException("Not implemented 161")
     override fun updateNCharacterStream(columnIndex: Int, x: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 88")
     }
 
     override fun updateNCharacterStream(columnLabel: String?, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 89")
     }
 
     override fun updateNCharacterStream(columnIndex: Int, x: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 90")
     }
 
     override fun updateNCharacterStream(columnLabel: String?, reader: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 91")
     }
 
     //override fun updateNCharacterStream(columnIndex: Int, x: Reader?) = throw UnsupportedOperationException("Not implemented 162")

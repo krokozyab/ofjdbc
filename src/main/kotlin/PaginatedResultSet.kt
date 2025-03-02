@@ -54,14 +54,15 @@ class PaginatedResultSet(
         if (fetchSize <= 0) return originalSql.trim()
         val trimmed = originalSql.trim().uppercase()
         if (!trimmed.startsWith("SELECT") || trimmed.contains("FETCH")) return originalSql
+        return "$originalSql OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY"
         // Basic check to ensure ORDER BY is placed correctly
-        val orderByIndex = trimmed.indexOf("ORDER BY")
+        /*val orderByIndex = trimmed.indexOf("ORDER BY")
         return if (orderByIndex != -1) {
             val orderByClause = originalSql.substring(orderByIndex)
             originalSql.substring(0, orderByIndex) + " OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY " + orderByClause
         } else {
             "$originalSql OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY"
-        }
+        }*/
     }
 
     /**
@@ -241,36 +242,38 @@ class PaginatedResultSet(
     override fun getDate(columnIndex: Int): java.sql.Date = throw UnsupportedOperationException("Not implemented 18")
     override fun getDate(columnLabel: String?): java.sql.Date = throw UnsupportedOperationException("Not implemented 19")
     override fun getDate(columnIndex: Int, cal: Calendar?): Date {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 1")
     }
 
     override fun getDate(columnLabel: String?, cal: Calendar?): Date {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 2")
     }
 
     override fun getTime(columnIndex: Int): java.sql.Time = throw UnsupportedOperationException("Not implemented 20")
     override fun getTime(columnLabel: String?): java.sql.Time = throw UnsupportedOperationException("Not implemented 21")
     override fun getTime(columnIndex: Int, cal: Calendar?): Time {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 3")
     }
 
     override fun getTime(columnLabel: String?, cal: Calendar?): Time {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 4")
     }
 
     override fun getTimestamp(columnIndex: Int): java.sql.Timestamp = throw UnsupportedOperationException("Not implemented 22")
     override fun getTimestamp(columnLabel: String?): java.sql.Timestamp = throw UnsupportedOperationException("Not implemented 23")
     override fun getTimestamp(columnIndex: Int, cal: Calendar?): Timestamp {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 5")
     }
 
     override fun getTimestamp(columnLabel: String?, cal: Calendar?): Timestamp {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 6")
     }
 
     override fun getAsciiStream(columnIndex: Int): java.io.InputStream = throw UnsupportedOperationException("Not implemented 24")
     override fun getAsciiStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 25")
+    @Deprecated("Deprecated in Java", ReplaceWith("throw UnsupportedOperationException(\"Not implemented 26\")"))
     override fun getUnicodeStream(columnIndex: Int): java.io.InputStream = throw UnsupportedOperationException("Not implemented 26")
+    @Deprecated("Deprecated in Java", ReplaceWith("throw UnsupportedOperationException(\"Not implemented 27\")"))
     override fun getUnicodeStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 27")
     override fun getBinaryStream(columnIndex: Int): java.io.InputStream = throw UnsupportedOperationException("Not implemented 28")
     override fun getBinaryStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 29")
@@ -323,47 +326,47 @@ class PaginatedResultSet(
     override fun updateAsciiStream(columnIndex: Int, x: java.io.InputStream?, length: Int) = throw UnsupportedOperationException("Not implemented 73")
     override fun updateBinaryStream(columnIndex: Int, x: java.io.InputStream?, length: Int) = throw UnsupportedOperationException("Not implemented 74")
     override fun updateBinaryStream(columnLabel: String?, x: InputStream?, length: Int) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 7")
     }
 
     override fun updateBinaryStream(columnIndex: Int, x: InputStream?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 8")
     }
 
     override fun updateBinaryStream(columnLabel: String?, x: InputStream?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 9")
     }
 
     override fun updateBinaryStream(columnIndex: Int, x: InputStream?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 10")
     }
 
     override fun updateBinaryStream(columnLabel: String?, x: InputStream?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 11")
     }
 
     override fun updateCharacterStream(columnIndex: Int, x: Reader?, length: Int) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 12")
     }
 
     override fun updateCharacterStream(columnLabel: String?, reader: Reader?, length: Int) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 13")
     }
 
     override fun updateCharacterStream(columnIndex: Int, x: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 14")
     }
 
     override fun updateCharacterStream(columnLabel: String?, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 15")
     }
 
     override fun updateCharacterStream(columnIndex: Int, x: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 16")
     }
 
     override fun updateCharacterStream(columnLabel: String?, reader: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 17")
     }
 
     override fun updateObject(columnIndex: Int, x: Any?, scaleOrLength: Int) = throw UnsupportedOperationException("Not implemented 75")
@@ -384,19 +387,19 @@ class PaginatedResultSet(
     override fun updateTimestamp(columnLabel: String, x: java.sql.Timestamp?) = throw UnsupportedOperationException("Not implemented 90")
     override fun updateAsciiStream(columnLabel: String, x: java.io.InputStream?, length: Int) = throw UnsupportedOperationException("Not implemented 91")
     override fun updateAsciiStream(columnIndex: Int, x: InputStream?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 18")
     }
 
     override fun updateAsciiStream(columnLabel: String?, x: InputStream?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 19")
     }
 
     override fun updateAsciiStream(columnIndex: Int, x: InputStream?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 20")
     }
 
     override fun updateAsciiStream(columnLabel: String?, x: InputStream?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 21")
     }
 
     override fun updateObject(columnLabel: String, x: Any?, scaleOrLength: Int) = throw UnsupportedOperationException("Not implemented 92")
@@ -411,107 +414,107 @@ class PaginatedResultSet(
     override fun getStatement(): java.sql.Statement = throw UnsupportedOperationException("Not implemented 101")
     override fun getRef(columnIndex: Int): Ref? = throw UnsupportedOperationException("Not implemented 102")
     override fun getRef(columnLabel: String?): Ref {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 22")
     }
 
     override fun getBlob(columnIndex: Int): Blob {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 23")
     }
 
     override fun getBlob(columnLabel: String?): Blob {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 24")
     }
 
     override fun getClob(columnIndex: Int): Clob {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 25")
     }
 
     override fun getClob(columnLabel: String?): Clob {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 26")
     }
 
     override fun getArray(columnIndex: Int): Array {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 27")
     }
 
     override fun getArray(columnLabel: String?): Array {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 28")
     }
 
     override fun getURL(columnIndex: Int): URL {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 29")
     }
 
     override fun getURL(columnLabel: String?): URL {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 30")
     }
 
     override fun updateRef(columnIndex: Int, x: Ref?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 31")
     }
 
     override fun updateRef(columnLabel: String?, x: Ref?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 32")
     }
 
     override fun updateBlob(columnIndex: Int, x: Blob?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 33")
     }
 
     override fun updateBlob(columnLabel: String?, x: Blob?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 34")
     }
 
     override fun updateBlob(columnIndex: Int, inputStream: InputStream?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 35")
     }
 
     override fun updateBlob(columnLabel: String?, inputStream: InputStream?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 36")
     }
 
     override fun updateBlob(columnIndex: Int, inputStream: InputStream?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 37")
     }
 
     override fun updateBlob(columnLabel: String?, inputStream: InputStream?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 38")
     }
 
     override fun updateClob(columnIndex: Int, x: Clob?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 39")
     }
 
     override fun updateClob(columnLabel: String?, x: Clob?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 40")
     }
 
     override fun updateClob(columnIndex: Int, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 41")
     }
 
     override fun updateClob(columnLabel: String?, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 42")
     }
 
     override fun updateClob(columnIndex: Int, reader: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 43")
     }
 
     override fun updateClob(columnLabel: String?, reader: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 44")
     }
 
     override fun updateArray(columnIndex: Int, x: Array?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 45")
     }
 
     override fun updateArray(columnLabel: String?, x: Array?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 46")
     }
 
     override fun getRowId(columnIndex: Int): RowId {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 47")
     }
 
     override fun getObject(columnIndex: Int, map: MutableMap<String, Class<*>>?): Any = throw UnsupportedOperationException("Not implemented 103")
@@ -528,19 +531,19 @@ class PaginatedResultSet(
     override fun updateNClob(columnIndex: Int, nClob: java.sql.NClob?) = throw UnsupportedOperationException("Not implemented 113")
     override fun updateNClob(columnLabel: String?, nClob: java.sql.NClob?) = throw UnsupportedOperationException("Not implemented 114")
     override fun updateNClob(columnIndex: Int, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 48")
     }
 
     override fun updateNClob(columnLabel: String?, reader: Reader?, length: Long) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 49")
     }
 
     override fun updateNClob(columnIndex: Int, reader: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 50")
     }
 
     override fun updateNClob(columnLabel: String?, reader: Reader?) {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 51")
     }
 
     override fun getNClob(columnIndex: Int): java.sql.NClob = throw UnsupportedOperationException("Not implemented 115")

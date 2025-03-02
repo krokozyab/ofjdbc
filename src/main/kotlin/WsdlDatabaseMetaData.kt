@@ -85,11 +85,11 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
 
 
     override fun usesLocalFiles(): Boolean {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 52")
     }
 
     override fun usesLocalFilePerTable(): Boolean {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 53")
     }
 
     override fun supportsMixedCaseIdentifiers(): Boolean = false
@@ -164,7 +164,8 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
     override fun supportsLimitedOuterJoins(): Boolean = true
 
     override fun getSchemaTerm(): String {
-        TODO("Not yet implemented")
+        //TODO("Not yet implemented 54")
+        return "FUSION"
     }
 
     override fun getNumericFunctions(): String = "ABS,ACOS,ASIN,ATAN,ATAN2,CEIL,COS,COT,DEGREES,EXP,FLOOR,LOG,LOG10,MOD,POWER,ROUND,SIN,SQRT,TAN"
@@ -530,7 +531,7 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
 
 
     override fun getSchemas(catalog: String?, schemaPattern: String?): ResultSet {
-        TODO("Not yet implemented")
+        TODO("Not yet implemented 55")
     }
 
     //override fun getCatalogs(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 310")
