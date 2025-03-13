@@ -104,10 +104,12 @@ class PaginatedResultSet(
             }
         }
         // Update state.
+        rows.clear()
         rows.addAll(newRows)
         // If the number of rows fetched is less than fetchSize, then no more rows exist.
         lastPageFull = newRows.size == fetchSize
         currentOffset += newRows.size
+        currentIndex = -1 // Reset index for the new page
     }
 
     override fun next(): Boolean {
