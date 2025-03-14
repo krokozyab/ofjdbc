@@ -50,12 +50,14 @@ open class WsdlStatement(
     override fun getMaxRows(): Int = 0
 
     override fun execute(sql: String): Boolean {
-        if (sql.trim().uppercase().startsWith("SELECT")) {
+        /*if (sql.trim().uppercase().startsWith("SELECT")) {
             lastResultSet = executeQuery(sql)
             return true
         } else {
             throw UnsupportedOperationException("Only SELECT queries are supported.")
-        }
+        }*/
+        lastResultSet = executeQuery(sql)
+        return true
     }
 
     override fun executeUpdate(sql: String): Int =
