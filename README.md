@@ -70,10 +70,26 @@ into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you wil
 1. **Place the Driver File: Place the driver JAR file into your designated folder.**
 2. **Register the Driver in Your IDE: In your IDE (DBeaver, DBVisualizer, IntelliJ), register a new driver pointing to the driver JAR file.**
 3. **Set the Driver Class: Choose my.jdbc.wsdl_driver.WsdlDriver as the driver class name.**
+
+<img src="pics/setup_1.png" alt="dbeaver" width="600"/>
+
+<img src="pics/setup_2.png" alt="dbeaver" width="600"/>
+
 4. **Create a New Database Connection: In your IDE, create a new database connection using the driver you just registered.**
+
+<img src="pics/setup_3.png" alt="dbeaver" width="600"/>
+
 5. **Enter the Connection String (JDBC URL): jdbc:wsdl://you-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo**
 6. **Enter Your Credentials: Provide the username and password for basic authentication.**
 <font color="orange">
+
+<img src="pics/setup_4.png" alt="dbeaver" width="600"/>
+
+<img src="pics/setup_5.png" alt="dbeaver" width="600"/>
+
+<img src="pics/setup_6.png" alt="dbeaver" width="600"/>
+
+
 0. **After February 27, 2025, the incremental cache algorithm has been updated. In addition to installing the new release JAR file, please refresh your local cache by deleting the metadata.db and metadata.db.wal files from your user folder.**
 </font>
 
