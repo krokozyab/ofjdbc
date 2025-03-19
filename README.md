@@ -15,7 +15,9 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 - [❗ Limitations](#-Limitations)
 - [⚠️ Important Disclaimer](#-important-disclaimer)
 - [📝 TODO](#-todo)
+- [🔗 Other ](#-other)
 - [📫 Contact](#-contact)
+
 
 ---
 
@@ -132,6 +134,10 @@ This project is a minimal viable implementation, and there are several areas for
    - Explore supporting additional authentication mechanisms beyond Basic Auth.
 
 Check back on the GitHub repository for updates and improvements as the project evolves.
+
+## 🔗 Other
+- **Further reading:** Check out this article on LinkedIn:  
+  [Bridging the Gap: Using an Open-Source JDBC Driver for Oracle Fusion SaaS](https://www.linkedin.com/pulse/bridging-gap-using-open-source-jdbc-driver-oracle-fusion-rudenko-i6cwf/?trackingId=5Mp2LNwgRpG1k9cZ1QWPzQ%3D%3D)
 
 ## 📫 Contact
 If you have questions, feel free to reach out via GitHub Issues or [email@sergey.rudenko.ba@gmail.com].
