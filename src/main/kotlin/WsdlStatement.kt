@@ -17,7 +17,7 @@ open class WsdlStatement(
     private var lastResultSet: ResultSet? = null
 
     // Field to store the fetch size (page size).
-    private var fetchSize: Int = 50
+    private var fetchSize: Int = 500
 
 
     private val logger = LoggerFactory.getLogger(WsdlStatement::class.java)

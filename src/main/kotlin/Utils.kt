@@ -133,7 +133,12 @@ fun sendSqlViaWsdl(
     password: String,
     reportPath: String
 ): String {
-    val normalizedSql = sql.replace("\\s+".toRegex(), " ").trim()
+    // Remove single-line (--) and multi-line (/* */) SQL comments
+    val sqlWithoutComments = sql
+        .replace(Regex("--.*?(\\r?\\n|$)"), " ") // single-line comments --
+        .replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), " ") // multi-line comments /**/
+    val normalizedSql = sqlWithoutComments.replace("\\s+".toRegex(), " ").trim()
+    logger.info("Sending SQL to WSDL service: {}", normalizedSql)
     val soapEnvelope = createSoapEnvelope(normalizedSql, reportPath)
     val authHeader = encodeCredentials(username, password)
     // Create an Apache HttpClient instance

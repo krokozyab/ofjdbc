@@ -31,7 +31,7 @@ class PaginatedResultSet(
     private val username: String,
     private val password: String,
     private val reportPath: String,
-    private val fetchSize: Int,
+    private var fetchSize: Int,
     private val logger: Logger
 ) : ResultSet {
 
@@ -304,8 +304,11 @@ class PaginatedResultSet(
     override fun previous(): Boolean = throw UnsupportedOperationException("Not implemented 50")
     override fun setFetchDirection(direction: Int) = throw UnsupportedOperationException("Not implemented 51")
     override fun getFetchDirection(): Int = throw UnsupportedOperationException("Not implemented 52")
-    override fun setFetchSize(rows: Int) = throw UnsupportedOperationException("Not implemented 53")
-    override fun getFetchSize(): Int = throw UnsupportedOperationException("Not implemented 54")
+    override fun setFetchSize(rows: Int) {
+        fetchSize = rows
+        logger.info("Fetch size set to {}", rows)
+    }
+    override fun getFetchSize(): Int = fetchSize
     override fun getType(): Int = ResultSet.TYPE_FORWARD_ONLY
     override fun getConcurrency(): Int = throw UnsupportedOperationException("Not implemented 55")
     override fun rowUpdated(): Boolean = throw UnsupportedOperationException("Not implemented 56")
