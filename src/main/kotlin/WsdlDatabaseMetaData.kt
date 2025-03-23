@@ -135,12 +135,12 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
     override fun allTablesAreSelectable(): Boolean = true //throw SQLFeatureNotSupportedException("Not implemented 258")
     //override fun getExtraNameCharacters(): String = throw SQLFeatureNotSupportedException("Not implemented 259")
     override fun getExtraNameCharacters(): String = ""
-    override fun supportsAlterTableWithAddColumn(): Boolean = true
-    override fun supportsAlterTableWithDropColumn(): Boolean =true
+    override fun supportsAlterTableWithAddColumn(): Boolean = false
+    override fun supportsAlterTableWithDropColumn(): Boolean = false
     override fun supportsColumnAliasing(): Boolean = true
     override fun nullPlusNonNullIsNull(): Boolean = true
-    override fun supportsConvert(): Boolean = false
-    override fun supportsConvert(fromType: Int, toType: Int): Boolean = false
+    override fun supportsConvert(): Boolean = true
+    override fun supportsConvert(fromType: Int, toType: Int): Boolean = true
     override fun supportsTableCorrelationNames(): Boolean = false
     override fun supportsDifferentTableCorrelationNames(): Boolean = false
     override fun supportsExpressionsInOrderBy(): Boolean = true
@@ -184,9 +184,9 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
     override fun isCatalogAtStart(): Boolean = false
     //override fun getCatalogSeparator(): String = throw SQLFeatureNotSupportedException("Not implemented 269")
     override fun getCatalogSeparator(): String = "."
-    override fun supportsSchemasInDataManipulation(): Boolean = true
-    override fun supportsSchemasInProcedureCalls(): Boolean = true
-    override fun supportsSchemasInTableDefinitions(): Boolean = true
+    override fun supportsSchemasInDataManipulation(): Boolean = false
+    override fun supportsSchemasInProcedureCalls(): Boolean = false
+    override fun supportsSchemasInTableDefinitions(): Boolean = false
     override fun supportsSchemasInIndexDefinitions(): Boolean = false
     override fun supportsSchemasInPrivilegeDefinitions(): Boolean = false
     override fun supportsCatalogsInDataManipulation(): Boolean = false
@@ -446,7 +446,10 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
 
     //override fun getSchemas(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 309")
     override fun getSchemas(): ResultSet {
+        return createEmptyResultSet() // trick since unable to alter schema and have to type it every time
         // First, try to load schemas from the local DuckDB cache.
+
+        /*
         val localConn = LocalMetadataCache.connection
         val cachedRows = mutableListOf<Map<String, String>>()
         try {
@@ -475,7 +478,8 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         }
 
         // If no cached data is found, query the remote service.
-        val sql = """SELECT username AS TABLE_SCHEM, '' AS TABLE_CATALOG FROM all_users ORDER BY username where username='FUSION' """
+        //val sql = """SELECT username AS TABLE_SCHEM, '' AS TABLE_CATALOG FROM all_users ORDER BY username where username='FUSION' """
+        val sql = """SELECT 'FUSION' AS TABLE_SCHEM, '' AS TABLE_CATALOG FROM dual"""
         val responseXml = sendSqlViaWsdl(
             connection.wsdlEndpoint,
             sql,
@@ -525,6 +529,8 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
             logger.error("Error saving remote metadata to local cache: ${ex.message}")
         }
         return createResultSetFromRowNodes(rowNodes)
+
+         */
     }
 
 
@@ -704,10 +710,58 @@ override fun getColumns(
         throw SQLFeatureNotSupportedException("Not implemented 316")
     //override fun getPrimaryKeys(catalog: String?, schema: String?, table: String?): ResultSet =
     //    throw SQLFeatureNotSupportedException("Not implemented 317")
-    override fun getPrimaryKeys(catalog: String?, schema: String?, table: String?): ResultSet {
+    /*override fun getPrimaryKeys(catalog: String?, schema: String?, table: String?): ResultSet {
         // This minimal driver does not support retrieving primary keys.
         // Returning an empty ResultSet.
         return createEmptyResultSet()
+    }*/
+    override fun getPrimaryKeys(catalog: String?, schema: String?, table: String?): ResultSet {
+        val sql = """
+        SELECT 
+            NULL AS TABLE_CAT,
+            c.owner AS TABLE_SCHEM,
+            c.table_name AS TABLE_NAME,
+            cc.column_name AS COLUMN_NAME,
+            cc.position AS KEY_SEQ,
+            c.constraint_name AS PK_NAME
+        FROM all_constraints c
+        JOIN all_cons_columns cc 
+            ON c.constraint_name = cc.constraint_name
+            AND c.owner = cc.owner
+            AND c.table_name = cc.table_name
+        WHERE c.constraint_type = 'P'
+        ${if (!schema.isNullOrBlank()) "AND c.owner LIKE '${schema.uppercase()}'" else ""}
+        ${if (!table.isNullOrBlank()) "AND c.table_name LIKE '${table.uppercase()}'" else ""}
+        ORDER BY c.owner, c.table_name, cc.position
+    """.trimIndent()
+        val responseXml = sendSqlViaWsdl(
+            connection.wsdlEndpoint,
+            sql,
+            connection.username,
+            connection.password,
+            connection.reportPath
+        )
+
+        val doc = parseXml(responseXml)
+        val rowNodes = doc.getElementsByTagName("ROW")
+        val resultRows = mutableListOf<Map<String, String>>()
+
+        for (i in 0 until rowNodes.length) {
+            val rowNode = rowNodes.item(i)
+            if (rowNode.nodeType == Node.ELEMENT_NODE) {
+                val rowMap = mutableMapOf<String, String>()
+                val children = rowNode.childNodes
+                for (j in 0 until children.length) {
+                    val child = children.item(j)
+                    if (child.nodeType == Node.ELEMENT_NODE) {
+                        rowMap[child.nodeName.lowercase()] = child.textContent.trim()
+                    }
+                }
+                resultRows.add(rowMap)
+            }
+        }
+
+        return XmlResultSet(resultRows)
     }
     override fun getImportedKeys(catalog: String?, schema: String?, table: String?): ResultSet =
         throw SQLFeatureNotSupportedException("Not implemented 318")
@@ -815,8 +869,66 @@ override fun getColumns(
         return XmlResultSet(rowsAsString)
     }
 
-    override fun getIndexInfo(catalog: String?, schema: String?, table: String?, unique: Boolean, approximate: Boolean): ResultSet =
-        throw SQLFeatureNotSupportedException("Not implemented 322")
+    //override fun getIndexInfo(catalog: String?, schema: String?, table: String?, unique: Boolean, approximate: Boolean): ResultSet =
+    //    throw SQLFeatureNotSupportedException("Not implemented 322")
+    override fun getIndexInfo(
+        catalog: String?,
+        schema: String?,
+        table: String?,
+        unique: Boolean,
+        approximate: Boolean
+    ): ResultSet {
+
+        // Validate the parameters
+        if (table.isNullOrBlank()) {
+            throw SQLException("Table name must not be null or empty.")
+        }
+
+        // SQL query to retrieve index information from Oracle Database
+        val sql = """
+        SELECT
+            NULL AS TABLE_CAT,
+            ui.TABLE_OWNER AS TABLE_SCHEM,
+            ui.TABLE_NAME,
+            DECODE(ui.UNIQUENESS, 'UNIQUE', 0, 1) AS NON_UNIQUE,
+            NULL AS INDEX_QUALIFIER,
+            ui.INDEX_NAME,
+            CASE uc.CONSTRAINT_TYPE WHEN 'P' THEN ${DatabaseMetaData.tableIndexClustered} ELSE ${DatabaseMetaData.tableIndexOther} END AS TYPE,
+            uic.COLUMN_POSITION AS ORDINAL_POSITION,
+            uic.COLUMN_NAME,
+            NULL AS ASC_OR_DESC,
+            ui.DISTINCT_KEYS AS CARDINALITY,
+            ui.LEAF_BLOCKS AS PAGES,
+            NULL AS FILTER_CONDITION
+        FROM
+            ALL_INDEXES ui
+            JOIN ALL_IND_COLUMNS uic ON ui.INDEX_NAME = uic.INDEX_NAME AND ui.TABLE_NAME = uic.TABLE_NAME AND ui.TABLE_OWNER = uic.TABLE_OWNER
+            LEFT JOIN ALL_CONSTRAINTS uc ON ui.INDEX_NAME = uc.INDEX_NAME AND uc.CONSTRAINT_TYPE IN ('P','U')
+        WHERE
+            ui.TABLE_NAME = ?
+            ${if (!schema.isNullOrBlank()) "AND ui.TABLE_OWNER = ?" else ""}
+            ${if (unique) "AND ui.UNIQUENESS = 'UNIQUE'" else ""}
+        ORDER BY
+            NON_UNIQUE,
+            TYPE,
+            INDEX_NAME,
+            ORDINAL_POSITION
+    """.trimIndent()
+
+        // Prepare and execute the statement
+        val pstmt = connection.prepareStatement(sql)
+
+        pstmt.setString(1, table.uppercase())
+
+        var paramIndex = 2
+        if (!schema.isNullOrBlank()) {
+            pstmt.setString(paramIndex++, schema.uppercase())
+        }
+
+        // Execute the query and return the result set
+        return pstmt.executeQuery()
+    }
+
 
 
     override fun supportsResultSetType(type: Int): Boolean = false
@@ -869,9 +981,8 @@ override fun getColumns(
         throw SQLFeatureNotSupportedException("Not implemented 329")
     }
 
-    override fun supportsResultSetHoldability(holdability: Int): Boolean {
-        throw SQLFeatureNotSupportedException("Not implemented 330")
-    }
+    override fun supportsResultSetHoldability(holdability: Int): Boolean = false
+
 
     override fun getResultSetHoldability(): Int {
         throw SQLFeatureNotSupportedException("Not implemented 331")

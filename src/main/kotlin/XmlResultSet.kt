@@ -215,8 +215,11 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
     override fun previous(): Boolean = throw UnsupportedOperationException("Not implemented 51")
     override fun setFetchDirection(direction: Int) = throw UnsupportedOperationException("Not implemented 52")
     override fun getFetchDirection(): Int = throw UnsupportedOperationException("Not implemented 53")
-    override fun setFetchSize(rows: Int) = throw UnsupportedOperationException("Not implemented 54")
-    override fun getFetchSize(): Int = throw UnsupportedOperationException("Not implemented 55")
+    override fun setFetchSize(rows: Int) {
+        fetchSize = rows
+        logger.info("Fetch size set to {}", rows)
+    }
+    override fun getFetchSize(): Int = fetchSize
     override fun getType(): Int = ResultSet.TYPE_FORWARD_ONLY//throw UnsupportedOperationException("Not implemented 56")
     override fun getConcurrency(): Int = throw UnsupportedOperationException("Not implemented 57")
     override fun rowUpdated(): Boolean = throw UnsupportedOperationException("Not implemented 58")
