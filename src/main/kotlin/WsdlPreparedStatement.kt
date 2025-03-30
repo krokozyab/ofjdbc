@@ -35,7 +35,6 @@ class WsdlPreparedStatement(
         for (i in 1..paramCount) {
             val paramValue = parameters[i] ?: "NULL"
             val formattedValue = when (paramValue) {
-                null -> "NULL"
                 is String -> "'${paramValue.replace("'", "''")}'"
                 is Boolean -> if (paramValue) "1" else "0"
                 else -> paramValue.toString()
@@ -133,6 +132,9 @@ class WsdlPreparedStatement(
         throw UnsupportedOperationException("Stream parameter binding is not supported")
 
     // Implementations for other stream-related methods (binary, character, etc.) are omitted.
+    @Deprecated("Deprecated in Java",
+        ReplaceWith("throw UnsupportedOperationException(\"Parameter binding is not supported\")")
+    )
     override fun setUnicodeStream(parameterIndex: Int, x: InputStream?, length: Int) =
         throw UnsupportedOperationException("Parameter binding is not supported")
 
