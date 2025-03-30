@@ -879,7 +879,11 @@ override fun getColumns(
         approximate: Boolean
     ): ResultSet {
 
+        logger.info( "getIndexInfo - This minimal driver does not support retrieving index information.")
+        // Returning an empty ResultSet.
+        return createEmptyResultSet() // todo
         // Validate the parameters
+        /*
         if (table.isNullOrBlank()) {
             throw SQLException("Table name must not be null or empty.")
         }
@@ -927,6 +931,8 @@ override fun getColumns(
 
         // Execute the query and return the result set
         return pstmt.executeQuery()
+
+         */
     }
 
 

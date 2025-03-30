@@ -15,7 +15,6 @@ dependencies {
     implementation(kotlin("stdlib"))
     // Apache Commons Text for XML escaping/unescaping
     implementation("org.apache.commons:commons-text:1.10.0")
-    implementation("org.apache.httpcomponents:httpclient:4.5.14")
     implementation("org.slf4j:slf4j-api:1.7.36")
     implementation("org.duckdb:duckdb_jdbc:1.2.0")
     // A simple SLF4J binding (choose one that fits your needs; here we use slf4j-simple)
@@ -55,5 +54,5 @@ tasks {
 
 kotlin {
     // Configure the JVM toolchain (adjust version as desired)
-    jvmToolchain(8)
+    jvmToolchain(11)
 }

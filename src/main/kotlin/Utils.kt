@@ -1,9 +1,5 @@
 package my.jdbc.wsdl_driver
 
-import org.apache.http.client.methods.HttpPost
-import org.apache.http.entity.StringEntity
-import org.apache.http.impl.client.HttpClients
-import org.apache.http.util.EntityUtils
 import org.slf4j.LoggerFactory
 import org.w3c.dom.Document
 import org.w3c.dom.Element
@@ -12,8 +8,14 @@ import org.w3c.dom.NodeList
 import org.xml.sax.InputSource
 import java.io.StringReader
 import java.io.StringWriter
+import java.net.URI
+import java.net.http.HttpClient
+import java.net.http.HttpRequest
+import java.net.http.HttpResponse
+import java.sql.JDBCType
 import java.sql.ResultSet
 import java.sql.SQLException
+import java.sql.Types
 import java.util.Base64
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.transform.OutputKeys
@@ -141,32 +143,33 @@ fun sendSqlViaWsdl(
     logger.info("Sending SQL to WSDL service: {}", normalizedSql)
     val soapEnvelope = createSoapEnvelope(normalizedSql, reportPath)
     val authHeader = encodeCredentials(username, password)
-    // Create an Apache HttpClient instance
-    val httpClient = HttpClients.createDefault()
-    val httpPost = HttpPost(wsdlEndpoint)
-    httpPost.setHeader("Content-Type", "application/soap+xml;charset=UTF-8")
-    httpPost.setHeader("SOAPAction", "#POST")
-    httpPost.setHeader("Authorization", authHeader)
-    httpPost.setHeader("User-Agent", "Apache-HttpClient/4.5.13 (Java/1.8.0_271)")
-    httpPost.entity = StringEntity(soapEnvelope, "UTF-8")
+    // Build a Java HttpClient (Java 11+)
+    val client = HttpClient.newHttpClient()
 
-    val response = httpClient.execute(httpPost)
-    val status = response.statusLine.statusCode
-    val body = response.entity?.let { EntityUtils.toString(it, "UTF-8") }
+    val request = HttpRequest.newBuilder()
+        .uri(URI.create(wsdlEndpoint))
+        .header("Content-Type", "application/soap+xml;charset=UTF-8")
+        .header("SOAPAction", "#POST")
+        .header("Authorization", authHeader)
+        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.133 Safari/537.36")
+        .POST(HttpRequest.BodyPublishers.ofString(soapEnvelope))
+        .build()
 
-    // Check if the response seems to be an HTML error page instead of valid SOAP XML.
-    if (body != null) {
-        if (body.trim().startsWith("<html", ignoreCase = true) || body.trim().startsWith("<!DOCTYPE html", ignoreCase = true)) {
-            logger.error("Received an HTML error response (HTTP {}): {}", status, body)
-            throw SQLException("WSDL service error ($status): Received an HTML error response. Details: $body")
-        }
+    // Send the request synchronously and obtain the response as a String
+    val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+    val status = response.statusCode()
+    val body = response.body()
+    // Check if the response is an HTML error page
+    if (body.trim().startsWith("<html", ignoreCase = true) ||
+        body.trim().startsWith("<!DOCTYPE html", ignoreCase = true)) {
+        logger.error("Received an HTML error response (HTTP {}): {}", status, body)
+        throw SQLException("WSDL service error ($status): Received an HTML error response. Details: $body")
     }
-    // Log the raw response for debugging
-    //logger.info("Raw SOAP response (status {}): {}", status, body)
 
-    if (body.isNullOrBlank()) {
+    if (body.isBlank()) {
         throw SQLException("Empty SOAP response from WSDL service. HTTP Status: $status")
     }
+
     val doc = parseXml(body)
     if (status == 200) {
         val reportNode = findNodeEndingWith(doc.documentElement, "reportBytes")
