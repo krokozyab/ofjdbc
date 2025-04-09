@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>OFJDBC: Oracle Friendly JDBC</title>
+  <style>
+    /* Simple reset and base styling */
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: sans-serif;
+    }
+
+    body {
+      background: #f9f9f9;
+      line-height: 1.6;
+      color: #1a1a1a;
+    }
+
+    header {
+      background: #023047;
+      color: #fff;
+      padding: 3rem 2rem;
+      text-align: center;
+    }
+
+    header h1 {
+      font-size: 2.4rem;
+      margin-bottom: 1rem;
+    }
+
+    header p {
+      font-size: 1.2rem;
+      max-width: 700px;
+      margin: 0.5rem auto 0 auto;
+      line-height: 1.5;
+    }
+
+    .btn {
+      display: inline-block;
+      margin-top: 2rem;
+      padding: 0.8rem 1.4rem;
+      background: #ffb703;
+      color: #000;
+      text-decoration: none;
+      border-radius: 4px;
+      font-weight: bold;
+      transition: background 0.3s;
+    }
+
+    .btn:hover {
+      background: #ffa641;
+    }
+
+    main {
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1rem;
+    }
+
+    .section {
+      margin-bottom: 3rem;
+    }
+
+    h2 {
+      font-size: 1.8rem;
+      margin-bottom: 1rem;
+    }
+
+    p {
+      margin-bottom: 1rem;
+      line-height: 1.5;
+    }
+
+    .features {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 2rem;
+      margin-top: 2rem;
+    }
+
+    .feature {
+      background: #fff;
+      padding: 1.5rem;
+      border-radius: 6px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .feature h3 {
+      margin-bottom: 0.5rem;
+      font-size: 1.2rem;
+    }
+
+    .feature p {
+      color: #333;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: #666;
+      margin-top: 2rem;
+    }
+
+    footer a {
+      color: #666;
+      text-decoration: underline;
+    }
+
+    @media(min-width: 768px) {
+      .features {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      header h1 {
+        font-size: 3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>OFJDBC</h1>
+  <p>An open-source JDBC driver that gives you convenient, direct access to Oracle Fusion Cloud data—making ad-hoc SQL queries a breeze.</p>
+  <a class="btn" href="https://github.com/krokozyab/ofjdbc" target="_blank" rel="noopener">View on GitHub</a>
+</header>
+
+<main>
+  <!-- Overview Section -->
+  <section class="section" id="overview">
+    <h2>Overview</h2>
+    <p>
+      <strong>OFJDBC (Oracle Friendly JDBC)</strong> is a powerful open-source driver that connects your favorite SQL client directly to Oracle Fusion Cloud SaaS. Instead of wrestling with the built-in OTBI tools for every query, you can quickly fetch the data you need with real SQL commands.
+    </p>
+    <p>
+      By leveraging industry-leading database IDEs such as <strong>DBeaver</strong>, OFJDBC empowers Oracle Fusion professionals and consultants to explore data, troubleshoot issues, and build reports faster—no more clunky workflows.
+    </p>
+  </section>
+
+  <!-- Why OFJDBC for Oracle Fusion -->
+  <section class="section" id="why-ofjdbc">
+    <h2>Why OFJDBC for Oracle Fusion?</h2>
+    <div class="features">
+      <div class="feature">
+        <h3>Faster Ad-Hoc SQL</h3>
+        <p>Cut through the complexity of OTBI. Execute your queries directly, eliminating multi-step reports or web-based editors. Perfect for daily support tasks that demand agility.</p>
+      </div>
+      <div class="feature">
+        <h3>Boost Productivity</h3>
+        <p>Spend less time waiting, more time analyzing. Real-time query results let you iterate quickly and handle multiple investigations in parallel.</p>
+      </div>
+      <div class="feature">
+        <h3>Open Source & Transparent</h3>
+        <p>Hosted on GitHub, OFJDBC is community-driven, auditable, and constantly evolving. No hidden servers or vendor lock-in—just pure JDBC.</p>
+      </div>
+      <div class="feature">
+        <h3>Ideal for Oracle Consultants</h3>
+        <p>Consultants and contractors can onboard easily at new clients, offering immediate data insights. Streamline your engagements with minimal overhead.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Leveraging DBeaver -->
+  <section class="section" id="dbeaver">
+    <h2>Leverage DBeaver for Maximum Power</h2>
+    <p>
+      Combine OFJDBC with <strong>DBeaver</strong>, an industry-leading database IDE. Enjoy:
+    </p>
+    <ul>
+      <li>Syntax highlighting, error detection, and autocomplete for rapid SQL development.</li>
+      <li>Schema browsing, multiple result tabs, and easy exports—just like querying a standard Oracle database.</li>
+      <li>Flexible cross-platform compatibility: Windows, Mac, Linux. Keep your queries consistent across all environments.</li>
+    </ul>
+    <p>
+      Together, OFJDBC and DBeaver offer a seamless solution that <strong>outperforms homegrown scripts or OTBI dashboards</strong> for ad-hoc queries and exploration.
+    </p>
+  </section>
+
+  <!-- Streamline Oracle Fusion Support -->
+  <section class="section" id="oracle-fusion-support">
+    <h2>Streamline Oracle Fusion Support</h2>
+    <p>
+      Issue arbitrary SQL queries in seconds rather than creating or modifying OTBI reports. This speed is particularly valuable for:
+    </p>
+    <ul>
+      <li>Daily troubleshooting tasks</li>
+      <li>Data validation and audits</li>
+      <li>On-demand user requests or urgent incidents</li>
+      <li>Investigations into complex transactional or configuration data</li>
+    </ul>
+    <p>
+      Less friction means faster problem resolution and happier stakeholders. You’ll wonder how you ever worked without it!
+    </p>
+  </section>
+
+
+
+</main>
+
+<footer>
+  <p>
+    &copy; <span id="year"></span> OFJDBC Project.
+    <br/>
+    Powered by <a href="https://github.com/krokozyab/ofjdbc" target="_blank" rel="noopener">krokozyab</a> on GitHub.
+  </p>
+</footer>
+
+<script>
+  // Set the year in the footer
+  const yearSpan = document.getElementById("year");
+  const currentYear = new Date().getFullYear();
+  yearSpan.textContent = currentYear;
+</script>
+
+</body>
+</html>
