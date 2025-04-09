@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+    <!-- Background circle -->
+    <circle cx="50" cy="50" r="45" fill="#023047"/>
+    <!-- Centered letter "O" for OFJDBC -->
+    <text x="50%" y="55%" font-size="50" fill="#ffb703" text-anchor="middle" alignment-baseline="middle" font-family="Arial, sans-serif">O</text>
+</svg>
