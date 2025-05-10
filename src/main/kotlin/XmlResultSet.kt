@@ -3,27 +3,53 @@ package my.jdbc.wsdl_driver
 import java.io.InputStream
 import java.io.Reader
 import java.io.StringReader
+import java.io.Closeable
 import java.math.BigDecimal
 import java.sql.*
-import java.sql.ResultSetMetaData.columnNullable
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.*
+import org.slf4j.LoggerFactory
 
 data class ColumnMetadata(val name: String, val type: Int, val typeName: String)
 
-class XmlResultSet(private val rows: List<Map<String, String>>,
+/**
+ * @param rows the result rows (will be cleared after close)
+ * @param resource optional underlying resource (InputStream, Reader, etc.) that should be closed with this ResultSet
+ * @param columns column metadata; if not provided, inferred from rows
+ */
+class XmlResultSet(
+    rows: List<Map<String, String>>,
+    /** optional underlying resource (InputStream, Reader, etc.) that should be closed with this ResultSet */
+    private val resource: Closeable? = null,
     // If metadata is not provided, default all columns to VARCHAR.
-                   private val columns: List<ColumnMetadata> = if (rows.isNotEmpty())
-                       rows[0].keys.map { key -> ColumnMetadata(key, Types.VARCHAR, "VARCHAR") }
-                   else
-                       emptyList()) : ResultSet {
-    private var currentIndex = -1
+    private val columns: List<ColumnMetadata> = if (rows.isNotEmpty())
+        rows[0].keys.map { key -> ColumnMetadata(key, Types.VARCHAR, "VARCHAR") }
+    else
+        emptyList()
+) : ResultSet {
+    private val logger = LoggerFactory.getLogger(XmlResultSet::class.java)
+    /** internal mutable copy so we can clear it on close() */
+    private val rows: MutableList<Map<String, String>> = rows.toMutableList()
+    /** case‑insensitive column lookup: lowercase name → (original name, 1‑based index) */
+    private data class ColInfo(val original: String, val index1: Int)
+    private val colInfo: Map<String, ColInfo> =
+        columns.mapIndexed { idx, col -> col.name.lowercase() to ColInfo(col.name, idx + 1) }
+                .toMap()
+    /** Cached metadata object so we don't recreate it on every call */
+    private val meta: ResultSetMetaData =
+        DefaultResultSetMetaData(columns.map { it.name })
+    @Volatile private var currentIndex = -1
+    /** true if the last column read had SQL NULL value */
+    @Volatile private var lastWasNull: Boolean = false
+    /** true after close() is called */
+    @Volatile private var closed: Boolean = false
+    /** Stores the first SQLWarning (if any) thrown during close */
+    private var warnings: SQLWarning? = null
+    /** client‑hint for driver fetch size (0 = driver default) */
+    private var fetchSize: Int = 0
 
     private var statement: Statement? = null
-    fun setStatement(statement: Statement) {
-        this.statement = statement
-    }
 
     private fun currentRow(): Map<String, String> {
         if (currentIndex !in rows.indices) {
@@ -37,100 +63,93 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
         return currentIndex < rows.size
     }
 
-    override fun getString(columnLabel: String): String? =
-        currentRow()[columnLabel.lowercase()]
-
-    override fun getString(columnIndex: Int): String? {
-        val meta = metaData
-        val colName = meta.getColumnName(columnIndex)
-        return getString(colName)
+    override fun getString(columnLabel: String): String? {
+        val info  = colInfo[columnLabel.lowercase()]
+        val value = currentRow()[info?.original ?: columnLabel]
+        lastWasNull = value == null
+        return value
     }
+
+    override fun getString(columnIndex: Int): String? =
+        getString(columns[columnIndex - 1].name)
 
     //override fun getInt(columnLabel: String): Int =
     //    getString(columnLabel)?.toIntOrNull() ?: throw SQLException("Cannot convert value to int")
     // Instead of throwing an exception if conversion fails, return 0.
-    override fun getInt(columnLabel: String): Int =
-        getString(columnLabel)?.toIntOrNull() ?: 0
+    override fun getInt(columnLabel: String): Int {
+        val str = getString(columnLabel)   // sets lastWasNull
+        if (lastWasNull) return 0
+        return str!!.toIntOrNull()
+            ?: throw SQLException("Cannot convert value '$str' in column '$columnLabel' to INT")
+    }
     //override fun getObject(columnLabel: String): Any? = getString(columnLabel)
 
+    override fun getMetaData(): ResultSetMetaData = meta
 
-    override fun getMetaData(): ResultSetMetaData {
-        return object : ResultSetMetaData {
-            override fun getColumnCount(): Int = columns.size
-            override fun getColumnName(column: Int): String = columns[column - 1].name
-            override fun getColumnLabel(column: Int): String = getColumnName(column)
-            override fun isAutoIncrement(column: Int): Boolean = false
-            override fun isCaseSensitive(column: Int): Boolean = true
-            override fun isSearchable(column: Int): Boolean = false
-            override fun isCurrency(column: Int): Boolean = false
-            override fun isNullable(column: Int): Int = columnNullable
-            override fun isSigned(column: Int): Boolean = false
-            override fun getColumnDisplaySize(column: Int): Int = 50
-            override fun getColumnType(column: Int): Int = columns[column - 1].type
-            override fun getColumnTypeName(column: Int): String = columns[column - 1].typeName
-            override fun getPrecision(column: Int): Int = 0
-            override fun getScale(column: Int): Int = 0
-            override fun getSchemaName(column: Int): String = ""
-            override fun getTableName(column: Int): String = ""
-            override fun getCatalogName(column: Int): String = ""
-            override fun isReadOnly(column: Int): Boolean = true
-            override fun isWritable(column: Int): Boolean = false
-            override fun isDefinitelyWritable(column: Int): Boolean = false
-            override fun getColumnClassName(column: Int): String =
-                when (columns[column - 1].type) {
-                    Types.INTEGER -> "java.lang.Integer"
-                    Types.DOUBLE -> "java.lang.Double"
-                    Types.DECIMAL, Types.NUMERIC -> "java.math.BigDecimal"
-                    Types.DATE -> "java.sql.Date"
-                    else -> "java.lang.String"
-                }
-            override fun <T : Any?> unwrap(iface: Class<T>?): T =
-                throw SQLFeatureNotSupportedException("Not implemented 1")
-            override fun isWrapperFor(iface: Class<*>?): Boolean = false
+    override fun wasNull(): Boolean = lastWasNull
+    override fun close() {
+        // Clear rows to help GC
+        rows.clear()
+        // Close the underlying resource if supplied
+        try {
+            resource?.close()
+        } catch (ex: Exception) {
+            // convert to SQLWarning per JDBC spec so callers can inspect later
+            warnings = SQLWarning("Error closing underlying resource", ex)
         }
+        closed = true
     }
 
-    override fun wasNull(): Boolean = false
-    override fun close() { /* no-op */ }
+    // ─────────────────────────────────────────────────────────────
+    // Forward-only guard helper
+    private fun forwardOnlyError(): Nothing =
+        throw SQLException("Operation not allowed for TYPE_FORWARD_ONLY ResultSet")
 
     // ─────────────────────────────────────────────────────────────
     // Stub implementations with sequential numbering
     // ─────────────────────────────────────────────────────────────
-    override fun getBoolean(columnIndex: Int): Boolean = throw UnsupportedOperationException("Not implemented 2")
-    override fun getBoolean(columnLabel: String?): Boolean = throw UnsupportedOperationException("Not implemented 3")
+    override fun getBoolean(columnLabel: String): Boolean {
+        val s = getString(columnLabel)
+        if (lastWasNull) return false
+        return when (s!!.trim().lowercase()) {
+            "true", "t", "1", "y", "yes"  -> true
+            "false", "f", "0", "n", "no"  -> false
+            else -> throw SQLException("Cannot convert value '$s' in column '$columnLabel' to BOOLEAN")
+        }
+    }
+    override fun getBoolean(columnIndex: Int): Boolean =
+        getBoolean(columns[columnIndex - 1].name)
     override fun getByte(columnIndex: Int): Byte = throw UnsupportedOperationException("Not implemented 4")
     override fun getByte(columnLabel: String?): Byte = throw UnsupportedOperationException("Not implemented 5")
     override fun getShort(columnIndex: Int): Short = throw UnsupportedOperationException("Not implemented 6")
     override fun getShort(columnLabel: String?): Short = throw UnsupportedOperationException("Not implemented 7")
     //override fun getInt(columnIndex: Int): Int = throw UnsupportedOperationException("Not implemented 8")
-    override fun getInt(columnIndex: Int): Int {
-        val meta = metaData
-        val columnName = meta.getColumnName(columnIndex)
-        return getInt(columnName)
-    }
+    override fun getInt(columnIndex: Int): Int =
+        getInt(columns[columnIndex - 1].name)
     //override fun getLong(columnIndex: Int): Long = throw UnsupportedOperationException("Not implemented 9")
     //override fun getLong(columnLabel: String?): Long = throw UnsupportedOperationException("Not implemented 10")
 
     override fun getLong(columnLabel: String): Long {
-        val value = getString(columnLabel)
-        return if (!value.isNullOrBlank()) {
-            value.toLongOrNull() ?: 0L
-        } else {
-            0L
-        }
+        val str = getString(columnLabel)
+        if (lastWasNull) return 0L
+        return str!!.toLongOrNull()
+            ?: throw SQLException("Cannot convert value '$str' in column '$columnLabel' to LONG")
     }
 
-    override fun getLong(columnIndex: Int): Long {
-        val meta = metaData
-        val colName = meta.getColumnName(columnIndex)
-        return getLong(colName)
-    }
+    override fun getLong(columnIndex: Int): Long =
+        getLong(columns[columnIndex - 1].name)
 
 
     override fun getFloat(columnIndex: Int): Float = throw UnsupportedOperationException("Not implemented 11")
     override fun getFloat(columnLabel: String?): Float = throw UnsupportedOperationException("Not implemented 12")
-    override fun getDouble(columnIndex: Int): Double = throw UnsupportedOperationException("Not implemented 13")
-    override fun getDouble(columnLabel: String?): Double = throw UnsupportedOperationException("Not implemented 14")
+    override fun getDouble(columnLabel: String): Double {
+        val s = getString(columnLabel)
+        if (lastWasNull) return 0.0
+        return s!!.toDoubleOrNull()
+            ?: throw SQLException("Cannot convert value '$s' in column '$columnLabel' to DOUBLE")
+    }
+    override fun getDouble(columnIndex: Int): Double =
+        getDouble(columns[columnIndex - 1].name)
     @Deprecated("Deprecated in Java")
     override fun getBigDecimal(columnIndex: Int, scale: Int): BigDecimal {
         TODO("Not yet implemented 59")
@@ -140,8 +159,17 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
     override fun getBigDecimal(columnLabel: String, scale: Int): BigDecimal = throw UnsupportedOperationException("Not implemented 15")
     override fun getBytes(columnIndex: Int): ByteArray = throw UnsupportedOperationException("Not implemented 16")
     override fun getBytes(columnLabel: String?): ByteArray = throw UnsupportedOperationException("Not implemented 17")
-    override fun getDate(columnIndex: Int): java.sql.Date = throw UnsupportedOperationException("Not implemented 18")
-    override fun getDate(columnLabel: String?): java.sql.Date = throw UnsupportedOperationException("Not implemented 19")
+    override fun getDate(columnLabel: String): java.sql.Date {
+        val s = getString(columnLabel)
+        if (lastWasNull) return java.sql.Date(0)
+        return try {
+            java.sql.Date.valueOf(LocalDate.parse(s))
+        } catch (ex: Exception) {
+            throw SQLException("Cannot convert value '$s' in column '$columnLabel' to DATE", ex)
+        }
+    }
+    override fun getDate(columnIndex: Int): java.sql.Date =
+        getDate(columns[columnIndex - 1].name)
     override fun getTime(columnIndex: Int): Time = throw UnsupportedOperationException("Not implemented 20")
     override fun getTime(columnLabel: String?): Time = throw UnsupportedOperationException("Not implemented 21")
     override fun getTimestamp(columnIndex: Int): Timestamp = throw UnsupportedOperationException("Not implemented 22")
@@ -155,10 +183,10 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
     override fun getBinaryStream(columnIndex: Int): java.io.InputStream = throw UnsupportedOperationException("Not implemented 28")
     override fun getBinaryStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 29")
     //override fun getWarnings(): SQLWarning? = throw UnsupportedOperationException("Not implemented 30")
-    override fun getWarnings(): SQLWarning? = null
+    override fun getWarnings(): SQLWarning? = warnings
     //override fun clearWarnings() = throw UnsupportedOperationException("Not implemented 31")
     override fun clearWarnings() {
-        // No warnings are stored, so nothing to clear.
+        warnings = null
     }
     override fun getCursorName(): String = throw UnsupportedOperationException("Not implemented 32")
     //override fun getObject(columnLabel: String): Any? = getString(columnLabel)
@@ -166,26 +194,23 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
      * Returns an Object converted based on the provided column metadata.
      */
     override fun getObject(columnLabel: String): Any? {
-        val value = getString(columnLabel) ?: return null
-        val colMeta = columns.find { it.name.equals(columnLabel, ignoreCase = true) } ?: return value
+        val raw = getString(columnLabel) ?: return null  // lastWasNull already set
+        val colMeta = columns.find { it.name.equals(columnLabel, ignoreCase = true) } ?: return raw
         logger.info("Column metadata: {} {}", columnLabel, colMeta)
         return when (colMeta.type) {
-            Types.INTEGER -> value.toIntOrNull() ?: 0
-            Types.DOUBLE -> value.toDoubleOrNull() ?: value
-            Types.DECIMAL, Types.NUMERIC -> try { BigDecimal(value) } catch (e: Exception) { value }
+            Types.INTEGER -> raw.toIntOrNull() ?: 0
+            Types.DOUBLE -> raw.toDoubleOrNull() ?: raw
+            Types.DECIMAL, Types.NUMERIC -> try { BigDecimal(raw) } catch (_: Exception) { raw }
             Types.DATE -> try {
                 val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
-                java.sql.Date.valueOf(LocalDate.parse(value, formatter))
-            } catch (e: Exception) { value }
-            else -> value
+                java.sql.Date.valueOf(LocalDate.parse(raw, formatter))
+            } catch (_: Exception) { raw }
+            else -> raw
         }
     }
 
-    override fun getObject(columnIndex: Int): Any? {
-        val meta = metaData
-        val colName = meta.getColumnName(columnIndex)
-        return getObject(colName)
-    }
+    override fun getObject(columnIndex: Int): Any? =
+        getObject(columns[columnIndex - 1].name)
 
     // Overloads that take a mapping parameter delegate to the basic methods.
     /*override fun getObject(columnLabel: String, map: MutableMap<String, Class<*>>): Any? {
@@ -199,23 +224,28 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
     //override fun findColumn(columnLabel: String): Int = throw UnsupportedOperationException("Not implemented 35")
     override fun getCharacterStream(columnIndex: Int): StringReader = throw UnsupportedOperationException("Not implemented 36")
     override fun getCharacterStream(columnLabel: String): StringReader = throw UnsupportedOperationException("Not implemented 37")
-    override fun isBeforeFirst(): Boolean = throw UnsupportedOperationException("Not implemented 38")
-    override fun isAfterLast(): Boolean = throw UnsupportedOperationException("Not implemented 39")
-    override fun isFirst(): Boolean = throw UnsupportedOperationException("Not implemented 40")
-    override fun isLast(): Boolean = throw UnsupportedOperationException("Not implemented 41")
-    override fun beforeFirst() = throw UnsupportedOperationException("Not implemented 42")
-    override fun afterLast() = throw UnsupportedOperationException("Not implemented 43")
-    override fun first(): Boolean = throw UnsupportedOperationException("Not implemented 44")
-    override fun last(): Boolean = throw UnsupportedOperationException("Not implemented 45")
+    // Forward-only navigation and position checks
+    override fun isBeforeFirst(): Boolean = currentIndex < 0
+    override fun isAfterLast(): Boolean = currentIndex >= rows.size
+    override fun isFirst(): Boolean = currentIndex == 0 && rows.isNotEmpty()
+    override fun isLast(): Boolean = currentIndex == rows.size - 1 && rows.isNotEmpty()
+    override fun beforeFirst() = forwardOnlyError()
+    override fun afterLast() = forwardOnlyError()
+    override fun first(): Boolean = forwardOnlyError()
+    override fun last(): Boolean = forwardOnlyError()
     override fun getBigDecimal(columnIndex: Int): BigDecimal = throw UnsupportedOperationException("Not implemented 46")
     override fun getBigDecimal(columnLabel: String?): BigDecimal = throw UnsupportedOperationException("Not implemented 47")
-    override fun getRow(): Int = throw UnsupportedOperationException("Not implemented 48")
-    override fun absolute(row: Int): Boolean = throw UnsupportedOperationException("Not implemented 49")
-    override fun relative(rows: Int): Boolean = throw UnsupportedOperationException("Not implemented 50")
-    override fun previous(): Boolean = throw UnsupportedOperationException("Not implemented 51")
-    override fun setFetchDirection(direction: Int) = throw UnsupportedOperationException("Not implemented 52")
-    override fun getFetchDirection(): Int = throw UnsupportedOperationException("Not implemented 53")
+    override fun getRow(): Int = if (currentIndex < 0) 0 else currentIndex + 1
+    override fun absolute(row: Int): Boolean = forwardOnlyError()
+    override fun relative(rows: Int): Boolean = forwardOnlyError()
+    override fun previous(): Boolean = forwardOnlyError()
+    override fun setFetchDirection(direction: Int) {
+        if (direction != ResultSet.FETCH_FORWARD)
+            throw SQLException("Only FETCH_FORWARD is supported")
+    }
+    override fun getFetchDirection(): Int = ResultSet.FETCH_FORWARD
     override fun setFetchSize(rows: Int) {
+        if (rows < 0) throw SQLException("fetchSize must be >= 0")
         fetchSize = rows
         logger.info("Fetch size set to {}", rows)
     }
@@ -342,7 +372,9 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
     override fun <T : Any?> getObject(columnIndex: Int, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 108")
     override fun <T : Any?> getObject(columnLabel: String?, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 109")
     override fun findColumn(columnLabel: String?): Int {
-        TODO("Not yet implemented 76")
+        columnLabel ?: throw SQLException("Column label cannot be null")
+        return colInfo[columnLabel.lowercase()]?.index1
+            ?: throw SQLException("Column $columnLabel not found")
     }
 
     //override fun findColumn(columnLabel: String?): Int = throw UnsupportedOperationException("Not implemented 110")
@@ -407,7 +439,7 @@ class XmlResultSet(private val rows: List<Map<String, String>>,
     override fun updateRowId(columnIndex: Int, x: RowId?) = throw UnsupportedOperationException("Not implemented 141")
     override fun updateRowId(columnLabel: String?, x: RowId?) = throw UnsupportedOperationException("Not implemented 142")
     override fun getHoldability(): Int = throw UnsupportedOperationException("Not implemented 143")
-    override fun isClosed(): Boolean = false
+    override fun isClosed(): Boolean = closed
     override fun updateNString(columnIndex: Int, nString: String?) = throw UnsupportedOperationException("Not implemented 144")
     override fun updateNString(columnLabel: String?, nString: String?) = throw UnsupportedOperationException("Not implemented 145")
     override fun updateNClob(columnIndex: Int, nClob: NClob?) = throw UnsupportedOperationException("Not implemented 146")

@@ -239,8 +239,19 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
     override fun supportsDataManipulationTransactionsOnly(): Boolean = false
     override fun dataDefinitionCausesTransactionCommit(): Boolean = false
     override fun dataDefinitionIgnoredInTransactions(): Boolean = false
-    override fun getProcedures(catalog: String?, schemaPattern: String?, procedureNamePattern: String?): ResultSet =
-        throw SQLFeatureNotSupportedException("Not implemented 306")
+//    override fun getProcedures(catalog: String?, schemaPattern: String?, procedureNamePattern: String?): ResultSet =
+//        throw SQLFeatureNotSupportedException("Not implemented 306")
+    override fun getProcedures(
+        catalog: String?,
+        schemaPattern: String?,
+        procedureNamePattern: String?
+    ): ResultSet {
+        // Oracle Fusion exposes no PL/SQL procedures; return an empty set so
+        // callers don't fail on SQLFeatureNotSupportedException.
+        return createEmptyResultSet()
+    }
+
+
     override fun getProcedureColumns(
         catalog: String?,
         schemaPattern: String?,

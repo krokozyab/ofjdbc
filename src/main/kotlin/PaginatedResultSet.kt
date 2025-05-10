@@ -13,6 +13,12 @@ import java.sql.*
 import java.sql.Array
 import java.sql.Date
 import java.util.*
+import java.io.Closeable
+
+import java.sql.SQLTimeoutException
+import javax.xml.xpath.XPathConstants
+import javax.xml.xpath.XPathExpression
+import javax.xml.xpath.XPathFactory
 
 /**
  * A ResultSet implementation that fetches rows from the server in pages.
@@ -32,15 +38,64 @@ class PaginatedResultSet(
     private val password: String,
     private val reportPath: String,
     private var fetchSize: Int,
-    private val logger: Logger
+    private val logger: Logger,
+    private val resource: Closeable? = null   // optional underlying stream/response
 ) : ResultSet {
+
+    /** JDBC fetch direction (only FETCH_FORWARD is supported) */
+    @Volatile
+    private var fetchDirection: Int = ResultSet.FETCH_FORWARD
+
+    companion object {
+        private val XPATH_FACTORY: XPathFactory = XPathFactory.newInstance()
+        /**
+         * Compiled XPath that returns all elements whose local‑name() is ROW,
+         * regardless of namespace or depth.
+         */
+        private val ROW_EXPR: XPathExpression =
+            XPATH_FACTORY.newXPath().compile("//*[local-name()='ROW']")
+    }
+
+    // --- retry / timeout configuration ---------------------------------------
+    private val maxRetries = 3
+    private val initialDelayMillis = 1_000L
+    /** preserves first‑seen order of column names (lower‑case) across pages */
+    private val orderedCols: LinkedHashSet<String> = linkedSetOf()
+    /** lower‑case → original column name (first appearance wins) */
+    private val originalByLc: LinkedHashMap<String, String> = linkedMapOf()
+    /** lowercase → 1‑based column index (populated after metadata is built) */
+    private val indexByLc: MutableMap<String, Int> = mutableMapOf()
+
+    /** cached metadata built from orderedCols; initialized after first page */
+    @Volatile
+    private var cachedMeta: ResultSetMetaData? = null
 
     // Accumulated rows (each row is a map of column names (lowercase) to values)
     private val rows: MutableList<Map<String, String>> = mutableListOf()
+    /**
+     * Pool of MutableMaps we can recycle between page fetches to avoid
+     * allocating a brand‑new map for every row of every page.
+     */
+    private val rowPool: ArrayDeque<MutableMap<String, String>> = ArrayDeque()
+
+    /** index of the current row (-1 = before first).  Volatile for cross‑thread visibility */
+    @Volatile
     private var currentIndex = -1
+
+    /** total rows already fetched (used as OFFSET for the next page) */
+    @Volatile
     private var currentOffset = 0
-    // Indicates whether the last fetch returned a full page (and therefore more rows might exist).
+
+    /** true when the most recent page was full (so another page *might* exist) */
+    @Volatile
     private var lastPageFull = true
+
+    @Volatile
+    private var lastWasNull: Boolean = false
+
+    @Volatile
+    private var closed: Boolean = false
+    private var warnings: SQLWarning? = null
 
     init {
         // Fetch the first page upon initialization.
@@ -52,11 +107,20 @@ class PaginatedResultSet(
      */
     private fun rewriteQueryForPagination(originalSql: String, offset: Int, fetchSize: Int): String {
         if (fetchSize <= 0) return originalSql.trim()
-        val trimmed = originalSql.trim().uppercase()
-        if (!trimmed.startsWith("SELECT") || trimmed.contains("FETCH")) return originalSql
-        return "$originalSql OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY"
+        // Remove single-line (--) and multi-line (/* */) SQL comments
+        val sqlWithoutComments = originalSql
+            .replace(Regex("--.*?(\\r?\\n|$)"), " ") // single-line comments --
+            .replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), " ") // multi-line comments /**/
+        val normalizedSql = sqlWithoutComments.replace("\\s+".toRegex(), " ").trim()
+        val upper = normalizedSql.trim().uppercase()
+        if (!upper.startsWith("SELECT")) return originalSql
+        if (upper.contains(" OFFSET ") || upper.contains(" FETCH "))     // already paginated
+            return originalSql
+        if (upper.contains(" ROWNUM "))          // query already limited via ROWNUM
+            return originalSql
+        return "$upper OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY"
         // Basic check to ensure ORDER BY is placed correctly
-        /*val orderByIndex = trimmed.indexOf("ORDER BY")
+        /*val orderByIndex = upper.indexOf("ORDER BY")
         return if (orderByIndex != -1) {
             val orderByClause = originalSql.substring(orderByIndex)
             originalSql.substring(0, orderByIndex) + " OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY " + orderByClause
@@ -72,44 +136,95 @@ class PaginatedResultSet(
         // Only fetch if the previous page was full (i.e. there might be more rows).
         if (!lastPageFull) return
 
+        // Recycle row maps from the previous page.
+        rows.forEach { (it as? MutableMap<String, String>)?.let { map -> rowPool.add(map) } }
+        // Row-pool cap: remove excess recycled maps if needed
+        while (rowPool.size > fetchSize && fetchSize > 0) rowPool.removeFirst()
+        rows.clear()
+
         val effectiveSql = rewriteQueryForPagination(originalSql, currentOffset, fetchSize)
-        logger.info("Fetching page: SQL='{}'", effectiveSql)
-        val responseXml = sendSqlViaWsdl(wsdlEndpoint, effectiveSql, username, password, reportPath)
+        logger.debug("Fetching page: SQL='{}'", effectiveSql)
+        val responseXml = fetchPageXml(effectiveSql)
         val doc: Document = parseXml(responseXml)
-        var nodeList: NodeList = doc.getElementsByTagName("ROW")
+        // Grab all <ROW> elements anywhere in the payload with a single XPath pass.
+        var nodeList = ROW_EXPR.evaluate(doc, XPathConstants.NODESET) as NodeList
+        // If not found, the rows might be inside an escaped <RESULT> block → one extra parse.
         if (nodeList.length == 0) {
-            val resultNodes: NodeList = doc.getElementsByTagName("RESULT")
+            val resultNodes = doc.getElementsByTagName("RESULT")
             if (resultNodes.length > 0) {
-                val resultText = resultNodes.item(0).textContent.trim()
-                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
-                val rowDoc: Document = parseXml(unescapedXml)
-                nodeList = rowDoc.getElementsByTagName("ROW")
+                val unescaped = StringEscapeUtils.unescapeXml(resultNodes.item(0).textContent.trim())
+                val innerDoc: Document = parseXml(unescaped)
+                nodeList = ROW_EXPR.evaluate(innerDoc, XPathConstants.NODESET) as NodeList
             }
         }
-        logger.info("Fetched {} rows.", nodeList.length)
+        logger.debug("Fetched {} rows.", nodeList.length)
         // Parse rows from the NodeList.
         val newRows = mutableListOf<Map<String, String>>()
         for (i in 0 until nodeList.length) {
             val node = nodeList.item(i)
             if (node.nodeType == Node.ELEMENT_NODE) {
-                val rowMap = mutableMapOf<String, String>()
+                val rowMap: MutableMap<String, String> =
+                    if (rowPool.isEmpty()) mutableMapOf() else rowPool.removeFirst().also { it.clear() }
                 val children = node.childNodes
                 for (j in 0 until children.length) {
                     val child = children.item(j)
                     if (child.nodeType == Node.ELEMENT_NODE) {
-                        rowMap[child.nodeName.lowercase()] = child.textContent.trim()
+                        val original = child.nodeName
+                        val lc       = original.lowercase()
+                        orderedCols += lc
+                        originalByLc.putIfAbsent(lc, original)   // preserve first‑seen case
+                        rowMap[lc] = child.textContent.trim()
                     }
                 }
                 newRows.add(rowMap)
             }
         }
+        // Build metadata if not yet initialized.
+        if (cachedMeta == null) {
+            cachedMeta = DefaultResultSetMetaData(originalByLc.values.toList())
+            // build fast index for findColumn()
+            originalByLc.keys.forEachIndexed { idx, lc -> indexByLc[lc] = idx + 1 } // 1‑based
+        }
         // Update state.
-        rows.clear()
         rows.addAll(newRows)
-        // If the number of rows fetched is less than fetchSize, then no more rows exist.
-        lastPageFull = newRows.size == fetchSize
+        // Only attempt another page if the last fetch returned a full, non-empty page.
+        lastPageFull = fetchSize > 0 && newRows.isNotEmpty() && newRows.size == fetchSize
         currentOffset += newRows.size
         currentIndex = -1 // Reset index for the new page
+    }
+
+    /**
+     * Call Utils.sendSqlViaWsdl with a simple exponential‑backoff retry.
+     * Throws SQLTimeoutException after [maxRetries] unsuccessful attempts.
+     */
+    private fun fetchPageXml(sql: String): String {
+        var attempt = 0
+        var delay = initialDelayMillis
+        while (true) {
+            try {
+                // Utils.sendSqlViaWsdl already includes its own connect/read timeouts.
+                return sendSqlViaWsdl(wsdlEndpoint, sql, username, password, reportPath)
+            } catch (ex: Exception) {
+                attempt++
+                if (attempt >= maxRetries) {
+                    throw SQLTimeoutException(
+                        "Failed to fetch page after $attempt attempts: ${ex.message}",
+                        ex
+                    )
+                }
+                logger.warn(
+                    "Page fetch attempt {}/{} failed ({}). Retrying in {} ms …",
+                    attempt, maxRetries, ex.javaClass.simpleName + ": " + ex.message, delay
+                )
+                try {
+                    Thread.sleep(delay)
+                } catch (_: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    throw SQLTimeoutException("Retry interrupted", ex)
+                }
+                delay = delay * 2
+            }
+        }
     }
 
     override fun next(): Boolean {
@@ -135,8 +250,28 @@ class PaginatedResultSet(
         return rows[currentIndex]
     }
 
-    override fun getString(columnLabel: String): String? =
-        currentRow()[columnLabel.lowercase()]
+    /** Parse string to the requested numeric type or throw SQLException. */
+    private inline fun <T> parseNumeric(
+        raw: String?,
+        columnLabel: String,
+        defaultWhenNull: T,
+        convert: (String) -> T?
+    ): T {
+        if (raw == null) {
+            lastWasNull = true
+            return defaultWhenNull
+        }
+        lastWasNull = false
+        return convert(raw.trim()) ?: throw SQLException(
+            "Cannot convert value '$raw' in column '$columnLabel' to numeric"
+        )
+    }
+
+    override fun getString(columnLabel: String): String? {
+        val v = currentRow()[columnLabel.lowercase()]
+        lastWasNull = v == null
+        return v
+    }
 
     override fun getString(columnIndex: Int): String? {
         val meta = metaData
@@ -145,104 +280,111 @@ class PaginatedResultSet(
     }
 
     override fun getInt(columnLabel: String): Int =
-        getString(columnLabel)?.toIntOrNull() ?: throw SQLException("Cannot convert value to int")
+        parseNumeric(getString(columnLabel), columnLabel, 0) { it.toIntOrNull() }
 
     override fun getInt(columnIndex: Int): Int =
-        getString(columnIndex)?.toIntOrNull() ?: throw SQLException("Cannot convert value to int")
+        getInt(metaData.getColumnName(columnIndex))
 
-    // For simplicity, we implement getObject() as getString() here.
-    //override fun getObject(columnLabel: String): Any? = getString(columnLabel)
     override fun getObject(columnLabel: String): Any? {
-        val value = getString(columnLabel)
+        val value = getString(columnLabel)          // lastWasNull already set
+        if (lastWasNull) return null
         return when {
-            value == null -> null
-            value.matches(Regex("^-?\\d+$")) -> value.toInt() // Integer
-            value.matches(Regex("^-?\\d+\\.\\d+$")) -> value.toDouble() // Double
-            value.matches(Regex("^-?\\d+\\.?\\d*[Ee][+-]?\\d+$")) -> value.toDouble()// Exponential Notation
-            else -> value // String
+            value!!.matches(Regex("^-?\\d+$"))            -> value.toInt()
+            value.matches(Regex("^-?\\d+\\.\\d+$"))       -> value.toDouble()
+            value.matches(Regex("^-?\\d+\\.?\\d*[Ee][+-]?\\d+$")) -> value.toDouble()
+            else                                          -> value
         }
     }
     override fun getObject(columnIndex: Int): Any? = getString(columnIndex)
 
-    override fun getMetaData(): ResultSetMetaData {
-        // Use the keys from the first row (if any) as columns.
-        val columns = if (rows.isNotEmpty()) rows[0].keys.toList() else emptyList()
-        return object : ResultSetMetaData {
-            override fun getColumnCount(): Int = columns.size
-            override fun getColumnName(column: Int): String = columns[column - 1]
-            override fun getColumnLabel(column: Int): String = getColumnName(column)
-            override fun isAutoIncrement(column: Int): Boolean = false
-            override fun isCaseSensitive(column: Int): Boolean = true
-            override fun isSearchable(column: Int): Boolean = false
-            override fun isCurrency(column: Int): Boolean = false
-            override fun isNullable(column: Int): Int = ResultSetMetaData.columnNullable
-            override fun isSigned(column: Int): Boolean = false
-            override fun getColumnDisplaySize(column: Int): Int = 50
-            override fun getColumnType(column: Int): Int = Types.VARCHAR
-            override fun getColumnTypeName(column: Int): String = "VARCHAR"
-            override fun getPrecision(column: Int): Int = 0
-            override fun getScale(column: Int): Int = 0
-            override fun getSchemaName(column: Int): String = ""
-            override fun getTableName(column: Int): String = ""
-            override fun getCatalogName(column: Int): String = ""
-            override fun isReadOnly(column: Int): Boolean = true
-            override fun isWritable(column: Int): Boolean = false
-            override fun isDefinitelyWritable(column: Int): Boolean = false
-            override fun getColumnClassName(column: Int): String = "java.lang.String"
-            override fun <T : Any?> unwrap(iface: Class<T>?): T =
-                throw SQLFeatureNotSupportedException("Not implemented 1")
-            override fun isWrapperFor(iface: Class<*>?): Boolean = false
+    override fun getMetaData(): ResultSetMetaData =
+        cachedMeta ?: DefaultResultSetMetaData(emptyList())
+    override fun wasNull(): Boolean = lastWasNull
+    override fun close() {
+        if (closed) return          // idempotent
+        closed = true
+
+        // Help GC: clear row buffer
+        rows.clear()
+        orderedCols.clear()
+        originalByLc.clear()
+
+        // Attempt to close the underlying resource if supplied
+        try {
+            resource?.close()
+        } catch (ex: Exception) {
+            warnings = SQLWarning("Error closing resource", ex)
         }
     }
-
-    override fun wasNull(): Boolean = false
-    override fun close() { /* no-op */ }
 
     // --- Stub methods ---
-    // (For brevity, the remaining methods throw UnsupportedOperationException.)
-    override fun getBoolean(columnIndex: Int): Boolean = throw UnsupportedOperationException("Not implemented 2")
-    override fun getBoolean(columnLabel: String?): Boolean = throw UnsupportedOperationException("Not implemented 3")
-    override fun getByte(columnIndex: Int): Byte = throw UnsupportedOperationException("Not implemented 4")
-    override fun getByte(columnLabel: String?): Byte = throw UnsupportedOperationException("Not implemented 5")
-    override fun getShort(columnIndex: Int): Short = throw UnsupportedOperationException("Not implemented 6")
-    override fun getShort(columnLabel: String?): Short = throw UnsupportedOperationException("Not implemented 7")
-    //override fun getLong(columnIndex: Int): Long = throw UnsupportedOperationException("Not implemented 8")
-    //override fun getLong(columnLabel: String?): Long = throw UnsupportedOperationException("Not implemented 9")
-    override fun getLong(columnLabel: String): Long {
-        val value = getString(columnLabel)
-        return if (!value.isNullOrBlank()) {
-            value.toLongOrNull() ?: 0L
-        } else {
-            0L
+    override fun getBoolean(columnLabel: String): Boolean {
+        val raw = getString(columnLabel)          // sets lastWasNull
+        if (lastWasNull) return false             // JDBC: return false on SQL NULL
+        val v = raw!!.trim().lowercase()
+        return when (v) {
+            "true", "t", "yes", "y", "1"  -> true
+            "false", "f", "no", "n", "0"  -> false
+            else -> throw SQLException("Cannot convert value '$raw' in column '$columnLabel' to BOOLEAN")
         }
     }
 
-    override fun getLong(columnIndex: Int): Long {
-        val meta = metaData
-        val colName = meta.getColumnName(columnIndex)
-        return getLong(colName)
-    }
+    override fun getBoolean(columnIndex: Int): Boolean =
+        getBoolean(metaData.getColumnName(columnIndex))
+    override fun getByte(columnLabel: String): Byte =
+        parseNumeric(getString(columnLabel), columnLabel, 0.toByte()) { it.toByteOrNull() }
+
+    override fun getByte(columnIndex: Int): Byte =
+        getByte(metaData.getColumnName(columnIndex))
+
+    override fun getShort(columnLabel: String): Short =
+        parseNumeric(getString(columnLabel), columnLabel, 0.toShort()) { it.toShortOrNull() }
+
+    override fun getShort(columnIndex: Int): Short =
+        getShort(metaData.getColumnName(columnIndex))
+    //override fun getLong(columnIndex: Int): Long = throw UnsupportedOperationException("Not implemented 8")
+    //override fun getLong(columnLabel: String?): Long = throw UnsupportedOperationException("Not implemented 9")
+    override fun getLong(columnLabel: String): Long =
+        parseNumeric(getString(columnLabel), columnLabel, 0L) { it.toLongOrNull() }
+
+    override fun getLong(columnIndex: Int): Long =
+        getLong(metaData.getColumnName(columnIndex))
 
     //override fun getFloat(columnIndex: Int): Float = throw UnsupportedOperationException("Not implemented 10")
     //override fun getFloat(columnLabel: String?): Float = throw UnsupportedOperationException("Not implemented 11")
     override fun getFloat(columnLabel: String): Float =
-        getString(columnLabel)?.toFloatOrNull() ?: throw SQLException("Cannot convert value to float")
+        parseNumeric(getString(columnLabel), columnLabel, 0f) { it.toFloatOrNull() }
 
-    override fun getFloat(columnIndex: Int): Float {
-        val meta = metaData
-        val colName = meta.getColumnName(columnIndex)
-        return getFloat(colName)
-    }
-    override fun getDouble(columnIndex: Int): Double = throw UnsupportedOperationException("Not implemented 12")
-    override fun getDouble(columnLabel: String?): Double = throw UnsupportedOperationException("Not implemented 13")
+    override fun getFloat(columnIndex: Int): Float =
+        getFloat(metaData.getColumnName(columnIndex))
+
+    override fun getDouble(columnLabel: String): Double =
+        parseNumeric(getString(columnLabel), columnLabel, 0.0) { it.toDoubleOrNull() }
+
+    override fun getDouble(columnIndex: Int): Double =
+        getDouble(metaData.getColumnName(columnIndex))
     @Deprecated("Deprecated in Java")
     override fun getBigDecimal(columnIndex: Int, scale: Int): BigDecimal = throw UnsupportedOperationException("Not implemented 14")
     @Deprecated("Deprecated in Java")
     override fun getBigDecimal(columnLabel: String, scale: Int): BigDecimal = throw UnsupportedOperationException("Not implemented 15")
     override fun getBytes(columnIndex: Int): ByteArray = throw UnsupportedOperationException("Not implemented 16")
     override fun getBytes(columnLabel: String?): ByteArray = throw UnsupportedOperationException("Not implemented 17")
-    override fun getDate(columnIndex: Int): java.sql.Date = throw UnsupportedOperationException("Not implemented 18")
-    override fun getDate(columnLabel: String?): java.sql.Date = throw UnsupportedOperationException("Not implemented 19")
+    private fun parseSqlDate(str: String?): java.sql.Date? =
+        str?.takeIf { it.length >= 10 }?.let { java.sql.Date.valueOf(it.substring(0, 10)) }
+
+    private fun parseSqlTime(str: String?): java.sql.Time? =
+        str?.takeIf { it.length >= 8 }?.let { java.sql.Time.valueOf(it.substring(11, 19)) }
+
+    private fun parseSqlTimestamp(str: String?): java.sql.Timestamp? =
+        str?.let { runCatching { java.sql.Timestamp.valueOf(it.replace('T', ' ').substring(0, 19)) }.getOrNull() }
+
+    override fun getDate(columnLabel: String): java.sql.Date? {
+        val d = parseSqlDate(getString(columnLabel))
+        lastWasNull = d == null
+        return d
+    }
+    override fun getDate(columnIndex: Int): java.sql.Date? =
+        getDate(metaData.getColumnName(columnIndex))
     override fun getDate(columnIndex: Int, cal: Calendar?): Date {
         TODO("Not yet implemented 1")
     }
@@ -251,8 +393,13 @@ class PaginatedResultSet(
         TODO("Not yet implemented 2")
     }
 
-    override fun getTime(columnIndex: Int): java.sql.Time = throw UnsupportedOperationException("Not implemented 20")
-    override fun getTime(columnLabel: String?): java.sql.Time = throw UnsupportedOperationException("Not implemented 21")
+    override fun getTime(columnLabel: String): java.sql.Time? {
+        val t = parseSqlTime(getString(columnLabel))
+        lastWasNull = t == null
+        return t
+    }
+    override fun getTime(columnIndex: Int): java.sql.Time? =
+        getTime(metaData.getColumnName(columnIndex))
     override fun getTime(columnIndex: Int, cal: Calendar?): Time {
         TODO("Not yet implemented 3")
     }
@@ -261,8 +408,13 @@ class PaginatedResultSet(
         TODO("Not yet implemented 4")
     }
 
-    override fun getTimestamp(columnIndex: Int): java.sql.Timestamp = throw UnsupportedOperationException("Not implemented 22")
-    override fun getTimestamp(columnLabel: String?): java.sql.Timestamp = throw UnsupportedOperationException("Not implemented 23")
+    override fun getTimestamp(columnLabel: String): java.sql.Timestamp? {
+        val ts = parseSqlTimestamp(getString(columnLabel))
+        lastWasNull = ts == null
+        return ts
+    }
+    override fun getTimestamp(columnIndex: Int): java.sql.Timestamp? =
+        getTimestamp(metaData.getColumnName(columnIndex))
     override fun getTimestamp(columnIndex: Int, cal: Calendar?): Timestamp {
         TODO("Not yet implemented 5")
     }
@@ -279,41 +431,59 @@ class PaginatedResultSet(
     override fun getUnicodeStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 27")
     override fun getBinaryStream(columnIndex: Int): java.io.InputStream = throw UnsupportedOperationException("Not implemented 28")
     override fun getBinaryStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 29")
-    override fun getWarnings(): java.sql.SQLWarning? = null
-    override fun clearWarnings() { /* no warnings to clear */ }
+    override fun getWarnings(): SQLWarning? = warnings
+    override fun clearWarnings() { warnings = null }
     override fun getCursorName(): String = throw UnsupportedOperationException("Not implemented 30")
     override fun getObject(columnLabel: String, map: MutableMap<String, Class<*>>?): Any = throw UnsupportedOperationException("Not implemented 31")
     //override fun getObject(columnIndex: Int, map: MutableMap<String, Class<*>>?): Any = throw UnsupportedOperationException("Not implemented 32")
     //override fun <T : Any?> getObject(columnIndex: Int, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 33")
     //override fun <T : Any?> getObject(columnLabel: String, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 34")
-    override fun getCharacterStream(columnIndex: Int): java.io.Reader = throw UnsupportedOperationException("Not implemented 35")
-    override fun getCharacterStream(columnLabel: String): java.io.Reader = throw UnsupportedOperationException("Not implemented 36")
-    override fun isBeforeFirst(): Boolean = throw UnsupportedOperationException("Not implemented 37")
-    override fun isAfterLast(): Boolean = throw UnsupportedOperationException("Not implemented 38")
-    override fun isFirst(): Boolean = throw UnsupportedOperationException("Not implemented 39")
-    override fun isLast(): Boolean = throw UnsupportedOperationException("Not implemented 40")
-    override fun beforeFirst() = throw UnsupportedOperationException("Not implemented 41")
-    override fun afterLast() = throw UnsupportedOperationException("Not implemented 42")
-    override fun first(): Boolean = throw UnsupportedOperationException("Not implemented 43")
-    override fun last(): Boolean = throw UnsupportedOperationException("Not implemented 44")
-    override fun getBigDecimal(columnIndex: Int): BigDecimal = throw UnsupportedOperationException("Not implemented 45")
-    override fun getBigDecimal(columnLabel: String?): BigDecimal = throw UnsupportedOperationException("Not implemented 46")
-    override fun getRow(): Int = throw UnsupportedOperationException("Not implemented 47")
+    override fun getCharacterStream(columnLabel: String): Reader =
+        java.io.StringReader(getString(columnLabel) ?: "")
+
+    override fun getCharacterStream(columnIndex: Int): Reader =
+        getCharacterStream(metaData.getColumnName(columnIndex))
+    // ─── Cursor position helpers ────────────────────────────────────────────
+    override fun isBeforeFirst(): Boolean = currentIndex < 0 && rows.isNotEmpty()
+    override fun isAfterLast(): Boolean   = currentIndex >= rows.size && !lastPageFull
+    override fun isFirst(): Boolean       = currentIndex == 0
+    override fun isLast(): Boolean        = !lastPageFull && currentIndex == rows.size - 1
+
+    // Forward‑only cursor – disallowed moves
+    override fun beforeFirst() = throw SQLException("TYPE_FORWARD_ONLY")
+    override fun afterLast()  = throw SQLException("TYPE_FORWARD_ONLY")
+    override fun first(): Boolean = throw SQLException("TYPE_FORWARD_ONLY")
+    override fun last(): Boolean  = throw SQLException("TYPE_FORWARD_ONLY")
+    override fun getBigDecimal(columnLabel: String): BigDecimal {
+        val s = getString(columnLabel)
+        if (lastWasNull) return BigDecimal.ZERO
+        return runCatching { BigDecimal(s) }.getOrElse {
+            throw SQLException("Cannot convert '$s' to BigDecimal", it)
+        }
+    }
+    override fun getBigDecimal(columnIndex: Int): BigDecimal =
+        getBigDecimal(metaData.getColumnName(columnIndex))
+    override fun getRow(): Int =
+        if (currentIndex < 0) 0 else currentOffset - rows.size + currentIndex + 1
     override fun absolute(row: Int): Boolean = throw UnsupportedOperationException("Not implemented 48")
     override fun relative(rows: Int): Boolean = throw UnsupportedOperationException("Not implemented 49")
     override fun previous(): Boolean = throw UnsupportedOperationException("Not implemented 50")
-    override fun setFetchDirection(direction: Int) = throw UnsupportedOperationException("Not implemented 51")
-    override fun getFetchDirection(): Int = throw UnsupportedOperationException("Not implemented 52")
+    override fun setFetchDirection(direction: Int) {
+        if (direction != ResultSet.FETCH_FORWARD)
+            throw SQLException("Only FETCH_FORWARD is supported")
+        fetchDirection = direction
+    }
+    override fun getFetchDirection(): Int = fetchDirection
     override fun setFetchSize(rows: Int) {
         fetchSize = rows
         logger.info("Fetch size set to {}", rows)
     }
     override fun getFetchSize(): Int = fetchSize
     override fun getType(): Int = ResultSet.TYPE_FORWARD_ONLY
-    override fun getConcurrency(): Int = throw UnsupportedOperationException("Not implemented 55")
-    override fun rowUpdated(): Boolean = throw UnsupportedOperationException("Not implemented 56")
-    override fun rowInserted(): Boolean = throw UnsupportedOperationException("Not implemented 57")
-    override fun rowDeleted(): Boolean = throw UnsupportedOperationException("Not implemented 58")
+    override fun getConcurrency(): Int = ResultSet.CONCUR_READ_ONLY
+    override fun rowUpdated(): Boolean = false
+    override fun rowInserted(): Boolean = false
+    override fun rowDeleted(): Boolean = false
     override fun updateNull(columnIndex: Int) = throw UnsupportedOperationException("Not implemented 59")
     override fun updateBoolean(columnIndex: Int, x: Boolean) = throw UnsupportedOperationException("Not implemented 60")
     override fun updateByte(columnIndex: Int, x: Byte) = throw UnsupportedOperationException("Not implemented 61")
@@ -525,12 +695,18 @@ class PaginatedResultSet(
     override fun getObject(columnIndex: Int, map: MutableMap<String, Class<*>>?): Any = throw UnsupportedOperationException("Not implemented 103")
     override fun <T : Any?> getObject(columnIndex: Int, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 104")
     override fun <T : Any?> getObject(columnLabel: String, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 105")
-    override fun findColumn(columnLabel: String?): Int = throw UnsupportedOperationException("Not implemented 106")
+    override fun findColumn(columnLabel: String?): Int {
+        columnLabel ?: throw SQLException("Column label cannot be null")
+        return indexByLc[columnLabel.lowercase()]
+            ?: throw SQLException(
+                "Column '$columnLabel' not found. Available: ${originalByLc.values.joinToString()}"
+            )
+    }
     override fun getRowId(columnLabel: String): java.sql.RowId = throw UnsupportedOperationException("Not implemented 107")
     override fun updateRowId(columnIndex: Int, x: java.sql.RowId?) = throw UnsupportedOperationException("Not implemented 108")
     override fun updateRowId(columnLabel: String, x: java.sql.RowId?) = throw UnsupportedOperationException("Not implemented 109")
-    override fun getHoldability(): Int = throw UnsupportedOperationException("Not implemented 110")
-    override fun isClosed(): Boolean = false
+    override fun getHoldability(): Int = ResultSet.HOLD_CURSORS_OVER_COMMIT
+    override fun isClosed(): Boolean = closed
     override fun updateNString(columnIndex: Int, nString: String?) = throw UnsupportedOperationException("Not implemented 111")
     override fun updateNString(columnLabel: String?, nString: String?) = throw UnsupportedOperationException("Not implemented 112")
     override fun updateNClob(columnIndex: Int, nClob: java.sql.NClob?) = throw UnsupportedOperationException("Not implemented 113")
@@ -557,14 +733,19 @@ class PaginatedResultSet(
     override fun getSQLXML(columnLabel: String?): java.sql.SQLXML = throw UnsupportedOperationException("Not implemented 118")
     override fun updateSQLXML(columnIndex: Int, xmlObject: java.sql.SQLXML?) = throw UnsupportedOperationException("Not implemented 119")
     override fun updateSQLXML(columnLabel: String?, xmlObject: java.sql.SQLXML?) = throw UnsupportedOperationException("Not implemented 120")
-    override fun getNString(columnIndex: Int): String = throw UnsupportedOperationException("Not implemented 121")
-    override fun getNString(columnLabel: String?): String = throw UnsupportedOperationException("Not implemented 122")
+    override fun getNString(columnLabel: String): String? = getString(columnLabel)
+    override fun getNString(columnIndex: Int): String? = getString(columnIndex)
     override fun getNCharacterStream(columnIndex: Int): java.io.Reader = throw UnsupportedOperationException("Not implemented 123")
     override fun getNCharacterStream(columnLabel: String?): java.io.Reader = throw UnsupportedOperationException("Not implemented 124")
     override fun updateNCharacterStream(columnIndex: Int, x: java.io.Reader?, length: Long) = throw UnsupportedOperationException("Not implemented 125")
     override fun updateNCharacterStream(columnLabel: String?, reader: java.io.Reader?, length: Long) = throw UnsupportedOperationException("Not implemented 126")
     override fun updateNCharacterStream(columnIndex: Int, x: java.io.Reader?) = throw UnsupportedOperationException("Not implemented 127")
     override fun updateNCharacterStream(columnLabel: String?, reader: java.io.Reader?) = throw UnsupportedOperationException("Not implemented 128")
-    override fun <T : Any?> unwrap(iface: Class<T>?): T = throw UnsupportedOperationException("Not implemented 129")
-    override fun isWrapperFor(iface: Class<*>?): Boolean = throw UnsupportedOperationException("Not implemented 130")
+    override fun <T> unwrap(iface: Class<T>?): T {
+        if (iface == null) throw SQLException("Interface cannot be null")
+        if (iface.isInstance(this)) return iface.cast(this)
+        throw SQLException("Not a wrapper for " + iface.name)
+    }
+    override fun isWrapperFor(iface: Class<*>?): Boolean =
+        iface != null && iface.isInstance(this)
 }

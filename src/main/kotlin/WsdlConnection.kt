@@ -10,22 +10,35 @@ class WsdlConnection(
     val password: String,
     val reportPath: String
 ) : Connection {
+    init {
+        require(wsdlEndpoint.isNotBlank()) { "wsdlEndpoint must not be blank" }
+        require(reportPath.isNotBlank())   { "reportPath must not be blank" }
+    }
     // For a minimal implementation, we assume the connection is always read-only.
     private var readOnly: Boolean = true
-    private var autoCommit: Boolean = false
+    /** JDBC default is autoCommit = true; driver is read‑only so value is advisory only. */
+    private var autoCommit: Boolean = true
     private var currentSchema: String? = "FUSION"
+    /** Network timeout requested by caller (ms); driver ignores it but returns the same value. */
+    private var networkTimeoutMillis: Int = 0
 
     companion object {
         private val logger = LoggerFactory.getLogger(WsdlConnection::class.java)
     }
 
+    @Volatile
+    private var closed: Boolean = false
+
     override fun createStatement(): Statement =
         WsdlStatement(wsdlEndpoint, username, password, reportPath)
-    override fun close() { logger.info("Connection closed")
+    override fun close() {
+        if (closed) return          // already closed – do nothing
+        closed = true
+        logger.info("Connection closed")
         //LocalMetadataCache.close()
-        }
+    }
 
-    override fun isClosed(): Boolean = false
+    override fun isClosed(): Boolean = closed
 
     // Implement getMetaData() by returning a minimal DatabaseMetaData.
     override fun getMetaData(): DatabaseMetaData = WsdlDatabaseMetaData(this)
@@ -37,13 +50,14 @@ class WsdlConnection(
         return WsdlPreparedStatement(sql, wsdlEndpoint, username, password, reportPath)
     }
 
-    override fun prepareCall(sql: String?): CallableStatement = throw UnsupportedOperationException("Not implemented 208")
+    override fun prepareCall(sql: String?): CallableStatement =
+        throw SQLFeatureNotSupportedException("Stored procedures are not supported")
     override fun nativeSQL(sql: String?): String = throw UnsupportedOperationException("Not implemented 209")
 
     override fun setAutoCommit(autoCommit: Boolean) {
         this.autoCommit = autoCommit
-        // Optionally log that this is a no-op for read-only connections.
-        logger.info("setAutoCommit($autoCommit) called. (No transactional changes supported.)")
+        if (logger.isDebugEnabled)
+            logger.debug("setAutoCommit({}) called – read‑only connection, no effect.", autoCommit)
     }
     override fun getAutoCommit(): Boolean =  autoCommit//throw UnsupportedOperationException("Not implemented 211")
     override fun commit() {
@@ -57,11 +71,17 @@ class WsdlConnection(
         // so rollback is a no-op.
         logger.info("Rollback called, but this connection is read-only. No action taken.")
     }
-    override fun setReadOnly(readOnly: Boolean) {this.readOnly = readOnly}// throw UnsupportedOperationException("Not implemented 214")
+    override fun setReadOnly(readOnly: Boolean) {
+        if (!readOnly) {
+            throw SQLFeatureNotSupportedException("This driver supports read‑only connections only")
+        }
+        // caller asked for read‑only → already true; nothing else to do
+        this.readOnly = true
+    }
     override fun isReadOnly(): Boolean = this.readOnly //throw UnsupportedOperationException("Not implemented 215")
     override fun setCatalog(catalog: String?) = throw UnsupportedOperationException("Not implemented 216")
     //override fun getCatalog(): String? = throw UnsupportedOperationException("Not implemented 217")
-    override fun getCatalog(): String? = ""
+    override fun getCatalog(): String? = null    // driver has no catalog concept
     override fun setTransactionIsolation(level: Int) = throw UnsupportedOperationException("Not implemented 218")
     //override fun getTransactionIsolation(): Int = throw UnsupportedOperationException("Not implemented 219")
     override fun getTransactionIsolation(): Int = Connection.TRANSACTION_READ_COMMITTED
@@ -79,18 +99,40 @@ class WsdlConnection(
         logger.info("Preparing statement: {} (type={}, concurrency={})", sql, resultSetType, resultSetConcurrency)
         return WsdlPreparedStatement(sql, wsdlEndpoint, username, password, reportPath)
     }
-    override fun prepareCall(sql: String?, resultSetType: Int, resultSetConcurrency: Int): CallableStatement = throw UnsupportedOperationException("Not implemented 224")
+    override fun prepareCall(
+        sql: String?,
+        resultSetType: Int,
+        resultSetConcurrency: Int
+    ): CallableStatement =
+        throw SQLFeatureNotSupportedException("Stored procedures are not supported")
     override fun getTypeMap(): MutableMap<String, Class<*>> = throw UnsupportedOperationException("Not implemented 225")
     override fun setTypeMap(map: MutableMap<String, Class<*>>?) = throw UnsupportedOperationException("Not implemented 226")
-    override fun setHoldability(holdability: Int) = throw UnsupportedOperationException("Not implemented 227")
-    override fun getHoldability(): Int = throw UnsupportedOperationException("Not implemented 228")
+
+    /** Forward‑only, read‑only driver: only HOLD_CURSORS_OVER_COMMIT is supported. */
+    override fun setHoldability(holdability: Int) {
+        if (holdability != ResultSet.HOLD_CURSORS_OVER_COMMIT) {
+            throw SQLFeatureNotSupportedException(
+                "Only ResultSet.HOLD_CURSORS_OVER_COMMIT is supported"
+            )
+        }
+        // nothing else to do; value is accepted
+    }
+
+    override fun getHoldability(): Int = ResultSet.HOLD_CURSORS_OVER_COMMIT
+
     override fun setSavepoint(): Savepoint = throw UnsupportedOperationException("Not implemented 229")
     override fun setSavepoint(name: String?): Savepoint = throw UnsupportedOperationException("Not implemented 230")
     override fun rollback(savepoint: Savepoint?) = throw UnsupportedOperationException("Not implemented 231")
     override fun releaseSavepoint(savepoint: Savepoint?) = throw UnsupportedOperationException("Not implemented 232")
     override fun createStatement(resultSetType: Int, resultSetConcurrency: Int, resultSetHoldability: Int): Statement = throw UnsupportedOperationException("Not implemented 233")
     override fun prepareStatement(sql: String?, resultSetType: Int, resultSetConcurrency: Int, resultSetHoldability: Int): PreparedStatement = throw UnsupportedOperationException("Not implemented 234")
-    override fun prepareCall(sql: String?, resultSetType: Int, resultSetConcurrency: Int, resultSetHoldability: Int): CallableStatement = throw UnsupportedOperationException("Not implemented 235")
+    override fun prepareCall(
+        sql: String?,
+        resultSetType: Int,
+        resultSetConcurrency: Int,
+        resultSetHoldability: Int
+    ): CallableStatement =
+        throw SQLFeatureNotSupportedException("Stored procedures are not supported")
     override fun prepareStatement(sql: String?, autoGeneratedKeys: Int): PreparedStatement = throw UnsupportedOperationException("Not implemented 236")
     override fun prepareStatement(sql: String?, columnIndexes: IntArray?): PreparedStatement = throw UnsupportedOperationException("Not implemented 237")
     override fun prepareStatement(sql: String?, columnNames: Array<out String>?): PreparedStatement = throw UnsupportedOperationException("Not implemented 238")
@@ -115,8 +157,23 @@ class WsdlConnection(
     //override fun getSchema(): String = username
     override fun getSchema(): String = currentSchema ?: "FUSION"
     override fun abort(executor: java.util.concurrent.Executor?) = throw UnsupportedOperationException("Not implemented 252")
-    override fun setNetworkTimeout(executor: java.util.concurrent.Executor?, milliseconds: Int) = throw UnsupportedOperationException("Not implemented 253")
-    override fun getNetworkTimeout(): Int = throw UnsupportedOperationException("Not implemented 254")
-    override fun <T : Any?> unwrap(iface: Class<T>): T = throw UnsupportedOperationException("Not implemented 255")
-    override fun isWrapperFor(iface: Class<*>): Boolean = throw UnsupportedOperationException("Not implemented 256")
+    override fun setNetworkTimeout(executor: java.util.concurrent.Executor?, milliseconds: Int) {
+        // The WSDL driver is stateless / HTTP-based; we don't enforce socket timeouts here.
+        // Store the value so that getNetworkTimeout() can echo it, as the spec expects.
+        this.networkTimeoutMillis = milliseconds
+        if (logger.isDebugEnabled)
+            logger.debug("setNetworkTimeout({}, {}) called – no enforcement in driver", executor, milliseconds)
+    }
+
+    override fun getNetworkTimeout(): Int = networkTimeoutMillis
+    override fun <T> unwrap(iface: Class<T>): T {
+        if (iface.isInstance(this)) {
+            @Suppress("UNCHECKED_CAST")
+            return this as T
+        }
+        throw SQLException("Not a wrapper for ${iface.name}")
+    }
+
+    override fun isWrapperFor(iface: Class<*>): Boolean =
+        iface.isInstance(this)
 }

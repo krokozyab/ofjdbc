@@ -196,7 +196,6 @@ class WsdlPreparedStatement(
     override fun getMetaData(): ResultSetMetaData {
         TODO("Not yet implemented 56")
     }
-
     override fun setURL(parameterIndex: Int, x: URL?) =
         throw UnsupportedOperationException("Parameter binding is not supported")
 

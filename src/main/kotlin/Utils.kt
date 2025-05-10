@@ -186,21 +186,35 @@ fun sendSqlViaWsdl(
 }
 
 fun createResultSetFromRowNodes(rowNodes: NodeList): ResultSet {
-    val rows = mutableListOf<Map<String, String>>()
+    // Map lower‑case → original‑case (first appearance wins) to preserve metadata names
+    val originalByLc = linkedMapOf<String, String>()
+    val rawRows      = mutableListOf<MutableMap<String, String>>()
+
     for (i in 0 until rowNodes.length) {
         val rowNode = rowNodes.item(i)
-        if (rowNode.nodeType == Node.ELEMENT_NODE) {
-            val rowMap = mutableMapOf<String, String>()
-            val children = rowNode.childNodes
-            for (j in 0 until children.length) {
-                val child = children.item(j)
-                if (child.nodeType == Node.ELEMENT_NODE) {
-                    rowMap[child.nodeName.lowercase()] = child.textContent.trim()
-                }
+        if (rowNode.nodeType != Node.ELEMENT_NODE) continue
+
+        val rowMap = linkedMapOf<String, String>()          // keeps insertion order of lc keys
+        val children = rowNode.childNodes
+        for (j in 0 until children.length) {
+            val child = children.item(j)
+            if (child.nodeType == Node.ELEMENT_NODE) {
+                val original = child.nodeName               // as in XML
+                val lc       = original.lowercase()
+                // remember the original name only the first time we see this lc key
+                originalByLc.putIfAbsent(lc, original)
+                rowMap[lc] = child.textContent.trim()
             }
-            rows.add(rowMap)
         }
+        rawRows += rowMap
     }
+
+    // Complete rows so each has every column
+    val allLcCols = originalByLc.keys.toList()              // preserves first‑seen order
+    rawRows.forEach { row -> allLcCols.forEach { row.putIfAbsent(it, "") } }
+
+    val rows: List<Map<String, String>> = rawRows
+    // Build ResultSet; XmlResultSet will derive metadata from the first row (keys are in stable order)
     return XmlResultSet(rows)
 }
 

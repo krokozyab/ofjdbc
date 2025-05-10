@@ -8,11 +8,16 @@ import java.sql.DriverPropertyInfo
 import java.util.*
 import java.util.logging.Logger
 
+import java.sql.ResultSetMetaData
+import java.sql.ResultSetMetaData.columnNullable
+import java.sql.SQLFeatureNotSupportedException
+import java.sql.Types
+
 class WsdlDriver : Driver {
     var wsdlEndpoint: String = ""
     var reportPath: String = ""
 
-    private val logger = LoggerFactory.getLogger(WsdlStatement::class.java)
+    private val logger = LoggerFactory.getLogger(WsdlDriver::class.java)
 
     override fun connect(url: String?, info: Properties?): Connection? {
         if (url == null || info == null) return null
@@ -47,4 +52,30 @@ class WsdlDriver : Driver {
             }
         }
     }
+}
+
+class DefaultResultSetMetaData(private val columns: List<String>) : ResultSetMetaData {
+    override fun getColumnCount(): Int = columns.size
+    override fun getColumnName(column: Int): String = columns[column - 1]
+    override fun getColumnLabel(column: Int): String = getColumnName(column)
+    override fun isAutoIncrement(column: Int): Boolean = false
+    override fun isCaseSensitive(column: Int): Boolean = true
+    override fun isSearchable(column: Int): Boolean = true
+    override fun isCurrency(column: Int): Boolean = false
+    override fun isNullable(column: Int): Int = columnNullable
+    override fun isSigned(column: Int): Boolean = false
+    override fun getColumnDisplaySize(column: Int): Int = 50
+    override fun getColumnType(column: Int): Int = Types.VARCHAR
+    override fun getColumnTypeName(column: Int): String = "VARCHAR"
+    override fun getPrecision(column: Int): Int = 0
+    override fun getScale(column: Int): Int = 0
+    override fun getSchemaName(column: Int): String = ""
+    override fun getTableName(column: Int): String = ""
+    override fun getCatalogName(column: Int): String = ""
+    override fun isReadOnly(column: Int): Boolean = true
+    override fun isWritable(column: Int): Boolean = false
+    override fun isDefinitelyWritable(column: Int): Boolean = false
+    override fun getColumnClassName(column: Int): String = "java.lang.String"
+    override fun <T : Any?> unwrap(iface: Class<T>?): T = throw SQLFeatureNotSupportedException()
+    override fun isWrapperFor(iface: Class<*>?): Boolean = false
 }
