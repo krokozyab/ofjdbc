@@ -91,6 +91,9 @@ into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you wil
 
 <img src="pics/setup_6.png" alt="dbeaver" width="600"/>
 
+7. **On Windows enable view indexes on driver settings** 
+
+<img src="pics/indexes_meta.png" alt="dbeaver" width="600"/>
 
 0. **After February 27, 2025, the incremental cache algorithm has been updated. In addition to installing the new release JAR file, please refresh your local cache by deleting the metadata.db and metadata.db.wal files from your user folder.**
 </font>
@@ -104,6 +107,13 @@ Some limitations are inherent to the underlying Oracle Fusion reporting architec
 For further insights on some of these challenges, see this article on using synchronous BIP for data extraction.
 https://www.ateam-oracle.com/post/using-synchronous-bip-for-extracting-data-dont
 
+### Tips for DBeaver users
+
+1. **Don’t Click → Refresh on the “Indexes” folder** of your connection root—this will still trigger schema-wide metadata.
+2. Instead, **expand** the connection, then the **Tables** node, find your table, and **only then** expand its **Indexes** subnode.
+3. If you really need a full index list, consider scripting it via SQL (e.g. using `ALL_INDEXES` + `ALL_IND_COLUMNS`) and running it in the SQL editor once, rather than relying on the UI tree.
+
+By following this pattern, you get all the index metadata you need _on demand_—and avoid thousands of background SOAP calls that would otherwise slow down or break your session.
 
 ## ⚠️ Important Disclaimer
 Before using this driver in your organization, please ensure that you consult with your company’s security team or other responsible personnel. It is important to verify that the driver complies with your organization’s security policies and standards. By using this driver, you acknowledge that you have reviewed and obtained the necessary approvals regarding the security implications of its deployment.
