@@ -57,6 +57,25 @@ object LocalMetadataCache {
                 )
                 """.trimIndent()
             )
+            stmt.executeUpdate(
+                """
+                CREATE TABLE IF NOT EXISTS CACHED_INDEXES (
+                    TABLE_CAT VARCHAR,
+                    TABLE_SCHEM VARCHAR,
+                    TABLE_NAME VARCHAR,
+                    NON_UNIQUE VARCHAR,
+                    INDEX_QUALIFIER VARCHAR,
+                    INDEX_NAME VARCHAR,
+                    TYPE VARCHAR,
+                    ORDINAL_POSITION VARCHAR,
+                    COLUMN_NAME VARCHAR,
+                    ASC_OR_DESC VARCHAR,
+                    CARDINALITY VARCHAR,
+                    PAGES VARCHAR,
+                    FILTER_CONDITION VARCHAR
+                )
+                """.trimIndent()
+            )
         }
         conn
     }
@@ -880,8 +899,6 @@ override fun getColumns(
         return XmlResultSet(rowsAsString)
     }
 
-    //override fun getIndexInfo(catalog: String?, schema: String?, table: String?, unique: Boolean, approximate: Boolean): ResultSet =
-    //    throw SQLFeatureNotSupportedException("Not implemented 322")
     override fun getIndexInfo(
         catalog: String?,
         schema: String?,
@@ -889,61 +906,154 @@ override fun getColumns(
         unique: Boolean,
         approximate: Boolean
     ): ResultSet {
-
-        logger.info( "getIndexInfo - This minimal driver does not support retrieving index information.")
-        // Returning an empty ResultSet.
-        return createEmptyResultSet() // todo
-        // Validate the parameters
-        /*
         if (table.isNullOrBlank()) {
-            throw SQLException("Table name must not be null or empty.")
+            return createEmptyResultSet()
+        }
+        val localConn = LocalMetadataCache.connection
+        val defSchema = (schema ?: "FUSION").uppercase()
+        val tableName = table.uppercase()
+
+        // Standard JDBC columns for getIndexInfo
+        val schemaCondLocal = if (!schema.isNullOrBlank()) "AND TABLE_SCHEM = '$defSchema'" else ""
+        val tableCondLocal  = "AND upper(TABLE_NAME) = '$tableName'"
+        val uniqueCondLocal = if (unique) "AND NON_UNIQUE = '0'" else ""
+        val localSql = """
+            SELECT TABLE_CAT, TABLE_SCHEM, TABLE_NAME,
+                   NON_UNIQUE, INDEX_QUALIFIER, INDEX_NAME,
+                   TYPE, ORDINAL_POSITION, COLUMN_NAME,
+                   ASC_OR_DESC, CARDINALITY, PAGES, FILTER_CONDITION
+            FROM CACHED_INDEXES
+            WHERE 1=1 $schemaCondLocal $tableCondLocal $uniqueCondLocal
+            ORDER BY INDEX_NAME, ORDINAL_POSITION
+        """.trimIndent()
+
+        try {
+            localConn.createStatement().use { stmt ->
+                stmt.executeQuery(localSql).use { rs ->
+                    val rows = mutableListOf<Map<String, String>>()
+                    val meta = rs.metaData
+                    while (rs.next()) {
+                        val row = mutableMapOf<String, String>()
+                        for (i in 1..meta.columnCount) {
+                            row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
+                        }
+                        rows.add(row)
+                    }
+                    if (rows.isNotEmpty()) {
+                        logger.info("Returning ${rows.size} indexes from local cache.")
+                        return XmlResultSet(rows)
+                    }
+                }
+            }
+        } catch (ex: Exception) {
+            logger.error("Error reading index info from local cache: ${ex.message}")
         }
 
-        // SQL query to retrieve index information from Oracle Database
-        val sql = """
-        SELECT
-            NULL AS TABLE_CAT,
-            ui.TABLE_OWNER AS TABLE_SCHEM,
-            ui.TABLE_NAME,
-            DECODE(ui.UNIQUENESS, 'UNIQUE', 0, 1) AS NON_UNIQUE,
-            NULL AS INDEX_QUALIFIER,
-            ui.INDEX_NAME,
-            CASE uc.CONSTRAINT_TYPE WHEN 'P' THEN ${DatabaseMetaData.tableIndexClustered} ELSE ${DatabaseMetaData.tableIndexOther} END AS TYPE,
-            uic.COLUMN_POSITION AS ORDINAL_POSITION,
-            uic.COLUMN_NAME,
-            NULL AS ASC_OR_DESC,
-            ui.DISTINCT_KEYS AS CARDINALITY,
-            ui.LEAF_BLOCKS AS PAGES,
-            NULL AS FILTER_CONDITION
-        FROM
-            ALL_INDEXES ui
-            JOIN ALL_IND_COLUMNS uic ON ui.INDEX_NAME = uic.INDEX_NAME AND ui.TABLE_NAME = uic.TABLE_NAME AND ui.TABLE_OWNER = uic.TABLE_OWNER
-            LEFT JOIN ALL_CONSTRAINTS uc ON ui.INDEX_NAME = uc.INDEX_NAME AND uc.CONSTRAINT_TYPE IN ('P','U')
-        WHERE
-            ui.TABLE_NAME = ?
-            ${if (!schema.isNullOrBlank()) "AND ui.TABLE_OWNER = ?" else ""}
-            ${if (unique) "AND ui.UNIQUENESS = 'UNIQUE'" else ""}
-        ORDER BY
-            NON_UNIQUE,
-            TYPE,
-            INDEX_NAME,
-            ORDINAL_POSITION
-    """.trimIndent()
-
-        // Prepare and execute the statement
-        val pstmt = connection.prepareStatement(sql)
-
-        pstmt.setString(1, table.uppercase())
-
-        var paramIndex = 2
-        if (!schema.isNullOrBlank()) {
-            pstmt.setString(paramIndex++, schema.uppercase())
+        // Build remote SQL for standard JDBC columns
+        val remoteSql = """
+            SELECT
+              NULL AS TABLE_CAT,
+              idx.owner AS TABLE_SCHEM,
+              idx.table_name AS TABLE_NAME,
+              CASE WHEN idx.uniqueness = 'UNIQUE' THEN '0' ELSE '1' END AS NON_UNIQUE,
+              NULL AS INDEX_QUALIFIER,
+              idx.index_name AS INDEX_NAME,
+              CASE 
+                WHEN idx.index_type = 'NORMAL' THEN '${DatabaseMetaData.tableIndexOther}'
+                WHEN idx.index_type = 'BITMAP' THEN '${DatabaseMetaData.tableIndexOther}'
+                ELSE '${DatabaseMetaData.tableIndexOther}'
+              END AS TYPE,
+              ic.column_position AS ORDINAL_POSITION,
+              ic.column_name AS COLUMN_NAME,
+              CASE WHEN ic.descend = 'ASC' THEN 'A' WHEN ic.descend = 'DESC' THEN 'D' ELSE NULL END AS ASC_OR_DESC,
+              NULL AS CARDINALITY,
+              NULL AS PAGES,
+              NULL AS FILTER_CONDITION
+            FROM all_indexes idx
+            JOIN all_ind_columns ic
+              ON ic.index_owner = idx.owner
+             AND ic.index_name  = idx.index_name
+            WHERE idx.owner = '$defSchema'
+              AND upper(idx.table_name) = '$tableName'
+              ${if (unique) "AND idx.uniqueness = 'UNIQUE'" else ""}
+            ORDER BY idx.index_name, ic.column_position
+        """.trimIndent()
+        logger.info("Executing remote getIndexInfo SQL: {}", remoteSql)
+        val responseXml = sendSqlViaWsdl(
+            connection.wsdlEndpoint,
+            remoteSql,
+            connection.username,
+            connection.password,
+            connection.reportPath
+        )
+        val doc = parseXml(responseXml)
+        var rowNodes = doc.getElementsByTagName("ROW")
+        if (rowNodes.length == 0) {
+            val resultNodes = doc.getElementsByTagName("RESULT")
+            if (resultNodes.length > 0) {
+                val unescaped = StringEscapeUtils.unescapeXml(resultNodes.item(0).textContent.trim())
+                rowNodes = parseXml(unescaped).getElementsByTagName("ROW")
+            }
         }
 
-        // Execute the query and return the result set
-        return pstmt.executeQuery()
+        // Map XML nodes to lowercase-keyed map for standard JDBC columns
+        val remoteRows = mutableListOf<Map<String, String>>()
+        for (i in 0 until rowNodes.length) {
+            val node = rowNodes.item(i)
+            if (node.nodeType == Node.ELEMENT_NODE) {
+                val map = mutableMapOf<String, String>()
+                val children = node.childNodes
+                for (j in 0 until children.length) {
+                    val child = children.item(j)
+                    if (child.nodeType == Node.ELEMENT_NODE) {
+                        map[child.nodeName.lowercase()] = child.textContent.trim()
+                    }
+                }
+                remoteRows.add(map)
+            }
+        }
+        // Insert into cache with all 13 columns
+        try {
+            localConn.prepareStatement(
+                """
+                INSERT INTO CACHED_INDEXES
+                (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, NON_UNIQUE, INDEX_QUALIFIER, INDEX_NAME,
+                 TYPE, ORDINAL_POSITION, COLUMN_NAME, ASC_OR_DESC, CARDINALITY, PAGES, FILTER_CONDITION)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """.trimIndent()
+            ).use { pstmt ->
+                for (row in remoteRows) {
+                    pstmt.setString(1, row["table_cat"] ?: "")
+                    pstmt.setString(2, row["table_schem"] ?: "")
+                    pstmt.setString(3, row["table_name"] ?: "")
+                    pstmt.setString(4, row["non_unique"] ?: "")
+                    pstmt.setString(5, row["index_qualifier"] ?: "")
+                    pstmt.setString(6, row["index_name"] ?: "")
+                    pstmt.setString(7, row["type"] ?: "")
+                    pstmt.setString(8, row["ordinal_position"] ?: "")
+                    pstmt.setString(9, row["column_name"] ?: "")
+                    pstmt.setString(10, row["asc_or_desc"] ?: "")
+                    pstmt.setString(11, row["cardinality"] ?: "")
+                    pstmt.setString(12, row["pages"] ?: "")
+                    pstmt.setString(13, row["filter_condition"] ?: "")
+                    pstmt.addBatch()
+                }
+                pstmt.executeBatch()
+                logger.info("Saved remote index info into local cache (${remoteRows.size} rows).")
+            }
+        } catch (ex: Exception) {
+            logger.error("Error saving index info to local cache: ${ex.message}")
+        }
 
-         */
+        // Only return maps with standard JDBC keys
+        val jdbcRows = remoteRows.map { row ->
+            val keys = listOf(
+                "table_cat", "table_schem", "table_name", "non_unique", "index_qualifier", "index_name",
+                "type", "ordinal_position", "column_name", "asc_or_desc", "cardinality", "pages", "filter_condition"
+            )
+            keys.associateWith { row[it] ?: "" }
+        }
+        return XmlResultSet(jdbcRows)
     }
 
 
