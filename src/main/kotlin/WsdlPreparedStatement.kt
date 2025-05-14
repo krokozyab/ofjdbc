@@ -27,6 +27,10 @@ class WsdlPreparedStatement(
     // Store parameters by their 1-indexed position.
     private val parameters = mutableMapOf<Int, Any?>()
 
+    override fun setFetchSize(rows: Int) = super.setFetchSize(rows)
+    override fun getFetchSize(): Int     = super.getFetchSize()
+
+
     // Build final SQL string by substituting each '?' with its parameter value.
     private fun buildSql(): String {
         var finalSql = sql
@@ -247,4 +251,6 @@ class WsdlPreparedStatement(
     override fun addBatch() {
         TODO("Not yet implemented 58")
     }
+
+
 }
