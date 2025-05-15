@@ -19,7 +19,7 @@ object LocalMetadataCache {
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS SCHEMAS_CACHE (
-                    TABLE_SCHEM VARCHAR,
+                    TABLE_SCHEM VARCHAR PRIMARY KEY,
                     TABLE_CATALOG VARCHAR
                 )
                 """.trimIndent()
@@ -27,52 +27,46 @@ object LocalMetadataCache {
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS CACHED_TABLES (
-                    TABLE_CAT VARCHAR,
+                    TABLE_CAT  VARCHAR,
                     TABLE_SCHEM VARCHAR,
-                    TABLE_NAME VARCHAR,
-                    TABLE_TYPE VARCHAR,
+                    TABLE_NAME  VARCHAR,
+                    TABLE_TYPE  VARCHAR,
                     REMARKS VARCHAR,
                     TYPE_CAT VARCHAR,
                     TYPE_SCHEM VARCHAR,
                     TYPE_NAME VARCHAR,
                     SELF_REFERENCING_COL_NAME VARCHAR,
-                    REF_GENERATION VARCHAR
+                    REF_GENERATION VARCHAR,
+                    PRIMARY KEY (TABLE_SCHEM, TABLE_NAME)
                 )
                 """.trimIndent()
             )
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS CACHED_COLUMNS (
-                    TABLE_CAT VARCHAR,
+                    TABLE_CAT  VARCHAR,
                     TABLE_SCHEM VARCHAR,
-                    TABLE_NAME VARCHAR,
+                    TABLE_NAME  VARCHAR,
                     COLUMN_NAME VARCHAR,
+                    ORDINAL_POSITION VARCHAR,
                     DATA_TYPE VARCHAR,
                     TYPE_NAME VARCHAR,
                     COLUMN_SIZE VARCHAR,
                     DECIMAL_DIGITS VARCHAR,
                     NUM_PREC_RADIX VARCHAR,
                     NULLABLE VARCHAR,
-                    ORDINAL_POSITION VARCHAR
+                    PRIMARY KEY (TABLE_SCHEM, TABLE_NAME, COLUMN_NAME)
                 )
                 """.trimIndent()
             )
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS CACHED_INDEXES (
-                    TABLE_CAT VARCHAR,
                     TABLE_SCHEM VARCHAR,
-                    TABLE_NAME VARCHAR,
-                    NON_UNIQUE VARCHAR,
-                    INDEX_QUALIFIER VARCHAR,
-                    INDEX_NAME VARCHAR,
-                    TYPE VARCHAR,
+                    TABLE_NAME  VARCHAR,
+                    INDEX_NAME  VARCHAR,
                     ORDINAL_POSITION VARCHAR,
-                    COLUMN_NAME VARCHAR,
-                    ASC_OR_DESC VARCHAR,
-                    CARDINALITY VARCHAR,
-                    PAGES VARCHAR,
-                    FILTER_CONDITION VARCHAR
+                    PRIMARY KEY (TABLE_SCHEM, TABLE_NAME, INDEX_NAME, ORDINAL_POSITION)
                 )
                 """.trimIndent()
             )
@@ -95,6 +89,29 @@ object LocalMetadataCache {
 
 
 class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMetaData {
+    /**
+     * Resolve which Oracle schema to query.
+     *
+     * 0. If the connection itself has an explicitly set schema, honour it
+     * 1. If the caller passed an explicit pattern – use that.
+     * 2. If the JDBC username *looks* like a real Oracle schema (doesn’t contain '@'),
+     *    use the username.
+     * 3. Otherwise fall back to the default Fusion schema.
+     */
+    private fun resolveSchema(pattern: String?): String {
+        // 0. If the connection itself has an explicitly set schema, honour it
+        (connection as? WsdlConnection)?.let { conn ->
+            val connSchema = conn.getSchema()
+            if (!connSchema.isNullOrBlank()) return connSchema.uppercase()
+        }
+        if (!pattern.isNullOrBlank()) return pattern.uppercase()
+
+        val login = connection.username
+        return if (!login.isNullOrBlank() && !login.contains('@'))
+            login.uppercase()
+        else
+            "FUSION"
+    }
     override fun getDatabaseProductName(): String = "Oracle Fusion JDBC Driver"
     override fun getDatabaseProductVersion(): String = "1.0"
     override fun getDriverName(): String = "sergey.rudenko.ba@gmail.com"
@@ -203,11 +220,11 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
     override fun isCatalogAtStart(): Boolean = false
     //override fun getCatalogSeparator(): String = throw SQLFeatureNotSupportedException("Not implemented 269")
     override fun getCatalogSeparator(): String = "."
-    override fun supportsSchemasInDataManipulation(): Boolean = false
-    override fun supportsSchemasInProcedureCalls(): Boolean = false
-    override fun supportsSchemasInTableDefinitions(): Boolean = false
-    override fun supportsSchemasInIndexDefinitions(): Boolean = false
-    override fun supportsSchemasInPrivilegeDefinitions(): Boolean = false
+    override fun supportsSchemasInDataManipulation(): Boolean = true
+    override fun supportsSchemasInProcedureCalls(): Boolean = true
+    override fun supportsSchemasInTableDefinitions(): Boolean = true
+    override fun supportsSchemasInIndexDefinitions(): Boolean = true
+    override fun supportsSchemasInPrivilegeDefinitions(): Boolean = true
     override fun supportsCatalogsInDataManipulation(): Boolean = false
     override fun supportsCatalogsInProcedureCalls(): Boolean = false
     override fun supportsCatalogsInTableDefinitions(): Boolean = false
@@ -278,10 +295,7 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         columnNamePattern: String?
     ): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 307")
 
-    //override fun getTables(catalog: String?, schemaPattern: String?, tableNamePattern: String?, types: Array<out String>?): ResultSet =
-    //    throw SQLFeatureNotSupportedException("Not implemented 308")
-
-    // Implement getTables for Oracle
+    // Implement getTables for Oracle with schema pattern support and cache uniqueness.
     override fun getTables(
         catalog: String?,
         schemaPattern: String?,
@@ -291,13 +305,21 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         val localConn = LocalMetadataCache.connection
         val cachedRows = mutableListOf<Map<String, String>>()
 
-        //The only schema we need
-        val defSchema = "FUSION"
+        val defSchema = resolveSchema(schemaPattern)
+        val schemaCondLocal = if (!schemaPattern.isNullOrBlank())
+            " AND TABLE_SCHEM LIKE '${schemaPattern.uppercase()}'"
+        else
+            " AND TABLE_SCHEM = '$defSchema'"
+        val tableCondLocal   = if (!tableNamePattern.isNullOrBlank()) " AND TABLE_NAME LIKE '${tableNamePattern.uppercase()}'" else ""
+        val typesList = types?.map { it.uppercase() } ?: listOf("TABLE", "VIEW")
+        val typeCondLocal = if (typesList.isNotEmpty()) {
+            " AND TABLE_TYPE IN (${typesList.joinToString(",") { "'$it'" }})"
+        } else ""
 
         // First, attempt to read from the local cache.
         try {
             localConn.createStatement().use { stmt ->
-                stmt.executeQuery("SELECT * FROM CACHED_TABLES ORDER BY TABLE_NAME").use { rs ->
+                stmt.executeQuery("SELECT * FROM CACHED_TABLES WHERE 1=1$schemaCondLocal$tableCondLocal$typeCondLocal ORDER BY TABLE_NAME").use { rs ->
                     val meta = rs.metaData
                     while (rs.next()) {
                         val row = mutableMapOf<String, String>()
@@ -317,67 +339,36 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         }
 
         // If the cache is empty, build the remote query.
-        //val schemaCond = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${schemaPattern.uppercase()}'" else ""
+        // If the caller did not specify a schema pattern, restrict to the resolved default
+        val schemaCondRemote = if (!schemaPattern.isNullOrBlank())
+            " AND owner LIKE '${schemaPattern.uppercase()}'"
+        else
+            " AND owner = '$defSchema'"
+        val tableCondRemote  = if (!tableNamePattern.isNullOrBlank()) " AND upper(object_name) LIKE '${tableNamePattern.uppercase()}'" else ""
+        val typeCondRemote   = if (typesList.isNotEmpty()) {
+            " AND object_type IN (${typesList.joinToString(",") { "'$it'" }})"
+        } else " AND object_type IN ('TABLE', 'VIEW')"
+        val remoteSql = """
+            SELECT DISTINCT
+                NULL AS TABLE_CAT,
+                owner AS TABLE_SCHEM,
+                upper(object_name) AS TABLE_NAME,
+                object_type AS TABLE_TYPE,
+                NULL AS REMARKS,
+                NULL AS TYPE_CAT,
+                NULL AS TYPE_SCHEM,
+                NULL AS TYPE_NAME,
+                NULL AS SELF_REFERENCING_COL_NAME,
+                NULL AS REF_GENERATION
+            FROM all_objects
+            WHERE 1=1$schemaCondRemote$tableCondRemote$typeCondRemote
+            ORDER BY TABLE_SCHEM, TABLE_NAME
+        """.trimIndent()
 
-        /*
-        val schemaCond = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${defSchema.uppercase()}'" else ""
-        val tableCond = if (!tableNamePattern.isNullOrBlank()) " AND table_name LIKE '${tableNamePattern.uppercase()}'" else ""
-        val viewCond = if (!tableNamePattern.isNullOrEmpty()) " AND view_name LIKE '$tableNamePattern'" else ""
-        val typesList = types?.map { it.uppercase() } ?: listOf("TABLE", "VIEW")
-        val queries = mutableListOf<String>()
-
-
-        if (typesList.isEmpty() || typesList.contains("TABLE")) {
-            queries.add(
-                "SELECT null AS TABLE_CAT, owner AS TABLE_SCHEM, table_name AS TABLE_NAME, 'TABLE' AS TABLE_TYPE, " +
-                        "null AS REMARKS, null AS TYPE_CAT, null AS TYPE_SCHEM, null AS TYPE_NAME, " +
-                        "null AS SELF_REFERENCING_COL_NAME, null AS REF_GENERATION " +
-                        "FROM all_tables WHERE 1=1$schemaCond$tableCond"
-            )
-        }
-        if (typesList.isEmpty() || typesList.contains("VIEW")) {
-            queries.add(
-                "SELECT null AS TABLE_CAT, owner AS TABLE_SCHEM, view_name AS TABLE_NAME, 'VIEW' AS TABLE_TYPE, " +
-                        "null AS REMARKS, null AS TYPE_CAT, null AS TYPE_SCHEM, null AS TYPE_NAME, " +
-                        "null AS SELF_REFERENCING_COL_NAME, null AS REF_GENERATION " +
-                        "FROM all_views WHERE 1=1$schemaCond$viewCond"
-            )
-        }
-
-
-        if (queries.isEmpty()) return createEmptyResultSet()
-
-
-
-        val finalSql = queries.joinToString(" UNION ") //ALL ")
-
-        logger.info(
-            "Executing remote getTables SQL: {}", finalSql
-        )
-        */
-
-        val finalSql = """SELECT distinct
-	                        NULL AS TABLE_CAT,
-                            owner AS TABLE_SCHEM,
-                            upper(object_name) AS TABLE_NAME,
-                            NULL AS TABLE_TYPE,
-                            NULL AS REMARKS,
-                            NULL AS TYPE_CAT,
-                            NULL AS TYPE_SCHEM,
-                            NULL AS TYPE_NAME,
-                            NULL AS SELF_REFERENCING_COL_NAME,
-                            NULL AS REF_GENERATION
-                            FROM
-                                all_objects
-                            WHERE
-                                owner = 'FUSION'
-                                AND object_type IN ('TABLE', 'VIEW')
-                                """
-
-        logger.info("Executing remote getTables SQL: {}", finalSql)
+        logger.info("Executing remote getTables SQL: {}", remoteSql)
         val responseXml = sendSqlViaWsdl(
             connection.wsdlEndpoint,
-            finalSql,
+            remoteSql,
             connection.username,
             connection.password,
             connection.reportPath
@@ -398,10 +389,10 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         try {
             localConn.prepareStatement(
                 """
-            INSERT INTO CACHED_TABLES 
-            (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, TABLE_TYPE, REMARKS, TYPE_CAT, TYPE_SCHEM, TYPE_NAME, SELF_REFERENCING_COL_NAME, REF_GENERATION) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """.trimIndent()
+                INSERT OR IGNORE INTO CACHED_TABLES 
+                (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, TABLE_TYPE, REMARKS, TYPE_CAT, TYPE_SCHEM, TYPE_NAME, SELF_REFERENCING_COL_NAME, REF_GENERATION) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """.trimIndent()
             ).use { pstmt ->
                 for (i in 0 until rowNodes.length) {
                     val rowNode = rowNodes.item(i)
@@ -456,7 +447,7 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         val newCachedRows = mutableListOf<Map<String, String>>()
         try {
             localConn.createStatement().use { stmt ->
-                stmt.executeQuery("SELECT * FROM CACHED_TABLES ORDER BY TABLE_NAME").use { rs ->
+                stmt.executeQuery("SELECT * FROM CACHED_TABLES WHERE 1=1$schemaCondLocal$tableCondLocal$typeCondLocal ORDER BY TABLE_NAME").use { rs ->
                     val meta = rs.metaData
                     while (rs.next()) {
                         val row = mutableMapOf<String, String>()
@@ -474,12 +465,8 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
     }
 
 
-    //override fun getSchemas(): ResultSet = throw SQLFeatureNotSupportedException("Not implemented 309")
+    // Implement getSchemas() with DuckDB cache and remote fallback
     override fun getSchemas(): ResultSet {
-        return createEmptyResultSet() // trick since unable to alter schema and have to type it every time
-        // First, try to load schemas from the local DuckDB cache.
-
-        /*
         val localConn = LocalMetadataCache.connection
         val cachedRows = mutableListOf<Map<String, String>>()
         try {
@@ -491,7 +478,6 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
                     while (rs.next()) {
                         val row = mutableMapOf<String, String>()
                         for (i in 1..meta.columnCount) {
-                            // Use lowercase keys to be consistent with XmlResultSet.
                             row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
                         }
                         cachedRows.add(row)
@@ -508,11 +494,17 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         }
 
         // If no cached data is found, query the remote service.
-        //val sql = """SELECT username AS TABLE_SCHEM, '' AS TABLE_CATALOG FROM all_users ORDER BY username where username='FUSION' """
-        val sql = """SELECT 'FUSION' AS TABLE_SCHEM, '' AS TABLE_CATALOG FROM dual"""
+        val schemaPattern: String? = null // no filter for getSchemas()
+        val remoteSql = buildString {
+            append("SELECT username AS TABLE_SCHEM, '' AS TABLE_CATALOG FROM all_users WHERE 1=1 ")
+            if (!schemaPattern.isNullOrBlank()) {
+                append("AND username LIKE '${schemaPattern.uppercase()}' ")
+            }
+            append("ORDER BY username")
+        }
         val responseXml = sendSqlViaWsdl(
             connection.wsdlEndpoint,
-            sql,
+            remoteSql,
             connection.username,
             connection.password,
             connection.reportPath
@@ -529,10 +521,10 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
             }
         }
 
-        // Save the remote schemas into the local cache.
+        // Save the remote schemas into the local cache, avoiding duplicates.
         try {
             localConn.prepareStatement(
-                "INSERT INTO SCHEMAS_CACHE (TABLE_SCHEM, TABLE_CATALOG) VALUES (?, ?)"
+                "INSERT OR IGNORE INTO SCHEMAS_CACHE (TABLE_SCHEM, TABLE_CATALOG) VALUES (?, ?)"
             ).use { pstmt ->
                 for (i in 0 until rowNodes.length) {
                     val rowNode = rowNodes.item(i)
@@ -558,9 +550,27 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         } catch (ex: Exception) {
             logger.error("Error saving remote metadata to local cache: ${ex.message}")
         }
-        return createResultSetFromRowNodes(rowNodes)
-
-         */
+        // Always re-read the cache and return those rows.
+        val rereadRows = mutableListOf<Map<String, String>>()
+        try {
+            localConn.createStatement().use { stmt ->
+                stmt.executeQuery(
+                    "SELECT TABLE_SCHEM, TABLE_CATALOG FROM SCHEMAS_CACHE ORDER BY TABLE_SCHEM"
+                ).use { rs ->
+                    val meta = rs.metaData
+                    while (rs.next()) {
+                        val row = mutableMapOf<String, String>()
+                        for (i in 1..meta.columnCount) {
+                            row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
+                        }
+                        rereadRows.add(row)
+                    }
+                }
+            }
+        } catch (ex: Exception) {
+            logger.error("Error reading local metadata cache after remote: ${ex.message}")
+        }
+        return XmlResultSet(rereadRows)
     }
 
 
@@ -583,150 +593,150 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
 
     //    override fun getColumns(catalog: String?, schemaPattern: String?, tableNamePattern: String?, columnNamePattern: String?): ResultSet =
 //        throw SQLFeatureNotSupportedException("Not implemented 312")
-override fun getColumns(
-    catalog: String?,
-    schemaPattern: String?,
-    tableNamePattern: String?,
-    columnNamePattern: String?
-): ResultSet {
-    val localConn = LocalMetadataCache.connection
-    // The only schema we need
-    val defSchema = "FUSION"
+    override fun getColumns(
+        catalog: String?,
+        schemaPattern: String?,
+        tableNamePattern: String?,
+        columnNamePattern: String?
+    ): ResultSet {
+        val localConn = LocalMetadataCache.connection
+        val defSchema = resolveSchema(schemaPattern)
+        val schemaCondLocal = if (!schemaPattern.isNullOrBlank())
+            " AND TABLE_SCHEM LIKE '${schemaPattern.uppercase()}'"
+        else
+            " AND TABLE_SCHEM = '$defSchema'"
+        val tableCondLocal   = if (!tableNamePattern.isNullOrBlank()) " AND TABLE_NAME LIKE '${tableNamePattern.uppercase()}'" else ""
+        val columnCondLocal  = if (!columnNamePattern.isNullOrBlank()) " AND COLUMN_NAME LIKE '${columnNamePattern.uppercase()}'" else ""
+        val localQuery = """
+            SELECT 
+                TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, 
+                COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION 
+            FROM CACHED_COLUMNS
+            WHERE 1=1 $schemaCondLocal $tableCondLocal $columnCondLocal
+            ORDER BY TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION
+        """.trimIndent()
 
-    // Build filter conditions for the local cache query.
-    //val schemaCondLocal = if (!schemaPattern.isNullOrBlank()) " AND TABLE_SCHEM LIKE '${schemaPattern.uppercase()}'" else ""
-    val schemaCondLocal = if (!schemaPattern.isNullOrBlank()) " AND TABLE_SCHEM LIKE '${defSchema.uppercase()}'" else ""
-    val tableCondLocal = if (!tableNamePattern.isNullOrBlank()) " AND TABLE_NAME LIKE '${tableNamePattern.uppercase()}'" else ""
-    val columnCondLocal = if (!columnNamePattern.isNullOrBlank()) " AND COLUMN_NAME LIKE '${columnNamePattern.uppercase()}'" else ""
-    val localQuery = """
-        SELECT 
-            TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, 
-            COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION 
-        FROM CACHED_COLUMNS
-        WHERE 1=1 $schemaCondLocal $tableCondLocal $columnCondLocal
-        ORDER BY TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION
-    """.trimIndent()
-
-    // Try reading from the local cache.
-    try {
-        localConn.createStatement().use { stmt ->
-            stmt.executeQuery(localQuery).use { rs ->
-                val localRows = mutableListOf<Map<String, String>>()
-                while (rs.next()) {
-                    val row = mutableMapOf<String, String>()
-                    row["table_cat"] = rs.getString("TABLE_CAT") ?: ""
-                    row["table_schem"] = rs.getString("TABLE_SCHEM") ?: ""
-                    row["table_name"] = rs.getString("TABLE_NAME") ?: ""
-                    row["column_name"] = rs.getString("COLUMN_NAME") ?: ""
-                    row["data_type"] = rs.getString("DATA_TYPE") ?: ""
-                    row["type_name"] = rs.getString("TYPE_NAME") ?: ""
-                    row["column_size"] = rs.getString("COLUMN_SIZE") ?: ""
-                    row["decimal_digits"] = rs.getString("DECIMAL_DIGITS") ?: ""
-                    row["num_prec_radix"] = rs.getString("NUM_PREC_RADIX") ?: ""
-                    row["nullable"] = rs.getString("NULLABLE") ?: ""
-                    row["ordinal_position"] = rs.getString("ORDINAL_POSITION") ?: ""
-                    localRows.add(row)
-                }
-                if (localRows.isNotEmpty()) {
-                    logger.info("Returning columns from local cache with ${localRows.size} rows.")
-                    return XmlResultSet(localRows)
-                }
-            }
-        }
-    } catch (ex: Exception) {
-        logger.error("Error reading columns from local metadata cache: ${ex.message}")
-    }
-
-    // If local cache is empty, query the remote service.
-    //val schemaCondRemote = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${schemaPattern.uppercase()}'" else ""
-    val schemaCondRemote = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${defSchema.uppercase()}'" else ""
-    val tableCondRemote = if (!tableNamePattern.isNullOrBlank()) " AND table_name LIKE '${tableNamePattern.uppercase()}'" else ""
-    val columnCondRemote = if (!columnNamePattern.isNullOrBlank()) " AND column_name LIKE '${columnNamePattern.uppercase()}'" else ""
-
-    val sql = """
-        SELECT 
-            NULL AS TABLE_CAT,
-            owner AS TABLE_SCHEM,
-            table_name AS TABLE_NAME,
-            column_name AS COLUMN_NAME,
-            ${java.sql.Types.VARCHAR} AS DATA_TYPE,
-            data_type AS TYPE_NAME,
-            data_length AS COLUMN_SIZE,
-            data_precision AS DECIMAL_DIGITS,
-            data_scale AS NUM_PREC_RADIX,
-            CASE WHEN nullable = 'Y' THEN 1 ELSE 0 END AS NULLABLE,
-            column_id AS ORDINAL_POSITION
-        FROM all_tab_columns
-        WHERE 1=1 $schemaCondRemote $tableCondRemote $columnCondRemote
-        ORDER BY owner, table_name, column_id
-    """.trimIndent()
-
-    val responseXml = sendSqlViaWsdl(
-        connection.wsdlEndpoint,
-        sql,
-        connection.username,
-        connection.password,
-        connection.reportPath
-    )
-    val doc = parseXml(responseXml)
-    var rowNodes = doc.getElementsByTagName("ROW")
-    if (rowNodes.length == 0) {
-        val resultNodes = doc.getElementsByTagName("RESULT")
-        if (resultNodes.length > 0) {
-            val resultText = resultNodes.item(0).textContent.trim()
-            val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
-            val rowDoc = parseXml(unescapedXml)
-            rowNodes = rowDoc.getElementsByTagName("ROW")
-        }
-    }
-
-    val remoteRows = mutableListOf<Map<String, String>>()
-    for (i in 0 until rowNodes.length) {
-        val rowNode = rowNodes.item(i)
-        if (rowNode.nodeType == Node.ELEMENT_NODE) {
-            val rowMap = mutableMapOf<String, String>()
-            val children = rowNode.childNodes
-            for (j in 0 until children.length) {
-                val child = children.item(j)
-                if (child.nodeType == Node.ELEMENT_NODE) {
-                    rowMap[child.nodeName.lowercase()] = child.textContent.trim()
+        // Try reading from the local cache.
+        try {
+            localConn.createStatement().use { stmt ->
+                stmt.executeQuery(localQuery).use { rs ->
+                    val localRows = mutableListOf<Map<String, String>>()
+                    while (rs.next()) {
+                        val row = mutableMapOf<String, String>()
+                        row["table_cat"] = rs.getString("TABLE_CAT") ?: ""
+                        row["table_schem"] = rs.getString("TABLE_SCHEM") ?: ""
+                        row["table_name"] = rs.getString("TABLE_NAME") ?: ""
+                        row["column_name"] = rs.getString("COLUMN_NAME") ?: ""
+                        row["data_type"] = rs.getString("DATA_TYPE") ?: ""
+                        row["type_name"] = rs.getString("TYPE_NAME") ?: ""
+                        row["column_size"] = rs.getString("COLUMN_SIZE") ?: ""
+                        row["decimal_digits"] = rs.getString("DECIMAL_DIGITS") ?: ""
+                        row["num_prec_radix"] = rs.getString("NUM_PREC_RADIX") ?: ""
+                        row["nullable"] = rs.getString("NULLABLE") ?: ""
+                        row["ordinal_position"] = rs.getString("ORDINAL_POSITION") ?: ""
+                        localRows.add(row)
+                    }
+                    if (localRows.isNotEmpty()) {
+                        logger.info("Returning columns from local cache with ${localRows.size} rows.")
+                        return XmlResultSet(localRows)
+                    }
                 }
             }
-            remoteRows.add(rowMap)
+        } catch (ex: Exception) {
+            logger.error("Error reading columns from local metadata cache: ${ex.message}")
         }
-    }
 
-    // Save the remote metadata into the local cache.
-    try {
-        localConn.prepareStatement(
-            """
-            INSERT INTO CACHED_COLUMNS 
-            (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """.trimIndent()
-        ).use { pstmt ->
-            for (row in remoteRows) {
-                pstmt.setString(1, row["table_cat"] ?: "")
-                pstmt.setString(2, row["table_schem"] ?: "")
-                pstmt.setString(3, row["table_name"] ?: "")
-                pstmt.setString(4, row["column_name"] ?: "")
-                pstmt.setString(5, row["data_type"] ?: "")
-                pstmt.setString(6, row["type_name"] ?: "")
-                pstmt.setString(7, row["column_size"] ?: "")
-                pstmt.setString(8, row["decimal_digits"] ?: "")
-                pstmt.setString(9, row["num_prec_radix"] ?: "")
-                pstmt.setString(10, row["nullable"] ?: "")
-                pstmt.setString(11, row["ordinal_position"] ?: "")
-                pstmt.addBatch()
+        // If local cache is empty, query the remote service.
+        val schemaCondRemote = if (!schemaPattern.isNullOrBlank())
+            " AND owner LIKE '${schemaPattern.uppercase()}'"
+        else
+            " AND owner = '$defSchema'"
+        val tableCondRemote   = if (!tableNamePattern.isNullOrBlank()) " AND table_name LIKE '${tableNamePattern.uppercase()}'" else ""
+        val columnCondRemote  = if (!columnNamePattern.isNullOrBlank()) " AND column_name LIKE '${columnNamePattern.uppercase()}'" else ""
+        val sql = """
+            SELECT 
+                NULL AS TABLE_CAT,
+                owner AS TABLE_SCHEM,
+                table_name AS TABLE_NAME,
+                column_name AS COLUMN_NAME,
+                ${java.sql.Types.VARCHAR} AS DATA_TYPE,
+                data_type AS TYPE_NAME,
+                data_length AS COLUMN_SIZE,
+                data_precision AS DECIMAL_DIGITS,
+                data_scale AS NUM_PREC_RADIX,
+                CASE WHEN nullable = 'Y' THEN 1 ELSE 0 END AS NULLABLE,
+                column_id AS ORDINAL_POSITION
+            FROM all_tab_columns
+            WHERE 1=1 $schemaCondRemote $tableCondRemote $columnCondRemote
+            ORDER BY owner, table_name, column_id
+        """.trimIndent()
+
+        val responseXml = sendSqlViaWsdl(
+            connection.wsdlEndpoint,
+            sql,
+            connection.username,
+            connection.password,
+            connection.reportPath
+        )
+        val doc = parseXml(responseXml)
+        var rowNodes = doc.getElementsByTagName("ROW")
+        if (rowNodes.length == 0) {
+            val resultNodes = doc.getElementsByTagName("RESULT")
+            if (resultNodes.length > 0) {
+                val resultText = resultNodes.item(0).textContent.trim()
+                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
+                val rowDoc = parseXml(unescapedXml)
+                rowNodes = rowDoc.getElementsByTagName("ROW")
             }
-            pstmt.executeBatch()
-            logger.info("Saved remote columns into local cache (${remoteRows.size} rows).")
         }
-    } catch (ex: Exception) {
-        logger.error("Error saving remote metadata to local cache: ${ex.message}")
+
+        val remoteRows = mutableListOf<Map<String, String>>()
+        for (i in 0 until rowNodes.length) {
+            val rowNode = rowNodes.item(i)
+            if (rowNode.nodeType == Node.ELEMENT_NODE) {
+                val rowMap = mutableMapOf<String, String>()
+                val children = rowNode.childNodes
+                for (j in 0 until children.length) {
+                    val child = children.item(j)
+                    if (child.nodeType == Node.ELEMENT_NODE) {
+                        rowMap[child.nodeName.lowercase()] = child.textContent.trim()
+                    }
+                }
+                remoteRows.add(rowMap)
+            }
+        }
+
+        // Save the remote metadata into the local cache, avoiding duplicates.
+        try {
+            localConn.prepareStatement(
+                """
+                INSERT OR IGNORE INTO CACHED_COLUMNS 
+                (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """.trimIndent()
+            ).use { pstmt ->
+                for (row in remoteRows) {
+                    pstmt.setString(1, row["table_cat"] ?: "")
+                    pstmt.setString(2, row["table_schem"] ?: "")
+                    pstmt.setString(3, row["table_name"] ?: "")
+                    pstmt.setString(4, row["column_name"] ?: "")
+                    pstmt.setString(5, row["data_type"] ?: "")
+                    pstmt.setString(6, row["type_name"] ?: "")
+                    pstmt.setString(7, row["column_size"] ?: "")
+                    pstmt.setString(8, row["decimal_digits"] ?: "")
+                    pstmt.setString(9, row["num_prec_radix"] ?: "")
+                    pstmt.setString(10, row["nullable"] ?: "")
+                    pstmt.setString(11, row["ordinal_position"] ?: "")
+                    pstmt.addBatch()
+                }
+                pstmt.executeBatch()
+                logger.info("Saved remote columns into local cache (${remoteRows.size} rows).")
+            }
+        } catch (ex: Exception) {
+            logger.error("Error saving remote metadata to local cache: ${ex.message}")
+        }
+        return XmlResultSet(remoteRows)
     }
-    return XmlResultSet(remoteRows)
-}
 
 
 
@@ -910,7 +920,7 @@ override fun getColumns(
             return createEmptyResultSet()
         }
         val localConn = LocalMetadataCache.connection
-        val defSchema = (schema ?: "FUSION").uppercase()
+        val defSchema = resolveSchema(schema)
         val tableName = table.uppercase()
 
         // Standard JDBC columns for getIndexInfo
@@ -1016,7 +1026,7 @@ override fun getColumns(
         try {
             localConn.prepareStatement(
                 """
-                INSERT INTO CACHED_INDEXES
+                INSERT OR IGNORE INTO CACHED_INDEXES
                 (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, NON_UNIQUE, INDEX_QUALIFIER, INDEX_NAME,
                  TYPE, ORDINAL_POSITION, COLUMN_NAME, ASC_OR_DESC, CARDINALITY, PAGES, FILTER_CONDITION)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

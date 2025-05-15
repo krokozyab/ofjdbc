@@ -22,9 +22,22 @@ open class WsdlStatement(
 
     private val logger = LoggerFactory.getLogger(WsdlStatement::class.java)
 
+    // Regex to detect a tool‑issued SET SCHEMA command (e.g. DBeaver)
+    private val setSchemaRegex =
+        Regex("^\\s*SET\\s+SCHEMA\\s+(\\S+)", RegexOption.IGNORE_CASE)
+
 
     override fun executeQuery(sql: String): ResultSet {
-        // Instead of fetching just one page, return a PaginatedResultSet
+        // Intercept SET SCHEMA … ──────────────────────────────────────────────
+        setSchemaRegex.find(sql)?.let { m ->
+            val newSchema = m.groupValues[1].trim().trim('"')
+            (connection as? WsdlConnection)?.setSchema(newSchema.uppercase())
+            logger.info("Schema switched locally to {}", newSchema)
+            // Nothing to execute remotely, return an empty ResultSet
+            return createEmptyResultSet()
+        }
+
+        // Existing pagination path ────────────────────────────────────────────
         val paginatedRs = PaginatedResultSet(
             originalSql = sql,
             wsdlEndpoint = wsdlEndpoint,
@@ -50,12 +63,14 @@ open class WsdlStatement(
     override fun getMaxRows(): Int = 0
 
     override fun execute(sql: String): Boolean {
-        /*if (sql.trim().uppercase().startsWith("SELECT")) {
-            lastResultSet = executeQuery(sql)
-            return true
-        } else {
-            throw UnsupportedOperationException("Only SELECT queries are supported.")
-        }*/
+        // Handle SET SCHEMA locally
+        setSchemaRegex.find(sql)?.let { m ->
+            val newSchema = m.groupValues[1].trim().trim('"')
+            (connection as? WsdlConnection)?.setSchema(newSchema.uppercase())
+            logger.info("Schema switched locally to {}", newSchema)
+            return false        // no ResultSet produced
+        }
+
         lastResultSet = executeQuery(sql)
         return true
     }

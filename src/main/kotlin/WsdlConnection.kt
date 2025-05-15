@@ -18,7 +18,8 @@ class WsdlConnection(
     private var readOnly: Boolean = true
     /** JDBC default is autoCommit = true; driver is read‑only so value is advisory only. */
     private var autoCommit: Boolean = true
-    private var currentSchema: String? = "FUSION"
+    @Volatile
+    private var currentSchema: String = "FUSION"
     /** Network timeout requested by caller (ms); driver ignores it but returns the same value. */
     private var networkTimeoutMillis: Int = 0
 
@@ -148,14 +149,14 @@ class WsdlConnection(
     override fun getClientInfo(): Properties = throw UnsupportedOperationException("Not implemented 247")
     override fun createArrayOf(typeName: String?, elements: Array<out Any>?): java.sql.Array = throw UnsupportedOperationException("Not implemented 248")
     override fun createStruct(typeName: String?, attributes: Array<out Any>?): Struct = throw UnsupportedOperationException("Not implemented 249")
-    //override fun setSchema(schema: String?) = throw UnsupportedOperationException("Not implemented 250")
     override fun setSchema(schema: String?) {
-        currentSchema = schema
-        logger.info("Schema set to: {}", schema)
+        if (!schema.isNullOrBlank()) {
+            currentSchema = schema.trim().uppercase()
+            logger.info("Schema switched to {}", currentSchema)
+        }
     }
-    //override fun getSchema(): String = throw UnsupportedOperationException("Not implemented 251")
-    //override fun getSchema(): String = username
-    override fun getSchema(): String = currentSchema ?: "FUSION"
+
+    override fun getSchema(): String = currentSchema
     override fun abort(executor: java.util.concurrent.Executor?) = throw UnsupportedOperationException("Not implemented 252")
     override fun setNetworkTimeout(executor: java.util.concurrent.Executor?, milliseconds: Int) {
         // The WSDL driver is stateless / HTTP-based; we don't enforce socket timeouts here.

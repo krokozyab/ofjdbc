@@ -24,6 +24,8 @@ class WsdlPreparedStatement(
 ) : WsdlStatement(wsdlEndpoint, username, password, reportPath), PreparedStatement {
 
     private val logger = LoggerFactory.getLogger(WsdlPreparedStatement::class.java)
+    // Regex to detect and handle SET SCHEMA commands (e.g. from DBeaver)
+    private val setSchemaRegex = Regex("^\\s*SET\\s+SCHEMA\\s+(\\S+)", RegexOption.IGNORE_CASE)
     // Store parameters by their 1-indexed position.
     private val parameters = mutableMapOf<Int, Any?>()
 
@@ -233,6 +235,14 @@ class WsdlPreparedStatement(
 
     // Override the execute methods to use parameter binding.
     override fun executeQuery(): ResultSet {
+        // Intercept SET SCHEMA ... locally
+        setSchemaRegex.find(sql)?.let { m ->
+            val newSchema = m.groupValues[1].trim().trim('"')
+            (connection as? WsdlConnection)?.setSchema(newSchema.uppercase())
+            logger.info("Schema switched locally to {}", newSchema)
+            return createEmptyResultSet()
+        }
+        // Existing behavior
         val finalSql = buildSql()
         logger.info("Executing prepared query: {}", finalSql)
         return super.executeQuery(finalSql)
@@ -243,6 +253,14 @@ class WsdlPreparedStatement(
     }
 
     override fun execute(): Boolean {
+        // Handle SET SCHEMA ... locally
+        setSchemaRegex.find(sql)?.let { m ->
+            val newSchema = m.groupValues[1].trim().trim('"')
+            (connection as? WsdlConnection)?.setSchema(newSchema.uppercase())
+            logger.info("Schema switched locally to {}", newSchema)
+            return false
+        }
+        // Existing behavior
         val finalSql = buildSql()
         logger.info("Executing prepared query: {}", finalSql)
         return super.execute(finalSql)
