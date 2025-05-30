@@ -12,10 +12,8 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
-import java.sql.JDBCType
 import java.sql.ResultSet
 import java.sql.SQLException
-import java.sql.Types
 import java.util.Base64
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.transform.OutputKeys
@@ -98,7 +96,6 @@ fun extractSoapFaultReason(body: String): String {
     }
 }
 
-
 fun parseXml(xml: String): Document {
     // Replace any '&' not followed by one of the allowed entity names.
     val sanitizedXml = xml.replace(Regex("&(?!amp;|lt;|gt;|quot;|apos;)"), "&amp;")
@@ -107,7 +104,6 @@ fun parseXml(xml: String): Document {
     val builder = factory.newDocumentBuilder()
     return builder.parse(InputSource(StringReader(sanitizedXml)))
 }
-
 
 fun findNodeEndingWith(node: Node, suffix: String): Node? {
     if (node.nodeType == Node.ELEMENT_NODE && node.nodeName.endsWith(suffix)) return node
@@ -145,7 +141,6 @@ fun sendSqlViaWsdl(
     val authHeader = encodeCredentials(username, password)
     // Build a Java HttpClient (Java 11+)
     val client = HttpClient.newHttpClient()
-
     val request = HttpRequest.newBuilder()
         .uri(URI.create(wsdlEndpoint))
         .header("Content-Type", "application/soap+xml;charset=UTF-8")
@@ -154,7 +149,6 @@ fun sendSqlViaWsdl(
         .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.133 Safari/537.36")
         .POST(HttpRequest.BodyPublishers.ofString(soapEnvelope))
         .build()
-
     // Send the request synchronously and obtain the response as a String
     val response = client.send(request, HttpResponse.BodyHandlers.ofString())
     val status = response.statusCode()
@@ -165,11 +159,9 @@ fun sendSqlViaWsdl(
         logger.error("Received an HTML error response (HTTP {}): {}", status, body)
         throw SQLException("WSDL service error ($status): Received an HTML error response. Details: $body")
     }
-
     if (body.isBlank()) {
         throw SQLException("Empty SOAP response from WSDL service. HTTP Status: $status")
     }
-
     val doc = parseXml(body)
     if (status == 200) {
         val reportNode = findNodeEndingWith(doc.documentElement, "reportBytes")
@@ -189,11 +181,9 @@ fun createResultSetFromRowNodes(rowNodes: NodeList): ResultSet {
     // Map lower‑case → original‑case (first appearance wins) to preserve metadata names
     val originalByLc = linkedMapOf<String, String>()
     val rawRows      = mutableListOf<MutableMap<String, String>>()
-
     for (i in 0 until rowNodes.length) {
         val rowNode = rowNodes.item(i)
         if (rowNode.nodeType != Node.ELEMENT_NODE) continue
-
         val rowMap = linkedMapOf<String, String>()          // keeps insertion order of lc keys
         val children = rowNode.childNodes
         for (j in 0 until children.length) {
@@ -208,11 +198,9 @@ fun createResultSetFromRowNodes(rowNodes: NodeList): ResultSet {
         }
         rawRows += rowMap
     }
-
     // Complete rows so each has every column
     val allLcCols = originalByLc.keys.toList()              // preserves first‑seen order
     rawRows.forEach { row -> allLcCols.forEach { row.putIfAbsent(it, "") } }
-
     val rows: List<Map<String, String>> = rawRows
     // Build ResultSet; XmlResultSet will derive metadata from the first row (keys are in stable order)
     return XmlResultSet(rows)

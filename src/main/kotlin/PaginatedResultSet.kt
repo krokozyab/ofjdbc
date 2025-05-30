@@ -119,14 +119,6 @@ class PaginatedResultSet(
         if (upper.contains(" ROWNUM "))          // query already limited via ROWNUM
             return originalSql
         return "$upper OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY"
-        // Basic check to ensure ORDER BY is placed correctly
-        /*val orderByIndex = upper.indexOf("ORDER BY")
-        return if (orderByIndex != -1) {
-            val orderByClause = originalSql.substring(orderByIndex)
-            originalSql.substring(0, orderByIndex) + " OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY " + orderByClause
-        } else {
-            "$originalSql OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY"
-        }*/
     }
 
     /**
@@ -331,6 +323,7 @@ class PaginatedResultSet(
 
     override fun getBoolean(columnIndex: Int): Boolean =
         getBoolean(metaData.getColumnName(columnIndex))
+
     override fun getByte(columnLabel: String): Byte =
         parseNumeric(getString(columnLabel), columnLabel, 0.toByte()) { it.toByteOrNull() }
 
@@ -342,16 +335,13 @@ class PaginatedResultSet(
 
     override fun getShort(columnIndex: Int): Short =
         getShort(metaData.getColumnName(columnIndex))
-    //override fun getLong(columnIndex: Int): Long = throw UnsupportedOperationException("Not implemented 8")
-    //override fun getLong(columnLabel: String?): Long = throw UnsupportedOperationException("Not implemented 9")
+
     override fun getLong(columnLabel: String): Long =
         parseNumeric(getString(columnLabel), columnLabel, 0L) { it.toLongOrNull() }
 
     override fun getLong(columnIndex: Int): Long =
         getLong(metaData.getColumnName(columnIndex))
 
-    //override fun getFloat(columnIndex: Int): Float = throw UnsupportedOperationException("Not implemented 10")
-    //override fun getFloat(columnLabel: String?): Float = throw UnsupportedOperationException("Not implemented 11")
     override fun getFloat(columnLabel: String): Float =
         parseNumeric(getString(columnLabel), columnLabel, 0f) { it.toFloatOrNull() }
 
@@ -363,12 +353,17 @@ class PaginatedResultSet(
 
     override fun getDouble(columnIndex: Int): Double =
         getDouble(metaData.getColumnName(columnIndex))
+
     @Deprecated("Deprecated in Java")
     override fun getBigDecimal(columnIndex: Int, scale: Int): BigDecimal = throw UnsupportedOperationException("Not implemented 14")
+
     @Deprecated("Deprecated in Java")
     override fun getBigDecimal(columnLabel: String, scale: Int): BigDecimal = throw UnsupportedOperationException("Not implemented 15")
+
     override fun getBytes(columnIndex: Int): ByteArray = throw UnsupportedOperationException("Not implemented 16")
+
     override fun getBytes(columnLabel: String?): ByteArray = throw UnsupportedOperationException("Not implemented 17")
+
     private fun parseSqlDate(str: String?): java.sql.Date? =
         str?.takeIf { it.length >= 10 }?.let { java.sql.Date.valueOf(it.substring(0, 10)) }
 
@@ -385,6 +380,7 @@ class PaginatedResultSet(
     }
     override fun getDate(columnIndex: Int): java.sql.Date? =
         getDate(metaData.getColumnName(columnIndex))
+
     override fun getDate(columnIndex: Int, cal: Calendar?): Date {
         TODO("Not yet implemented 1")
     }
@@ -398,8 +394,10 @@ class PaginatedResultSet(
         lastWasNull = t == null
         return t
     }
+
     override fun getTime(columnIndex: Int): java.sql.Time? =
         getTime(metaData.getColumnName(columnIndex))
+
     override fun getTime(columnIndex: Int, cal: Calendar?): Time {
         TODO("Not yet implemented 3")
     }
@@ -413,8 +411,10 @@ class PaginatedResultSet(
         lastWasNull = ts == null
         return ts
     }
+
     override fun getTimestamp(columnIndex: Int): java.sql.Timestamp? =
         getTimestamp(metaData.getColumnName(columnIndex))
+
     override fun getTimestamp(columnIndex: Int, cal: Calendar?): Timestamp {
         TODO("Not yet implemented 5")
     }
@@ -424,36 +424,51 @@ class PaginatedResultSet(
     }
 
     override fun getAsciiStream(columnIndex: Int): java.io.InputStream = throw UnsupportedOperationException("Not implemented 24")
+
     override fun getAsciiStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 25")
+
     @Deprecated("Deprecated in Java", ReplaceWith("throw UnsupportedOperationException(\"Not implemented 26\")"))
     override fun getUnicodeStream(columnIndex: Int): java.io.InputStream = throw UnsupportedOperationException("Not implemented 26")
+
     @Deprecated("Deprecated in Java", ReplaceWith("throw UnsupportedOperationException(\"Not implemented 27\")"))
     override fun getUnicodeStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 27")
+
     override fun getBinaryStream(columnIndex: Int): java.io.InputStream = throw UnsupportedOperationException("Not implemented 28")
+
     override fun getBinaryStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 29")
+
     override fun getWarnings(): SQLWarning? = warnings
+
     override fun clearWarnings() { warnings = null }
+
     override fun getCursorName(): String = throw UnsupportedOperationException("Not implemented 30")
+
     override fun getObject(columnLabel: String, map: MutableMap<String, Class<*>>?): Any = throw UnsupportedOperationException("Not implemented 31")
-    //override fun getObject(columnIndex: Int, map: MutableMap<String, Class<*>>?): Any = throw UnsupportedOperationException("Not implemented 32")
-    //override fun <T : Any?> getObject(columnIndex: Int, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 33")
-    //override fun <T : Any?> getObject(columnLabel: String, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 34")
+
     override fun getCharacterStream(columnLabel: String): Reader =
         java.io.StringReader(getString(columnLabel) ?: "")
 
     override fun getCharacterStream(columnIndex: Int): Reader =
         getCharacterStream(metaData.getColumnName(columnIndex))
+
     // ─── Cursor position helpers ────────────────────────────────────────────
     override fun isBeforeFirst(): Boolean = currentIndex < 0 && rows.isNotEmpty()
+
     override fun isAfterLast(): Boolean   = currentIndex >= rows.size && !lastPageFull
+
     override fun isFirst(): Boolean       = currentIndex == 0
+
     override fun isLast(): Boolean        = !lastPageFull && currentIndex == rows.size - 1
 
     // Forward‑only cursor – disallowed moves
     override fun beforeFirst() = throw SQLException("TYPE_FORWARD_ONLY")
+
     override fun afterLast()  = throw SQLException("TYPE_FORWARD_ONLY")
+
     override fun first(): Boolean = throw SQLException("TYPE_FORWARD_ONLY")
+
     override fun last(): Boolean  = throw SQLException("TYPE_FORWARD_ONLY")
+
     override fun getBigDecimal(columnLabel: String): BigDecimal {
         val s = getString(columnLabel)
         if (lastWasNull) return BigDecimal.ZERO
@@ -461,45 +476,76 @@ class PaginatedResultSet(
             throw SQLException("Cannot convert '$s' to BigDecimal", it)
         }
     }
+
     override fun getBigDecimal(columnIndex: Int): BigDecimal =
         getBigDecimal(metaData.getColumnName(columnIndex))
+
     override fun getRow(): Int =
         if (currentIndex < 0) 0 else currentOffset - rows.size + currentIndex + 1
+
     override fun absolute(row: Int): Boolean = throw UnsupportedOperationException("Not implemented 48")
+
     override fun relative(rows: Int): Boolean = throw UnsupportedOperationException("Not implemented 49")
+
     override fun previous(): Boolean = throw UnsupportedOperationException("Not implemented 50")
+
     override fun setFetchDirection(direction: Int) {
         if (direction != ResultSet.FETCH_FORWARD)
             throw SQLException("Only FETCH_FORWARD is supported")
         fetchDirection = direction
     }
+
     override fun getFetchDirection(): Int = fetchDirection
+
     override fun setFetchSize(rows: Int) {
         fetchSize = rows
         logger.info("Fetch size set to {}", rows)
     }
+
     override fun getFetchSize(): Int = fetchSize
+
     override fun getType(): Int = ResultSet.TYPE_FORWARD_ONLY
+
     override fun getConcurrency(): Int = ResultSet.CONCUR_READ_ONLY
+
     override fun rowUpdated(): Boolean = false
+
     override fun rowInserted(): Boolean = false
+
     override fun rowDeleted(): Boolean = false
+
     override fun updateNull(columnIndex: Int) = throw UnsupportedOperationException("Not implemented 59")
+
     override fun updateBoolean(columnIndex: Int, x: Boolean) = throw UnsupportedOperationException("Not implemented 60")
+
     override fun updateByte(columnIndex: Int, x: Byte) = throw UnsupportedOperationException("Not implemented 61")
+
     override fun updateShort(columnIndex: Int, x: Short) = throw UnsupportedOperationException("Not implemented 62")
+
     override fun updateInt(columnIndex: Int, x: Int) = throw UnsupportedOperationException("Not implemented 63")
+
     override fun updateLong(columnIndex: Int, x: Long) = throw UnsupportedOperationException("Not implemented 64")
+
     override fun updateFloat(columnIndex: Int, x: Float) = throw UnsupportedOperationException("Not implemented 65")
+
     override fun updateDouble(columnIndex: Int, x: Double) = throw UnsupportedOperationException("Not implemented 66")
+
     override fun updateBigDecimal(columnIndex: Int, x: BigDecimal?) = throw UnsupportedOperationException("Not implemented 67")
+
     override fun updateString(columnIndex: Int, x: String?) = throw UnsupportedOperationException("Not implemented 68")
+
     override fun updateBytes(columnIndex: Int, x: ByteArray?) = throw UnsupportedOperationException("Not implemented 69")
+
     override fun updateDate(columnIndex: Int, x: java.sql.Date?) = throw UnsupportedOperationException("Not implemented 70")
+
     override fun updateTime(columnIndex: Int, x: java.sql.Time?) = throw UnsupportedOperationException("Not implemented 71")
+
     override fun updateTimestamp(columnIndex: Int, x: java.sql.Timestamp?) = throw UnsupportedOperationException("Not implemented 72")
+
     override fun updateAsciiStream(columnIndex: Int, x: java.io.InputStream?, length: Int) = throw UnsupportedOperationException("Not implemented 73")
+
     override fun updateBinaryStream(columnIndex: Int, x: java.io.InputStream?, length: Int) = throw UnsupportedOperationException("Not implemented 74")
+
     override fun updateBinaryStream(columnLabel: String?, x: InputStream?, length: Int) {
         TODO("Not yet implemented 7")
     }
@@ -545,22 +591,39 @@ class PaginatedResultSet(
     }
 
     override fun updateObject(columnIndex: Int, x: Any?, scaleOrLength: Int) = throw UnsupportedOperationException("Not implemented 75")
+
     override fun updateObject(columnIndex: Int, x: Any?) = throw UnsupportedOperationException("Not implemented 76")
+
     override fun updateNull(columnLabel: String) = throw UnsupportedOperationException("Not implemented 77")
+
     override fun updateBoolean(columnLabel: String, x: Boolean) = throw UnsupportedOperationException("Not implemented 78")
+
     override fun updateByte(columnLabel: String, x: Byte) = throw UnsupportedOperationException("Not implemented 79")
+
     override fun updateShort(columnLabel: String, x: Short) = throw UnsupportedOperationException("Not implemented 80")
+
     override fun updateInt(columnLabel: String, x: Int) = throw UnsupportedOperationException("Not implemented 81")
+
     override fun updateLong(columnLabel: String, x: Long) = throw UnsupportedOperationException("Not implemented 82")
+
     override fun updateFloat(columnLabel: String, x: Float) = throw UnsupportedOperationException("Not implemented 83")
+
     override fun updateDouble(columnLabel: String, x: Double) = throw UnsupportedOperationException("Not implemented 84")
+
     override fun updateBigDecimal(columnLabel: String, x: BigDecimal?) = throw UnsupportedOperationException("Not implemented 85")
+
     override fun updateString(columnLabel: String, x: String?) = throw UnsupportedOperationException("Not implemented 86")
+
     override fun updateBytes(columnLabel: String, x: ByteArray?) = throw UnsupportedOperationException("Not implemented 87")
+
     override fun updateDate(columnLabel: String?, x: java.sql.Date?) = throw UnsupportedOperationException("Not implemented 88")
+
     override fun updateTime(columnLabel: String, x: java.sql.Time?) = throw UnsupportedOperationException("Not implemented 89")
+
     override fun updateTimestamp(columnLabel: String, x: java.sql.Timestamp?) = throw UnsupportedOperationException("Not implemented 90")
+
     override fun updateAsciiStream(columnLabel: String, x: java.io.InputStream?, length: Int) = throw UnsupportedOperationException("Not implemented 91")
+
     override fun updateAsciiStream(columnIndex: Int, x: InputStream?, length: Long) {
         TODO("Not yet implemented 18")
     }
@@ -578,16 +641,27 @@ class PaginatedResultSet(
     }
 
     override fun updateObject(columnLabel: String, x: Any?, scaleOrLength: Int) = throw UnsupportedOperationException("Not implemented 92")
+
     override fun updateObject(columnLabel: String, x: Any?) = throw UnsupportedOperationException("Not implemented 93")
+
     override fun insertRow() = throw UnsupportedOperationException("Not implemented 94")
+
     override fun updateRow() = throw UnsupportedOperationException("Not implemented 95")
+
     override fun deleteRow() = throw UnsupportedOperationException("Not implemented 96")
+
     override fun refreshRow() = throw UnsupportedOperationException("Not implemented 97")
+
     override fun cancelRowUpdates() = throw UnsupportedOperationException("Not implemented 98")
+
     override fun moveToInsertRow() = throw UnsupportedOperationException("Not implemented 99")
+
     override fun moveToCurrentRow() = throw UnsupportedOperationException("Not implemented 100")
+
     override fun getStatement(): java.sql.Statement = throw UnsupportedOperationException("Not implemented 101")
+
     override fun getRef(columnIndex: Int): Ref? = throw UnsupportedOperationException("Not implemented 102")
+
     override fun getRef(columnLabel: String?): Ref {
         TODO("Not yet implemented 22")
     }
@@ -693,8 +767,11 @@ class PaginatedResultSet(
     }
 
     override fun getObject(columnIndex: Int, map: MutableMap<String, Class<*>>?): Any = throw UnsupportedOperationException("Not implemented 103")
+
     override fun <T : Any?> getObject(columnIndex: Int, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 104")
+
     override fun <T : Any?> getObject(columnLabel: String, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 105")
+
     override fun findColumn(columnLabel: String?): Int {
         columnLabel ?: throw SQLException("Column label cannot be null")
         return indexByLc[columnLabel.lowercase()]
@@ -702,15 +779,25 @@ class PaginatedResultSet(
                 "Column '$columnLabel' not found. Available: ${originalByLc.values.joinToString()}"
             )
     }
+
     override fun getRowId(columnLabel: String): java.sql.RowId = throw UnsupportedOperationException("Not implemented 107")
+
     override fun updateRowId(columnIndex: Int, x: java.sql.RowId?) = throw UnsupportedOperationException("Not implemented 108")
+
     override fun updateRowId(columnLabel: String, x: java.sql.RowId?) = throw UnsupportedOperationException("Not implemented 109")
+
     override fun getHoldability(): Int = ResultSet.HOLD_CURSORS_OVER_COMMIT
+
     override fun isClosed(): Boolean = closed
+
     override fun updateNString(columnIndex: Int, nString: String?) = throw UnsupportedOperationException("Not implemented 111")
+
     override fun updateNString(columnLabel: String?, nString: String?) = throw UnsupportedOperationException("Not implemented 112")
+
     override fun updateNClob(columnIndex: Int, nClob: java.sql.NClob?) = throw UnsupportedOperationException("Not implemented 113")
+
     override fun updateNClob(columnLabel: String?, nClob: java.sql.NClob?) = throw UnsupportedOperationException("Not implemented 114")
+
     override fun updateNClob(columnIndex: Int, reader: Reader?, length: Long) {
         TODO("Not yet implemented 48")
     }
@@ -728,24 +815,39 @@ class PaginatedResultSet(
     }
 
     override fun getNClob(columnIndex: Int): java.sql.NClob = throw UnsupportedOperationException("Not implemented 115")
+
     override fun getNClob(columnLabel: String?): java.sql.NClob = throw UnsupportedOperationException("Not implemented 116")
+
     override fun getSQLXML(columnIndex: Int): java.sql.SQLXML = throw UnsupportedOperationException("Not implemented 117")
+
     override fun getSQLXML(columnLabel: String?): java.sql.SQLXML = throw UnsupportedOperationException("Not implemented 118")
+
     override fun updateSQLXML(columnIndex: Int, xmlObject: java.sql.SQLXML?) = throw UnsupportedOperationException("Not implemented 119")
+
     override fun updateSQLXML(columnLabel: String?, xmlObject: java.sql.SQLXML?) = throw UnsupportedOperationException("Not implemented 120")
+
     override fun getNString(columnLabel: String): String? = getString(columnLabel)
+
     override fun getNString(columnIndex: Int): String? = getString(columnIndex)
+
     override fun getNCharacterStream(columnIndex: Int): java.io.Reader = throw UnsupportedOperationException("Not implemented 123")
+
     override fun getNCharacterStream(columnLabel: String?): java.io.Reader = throw UnsupportedOperationException("Not implemented 124")
+
     override fun updateNCharacterStream(columnIndex: Int, x: java.io.Reader?, length: Long) = throw UnsupportedOperationException("Not implemented 125")
+
     override fun updateNCharacterStream(columnLabel: String?, reader: java.io.Reader?, length: Long) = throw UnsupportedOperationException("Not implemented 126")
+
     override fun updateNCharacterStream(columnIndex: Int, x: java.io.Reader?) = throw UnsupportedOperationException("Not implemented 127")
+
     override fun updateNCharacterStream(columnLabel: String?, reader: java.io.Reader?) = throw UnsupportedOperationException("Not implemented 128")
+
     override fun <T> unwrap(iface: Class<T>?): T {
         if (iface == null) throw SQLException("Interface cannot be null")
         if (iface.isInstance(this)) return iface.cast(this)
         throw SQLException("Not a wrapper for " + iface.name)
     }
+
     override fun isWrapperFor(iface: Class<*>?): Boolean =
         iface != null && iface.isInstance(this)
 }

@@ -7,7 +7,6 @@ import java.sql.DriverManager
 import java.sql.DriverPropertyInfo
 import java.util.*
 import java.util.logging.Logger
-
 import java.sql.ResultSetMetaData
 import java.sql.ResultSetMetaData.columnNullable
 import java.sql.SQLFeatureNotSupportedException
@@ -37,9 +36,13 @@ class WsdlDriver : Driver {
         url?.startsWith("jdbc:wsdl://") ?: false
 
     override fun getMajorVersion(): Int = 1
+
     override fun getMinorVersion(): Int = 0
+
     override fun getPropertyInfo(url: String?, info: Properties?): Array<DriverPropertyInfo> = arrayOf()
+
     override fun jdbcCompliant(): Boolean = false
+
     override fun getParentLogger(): Logger = Logger.getLogger("WsdlDriver")
 
     companion object {
@@ -55,27 +58,62 @@ class WsdlDriver : Driver {
 }
 
 class DefaultResultSetMetaData(private val columns: List<String>) : ResultSetMetaData {
+
+    /** Ensures the JDBC column index is 1‑based and inside the list size. */
+    private fun check(column: Int) {
+        if (column < 1 || column > columns.size) {
+            throw java.sql.SQLException("Column index $column out of range 1..${columns.size}")
+        }
+    }
+
     override fun getColumnCount(): Int = columns.size
-    override fun getColumnName(column: Int): String = columns[column - 1]
+
+    override fun getColumnName(column: Int): String { check(column); return columns[column - 1] }
+
     override fun getColumnLabel(column: Int): String = getColumnName(column)
-    override fun isAutoIncrement(column: Int): Boolean = false
-    override fun isCaseSensitive(column: Int): Boolean = true
-    override fun isSearchable(column: Int): Boolean = true
-    override fun isCurrency(column: Int): Boolean = false
-    override fun isNullable(column: Int): Int = columnNullable
-    override fun isSigned(column: Int): Boolean = false
-    override fun getColumnDisplaySize(column: Int): Int = 50
-    override fun getColumnType(column: Int): Int = Types.VARCHAR
-    override fun getColumnTypeName(column: Int): String = "VARCHAR"
-    override fun getPrecision(column: Int): Int = 0
-    override fun getScale(column: Int): Int = 0
-    override fun getSchemaName(column: Int): String = ""
-    override fun getTableName(column: Int): String = ""
-    override fun getCatalogName(column: Int): String = ""
-    override fun isReadOnly(column: Int): Boolean = true
-    override fun isWritable(column: Int): Boolean = false
-    override fun isDefinitelyWritable(column: Int): Boolean = false
-    override fun getColumnClassName(column: Int): String = "java.lang.String"
-    override fun <T : Any?> unwrap(iface: Class<T>?): T = throw SQLFeatureNotSupportedException()
-    override fun isWrapperFor(iface: Class<*>?): Boolean = false
+
+    override fun isAutoIncrement(column: Int): Boolean { check(column); return false }
+
+    override fun isCaseSensitive(column: Int): Boolean { check(column); return true }
+
+    override fun isSearchable(column: Int): Boolean { check(column); return true }
+
+    override fun isCurrency(column: Int): Boolean { check(column); return false }
+
+    override fun isNullable(column: Int): Int { check(column); return columnNullable }
+
+    override fun isSigned(column: Int): Boolean { check(column); return false }
+
+    override fun getColumnDisplaySize(column: Int): Int { check(column); return 50 }
+
+    override fun getColumnType(column: Int): Int { check(column); return Types.VARCHAR }
+
+    override fun getColumnTypeName(column: Int): String { check(column); return "VARCHAR" }
+
+    override fun getPrecision(column: Int): Int { check(column); return 0 }
+
+    override fun getScale(column: Int): Int { check(column); return 0 }
+
+    override fun getSchemaName(column: Int): String { check(column); return "" }
+
+    override fun getTableName(column: Int): String { check(column); return "" }
+
+    override fun getCatalogName(column: Int): String { check(column); return "" }
+
+    override fun isReadOnly(column: Int): Boolean { check(column); return true }
+
+    override fun isWritable(column: Int): Boolean { check(column); return false }
+
+    override fun isDefinitelyWritable(column: Int): Boolean { check(column); return false }
+
+    override fun getColumnClassName(column: Int): String { check(column); return "java.lang.String" }
+
+    override fun <T : Any?> unwrap(iface: Class<T>): T =
+        if (iface.isAssignableFrom(javaClass)) iface.cast(this)
+        else throw SQLFeatureNotSupportedException(
+            "DefaultResultSetMetaData cannot unwrap to ${iface.name}"
+        )
+
+    override fun isWrapperFor(iface: Class<*>?): Boolean =
+        iface?.isAssignableFrom(javaClass) == true
 }

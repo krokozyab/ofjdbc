@@ -1,6 +1,7 @@
 package my.jdbc.wsdl_driver
 
 import org.slf4j.LoggerFactory
+import java.sql.SQLException
 import java.io.InputStream
 import java.io.Reader
 import java.math.BigDecimal
@@ -24,12 +25,23 @@ class WsdlPreparedStatement(
 ) : WsdlStatement(wsdlEndpoint, username, password, reportPath), PreparedStatement {
 
     private val logger = LoggerFactory.getLogger(WsdlPreparedStatement::class.java)
+    // Cache for ResultSetMetaData to avoid repeated calls
+    private var cachedMeta: ResultSetMetaData? = null
     // Store parameters by their 1-indexed position.
     private val parameters = mutableMapOf<Int, Any?>()
 
-    override fun setFetchSize(rows: Int) = super.setFetchSize(rows)
-    override fun getFetchSize(): Int     = super.getFetchSize()
+    /**
+     * Ensures the JDBC parameter index is 1-based and valid.
+     */
+    private fun validate(index: Int) {
+        if (index < 1) {
+            throw SQLException("Parameter index must be >= 1: got $index")
+        }
+    }
 
+    override fun setFetchSize(rows: Int) = super.setFetchSize(rows)
+
+    override fun getFetchSize(): Int     = super.getFetchSize()
 
     // Build final SQL string by substituting each '?' with its parameter value.
     private fun buildSql(): String {
@@ -196,9 +208,21 @@ class WsdlPreparedStatement(
     override fun setArray(parameterIndex: Int, x: Array?) =
         throw UnsupportedOperationException("Parameter binding is not supported")
 
-
     override fun getMetaData(): ResultSetMetaData {
-        TODO("Not yet implemented 56")
+        // Return cached metadata if already retrieved
+        cachedMeta?.let { return it }
+
+        // Build the final SQL with bound parameters
+        val finalSql = buildSql()
+        logger.info("Retrieving metadata for prepared SQL: {}", finalSql)
+
+        // Fetch zero rows to obtain metadata without data transfer
+        val metaQuery = "$finalSql WHERE 1=0"
+        super.executeQuery(metaQuery).use { rs ->
+            val md = rs.metaData
+            cachedMeta = md
+            return md
+        }
     }
     override fun setURL(parameterIndex: Int, x: URL?) =
         throw UnsupportedOperationException("Parameter binding is not supported")
@@ -228,8 +252,14 @@ class WsdlPreparedStatement(
     override fun setNClob(parameterIndex: Int, reader: Reader?) =
         throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun setSQLXML(parameterIndex: Int, xmlObject: SQLXML?) =
-        throw UnsupportedOperationException("Parameter binding is not supported")
+    /**
+     * Binds a SQLXML parameter by extracting its string content.
+     */
+    override fun setSQLXML(parameterIndex: Int, xmlObject: SQLXML?) {
+        validate(parameterIndex)
+        // Store the XML content as a string for substitution
+        parameters[parameterIndex] = xmlObject?.getString()
+    }
 
     // Override the execute methods to use parameter binding.
     override fun executeQuery(): ResultSet {
@@ -238,9 +268,11 @@ class WsdlPreparedStatement(
         return super.executeQuery(finalSql)
     }
 
-    override fun executeUpdate(): Int {
-        TODO("Not yet implemented 57")
-    }
+    // PreparedStatement does not support updates in this read-only driver
+    override fun executeUpdate(): Int =
+        throw SQLFeatureNotSupportedException(
+            "WsdlPreparedStatement is read-only – UPDATE/INSERT/DELETE not supported"
+        )
 
     override fun execute(): Boolean {
         val finalSql = buildSql()
@@ -248,9 +280,10 @@ class WsdlPreparedStatement(
         return super.execute(finalSql)
     }
 
-    override fun addBatch() {
-        TODO("Not yet implemented 58")
-    }
-
+    // Batch execution is not supported in this read-only PreparedStatement.
+    override fun addBatch() =
+        throw SQLFeatureNotSupportedException(
+            "WsdlPreparedStatement is read-only – batch updates not supported"
+        )
 
 }

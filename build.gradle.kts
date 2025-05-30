@@ -1,6 +1,9 @@
+// (version variables removed; hard-coded versions used in dependencies below)
+
 plugins {
     kotlin("jvm") version "2.0.21"
     id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.github.ben-manes.versions") version "0.47.0"
 }
 
 group = "org.example"
@@ -16,7 +19,7 @@ dependencies {
     // Apache Commons Text for XML escaping/unescaping
     implementation("org.apache.commons:commons-text:1.10.0")
     implementation("org.slf4j:slf4j-api:1.7.36")
-    implementation("org.duckdb:duckdb_jdbc:1.2.0")
+    implementation("org.duckdb:duckdb_jdbc:1.3.0.0")
     // A simple SLF4J binding (choose one that fits your needs; here we use slf4j-simple)
     runtimeOnly("org.slf4j:slf4j-simple:1.7.36")
 }
