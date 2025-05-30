@@ -16,6 +16,7 @@ import java.util.*
 import java.io.Closeable
 
 import java.sql.SQLTimeoutException
+import java.util.Locale
 import javax.xml.xpath.XPathConstants
 import javax.xml.xpath.XPathExpression
 import javax.xml.xpath.XPathFactory
@@ -104,21 +105,30 @@ class PaginatedResultSet(
 
     /**
      * Rewrite a SELECT SQL query to include Oracle‑style OFFSET/FETCH pagination.
+     * This implementation preserves the original SQL casing, but detects keywords case-insensitively.
      */
     private fun rewriteQueryForPagination(originalSql: String, offset: Int, fetchSize: Int): String {
+        // Skip pagination if fetchSize is zero or negative
         if (fetchSize <= 0) return originalSql.trim()
-        // Remove single-line (--) and multi-line (/* */) SQL comments
+
+        // Strip single‑line (--) and multi‑line (/* */) comments
         val sqlWithoutComments = originalSql
-            .replace(Regex("--.*?(\\r?\\n|$)"), " ") // single-line comments --
-            .replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), " ") // multi-line comments /**/
+            .replace(Regex("--.*?(\\r?\\n|$)"), " ")
+            .replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), " ")
+
+        // Collapse excessive whitespace
         val normalizedSql = sqlWithoutComments.replace("\\s+".toRegex(), " ").trim()
-        val upper = normalizedSql.trim() //removed .uppercase() - SQL that returns a value in BIP returns no error or data #22
-        if (!upper.startsWith("SELECT")) return originalSql
-        if (upper.contains(" OFFSET ") || upper.contains(" FETCH "))     // already paginated
-            return originalSql
-        if (upper.contains(" ROWNUM "))          // query already limited via ROWNUM
-            return originalSql
-        return "$upper OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY"
+
+        // Perform detection on an UPPER‑cased copy, but keep the original case for output
+        val detect = normalizedSql.uppercase(Locale.ROOT)
+
+        // Only paginate plain SELECTs that aren’t already paginated/limited
+        if (!detect.startsWith("SELECT")) return originalSql
+        if (detect.contains(" OFFSET ") || detect.contains(" FETCH ")) return originalSql
+        if (detect.contains(" ROWNUM ")) return originalSql
+
+        // Append Oracle‑style OFFSET/FETCH clause
+        return "$normalizedSql OFFSET $offset ROWS FETCH NEXT $fetchSize ROWS ONLY"
     }
 
     /**
