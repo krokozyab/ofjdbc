@@ -112,7 +112,7 @@ class PaginatedResultSet(
             .replace(Regex("--.*?(\\r?\\n|$)"), " ") // single-line comments --
             .replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), " ") // multi-line comments /**/
         val normalizedSql = sqlWithoutComments.replace("\\s+".toRegex(), " ").trim()
-        val upper = normalizedSql.trim().uppercase()
+        val upper = normalizedSql.trim() //removed .uppercase() - SQL that returns a value in BIP returns no error or data #22
         if (!upper.startsWith("SELECT")) return originalSql
         if (upper.contains(" OFFSET ") || upper.contains(" FETCH "))     // already paginated
             return originalSql
