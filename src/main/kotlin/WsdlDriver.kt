@@ -37,7 +37,7 @@ class WsdlDriver : Driver {
 
     override fun getMajorVersion(): Int = 1
 
-    override fun getMinorVersion(): Int = 0
+    override fun getMinorVersion(): Int = 1
 
     override fun getPropertyInfo(url: String?, info: Properties?): Array<DriverPropertyInfo> = arrayOf()
 
