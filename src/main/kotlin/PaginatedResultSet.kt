@@ -8,13 +8,24 @@ import org.w3c.dom.NodeList
 import java.io.InputStream
 import java.io.Reader
 import java.math.BigDecimal
+import java.math.RoundingMode
 import java.net.URL
 import java.sql.*
 import java.sql.Array
 import java.sql.Date
+import java.sql.SQLException
+import java.sql.Time
+import java.sql.Timestamp
+import java.util.Calendar
 import java.util.*
 import java.io.Closeable
+import java.io.ByteArrayInputStream
+import java.nio.charset.StandardCharsets
+import java.util.Base64
+import java.sql.SQLFeatureNotSupportedException
+import java.sql.NClob
 
+import java.sql.RowId
 import java.sql.SQLTimeoutException
 import java.util.Locale
 import javax.xml.xpath.XPathConstants
@@ -365,14 +376,49 @@ class PaginatedResultSet(
         getDouble(metaData.getColumnName(columnIndex))
 
     @Deprecated("Deprecated in Java")
-    override fun getBigDecimal(columnIndex: Int, scale: Int): BigDecimal = throw UnsupportedOperationException("Not implemented 14")
+    override fun getBigDecimal(columnIndex: Int, scale: Int): BigDecimal {
+        val bd = getBigDecimal(columnIndex)  // delegate to the non-deprecated method
+        if (wasNull()) {
+            return BigDecimal.ZERO
+        }
+        return bd.setScale(scale, RoundingMode.HALF_UP)
+    }
 
     @Deprecated("Deprecated in Java")
-    override fun getBigDecimal(columnLabel: String, scale: Int): BigDecimal = throw UnsupportedOperationException("Not implemented 15")
+    override fun getBigDecimal(columnLabel: String, scale: Int): BigDecimal {
+        val bd = getBigDecimal(columnLabel)  // delegate to the non-deprecated method
+        if (wasNull()) {
+            return BigDecimal.ZERO
+        }
+        return bd.setScale(scale, RoundingMode.HALF_UP)
+    }
 
-    override fun getBytes(columnIndex: Int): ByteArray = throw UnsupportedOperationException("Not implemented 16")
+    override fun getBytes(columnIndex: Int): ByteArray {
+        val s = getString(columnIndex)
+        if (wasNull()) {
+            return ByteArray(0)
+        }
+        return try {
+            s!!.toByteArray()
+        } catch (ex: Exception) {
+            throw SQLException("Cannot convert value '$s' to ByteArray", ex)
+        }
+    }
 
-    override fun getBytes(columnLabel: String?): ByteArray = throw UnsupportedOperationException("Not implemented 17")
+    override fun getBytes(columnLabel: String?): ByteArray {
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        val s = getString(columnLabel)
+        if (wasNull()) {
+            return ByteArray(0)
+        }
+        return try {
+            s!!.toByteArray()
+        } catch (ex: Exception) {
+            throw SQLException("Cannot convert value '$s' to ByteArray", ex)
+        }
+    }
 
     private fun parseSqlDate(str: String?): java.sql.Date? =
         str?.takeIf { it.length >= 10 }?.let { java.sql.Date.valueOf(it.substring(0, 10)) }
@@ -391,12 +437,45 @@ class PaginatedResultSet(
     override fun getDate(columnIndex: Int): java.sql.Date? =
         getDate(metaData.getColumnName(columnIndex))
 
-    override fun getDate(columnIndex: Int, cal: Calendar?): Date {
-        TODO("Not yet implemented 1")
+    @Deprecated("Use getDate(columnIndex) instead")
+    override fun getDate(columnIndex: Int, cal: Calendar?): Date? {
+        // Delegate to the single-argument version to parse the underlying string
+        val d: Date? = getDate(columnIndex)
+        // If that version found SQL NULL, just return null
+        if (wasNull()) return null
+
+        if (cal == null || d == null) {
+            // No calendar adjustment needed
+            return d
+        }
+
+        // Adjust milliseconds to the given Calendar's timezone.
+        val originalMillis = d.time
+        val tzOffset = cal.timeZone.getOffset(originalMillis)
+        val adjustedMillis = originalMillis - tzOffset
+
+        return Date(adjustedMillis)
     }
 
-    override fun getDate(columnLabel: String?, cal: Calendar?): Date {
-        TODO("Not yet implemented 2")
+    @Deprecated("Use getDate(columnLabel) instead")
+    override fun getDate(columnLabel: String?, cal: Calendar?): Date? {
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        // Delegate to the single-argument version
+        val d: Date? = getDate(columnLabel)
+        if (wasNull()) return null
+
+        if (cal == null || d == null) {
+            return d
+        }
+
+        // Same timezone-adjustment logic as above
+        val originalMillis = d.time
+        val tzOffset = cal.timeZone.getOffset(originalMillis)
+        val adjustedMillis = originalMillis - tzOffset
+
+        return Date(adjustedMillis)
     }
 
     override fun getTime(columnLabel: String): java.sql.Time? {
@@ -408,12 +487,45 @@ class PaginatedResultSet(
     override fun getTime(columnIndex: Int): java.sql.Time? =
         getTime(metaData.getColumnName(columnIndex))
 
-    override fun getTime(columnIndex: Int, cal: Calendar?): Time {
-        TODO("Not yet implemented 3")
+    @Deprecated("Use getTime(columnIndex) instead")
+    override fun getTime(columnIndex: Int, cal: Calendar?): Time? {
+        // Delegate to the single-argument version to parse the underlying string
+        val t: Time? = getTime(columnIndex)
+        // If that version found SQL NULL, just return null
+        if (wasNull()) return null
+
+        if (cal == null || t == null) {
+            // No calendar adjustment needed
+            return t
+        }
+
+        // Adjust milliseconds to the given Calendar's timezone.
+        val originalMillis = t.time
+        val tzOffset = cal.timeZone.getOffset(originalMillis)
+        val adjustedMillis = originalMillis - tzOffset
+
+        return Time(adjustedMillis)
     }
 
-    override fun getTime(columnLabel: String?, cal: Calendar?): Time {
-        TODO("Not yet implemented 4")
+    @Deprecated("Use getTime(columnLabel) instead")
+    override fun getTime(columnLabel: String?, cal: Calendar?): Time? {
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        // Delegate to the single-argument version
+        val t: Time? = getTime(columnLabel)
+        if (wasNull()) return null
+
+        if (cal == null || t == null) {
+            return t
+        }
+
+        // Same timezone-adjustment logic as above
+        val originalMillis = t.time
+        val tzOffset = cal.timeZone.getOffset(originalMillis)
+        val adjustedMillis = originalMillis - tzOffset
+
+        return Time(adjustedMillis)
     }
 
     override fun getTimestamp(columnLabel: String): java.sql.Timestamp? {
@@ -425,35 +537,126 @@ class PaginatedResultSet(
     override fun getTimestamp(columnIndex: Int): java.sql.Timestamp? =
         getTimestamp(metaData.getColumnName(columnIndex))
 
-    override fun getTimestamp(columnIndex: Int, cal: Calendar?): Timestamp {
-        TODO("Not yet implemented 5")
+    @Deprecated("Use getTimestamp(columnIndex) instead")
+    override fun getTimestamp(columnIndex: Int, cal: Calendar?): Timestamp? {
+        // Delegate to the single-argument version to parse the underlying string
+        val ts: Timestamp? = getTimestamp(columnIndex)
+        // If that version found SQL NULL, just return null
+        if (wasNull()) return null
+
+        if (cal == null || ts == null) {
+            // No calendar adjustment needed
+            return ts
+        }
+
+        // Adjust milliseconds to the given Calendar's timezone.
+        val originalMillis = ts.time
+        val tzOffset = cal.timeZone.getOffset(originalMillis)
+        val adjustedMillis = originalMillis - tzOffset
+
+        return Timestamp(adjustedMillis)
     }
 
-    override fun getTimestamp(columnLabel: String?, cal: Calendar?): Timestamp {
-        TODO("Not yet implemented 6")
+    @Deprecated("Use getTimestamp(columnLabel) instead")
+    override fun getTimestamp(columnLabel: String?, cal: Calendar?): Timestamp? {
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        // Delegate to the single-argument version
+        val ts: Timestamp? = getTimestamp(columnLabel)
+        if (wasNull()) return null
+
+        if (cal == null || ts == null) {
+            return ts
+        }
+
+        // Same timezone-adjustment logic as above
+        val originalMillis = ts.time
+        val tzOffset = cal.timeZone.getOffset(originalMillis)
+        val adjustedMillis = originalMillis - tzOffset
+
+        return Timestamp(adjustedMillis)
     }
 
-    override fun getAsciiStream(columnIndex: Int): java.io.InputStream = throw UnsupportedOperationException("Not implemented 24")
+    override fun getAsciiStream(columnIndex: Int): java.io.InputStream {
+        val raw: String? = getString(columnIndex)
+        if (wasNull() || raw == null) {
+            return ByteArrayInputStream(ByteArray(0))
+        }
+        val bytes = raw.toByteArray(StandardCharsets.US_ASCII)
+        return ByteArrayInputStream(bytes)
+    }
 
-    override fun getAsciiStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 25")
+    override fun getAsciiStream(columnLabel: String?): java.io.InputStream {
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        val raw: String? = getString(columnLabel)
+        if (wasNull() || raw == null) {
+            return ByteArrayInputStream(ByteArray(0))
+        }
+        val bytes = raw.toByteArray(StandardCharsets.US_ASCII)
+        return ByteArrayInputStream(bytes)
+    }
 
-    @Deprecated("Deprecated in Java", ReplaceWith("throw UnsupportedOperationException(\"Not implemented 26\")"))
-    override fun getUnicodeStream(columnIndex: Int): java.io.InputStream = throw UnsupportedOperationException("Not implemented 26")
+    @Deprecated("Deprecated in Java")
+    override fun getUnicodeStream(columnIndex: Int): java.io.InputStream {
+        val raw: String? = getString(columnIndex)
+        if (wasNull() || raw == null) {
+            return ByteArrayInputStream(ByteArray(0))
+        }
+        val bytes = raw.toByteArray(StandardCharsets.UTF_8)
+        return ByteArrayInputStream(bytes)
+    }
 
-    @Deprecated("Deprecated in Java", ReplaceWith("throw UnsupportedOperationException(\"Not implemented 27\")"))
-    override fun getUnicodeStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 27")
+    @Deprecated("Deprecated in Java")
+    override fun getUnicodeStream(columnLabel: String?): java.io.InputStream {
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        val raw: String? = getString(columnLabel)
+        if (wasNull() || raw == null) {
+            return ByteArrayInputStream(ByteArray(0))
+        }
+        val bytes = raw.toByteArray(StandardCharsets.UTF_8)
+        return ByteArrayInputStream(bytes)
+    }
 
-    override fun getBinaryStream(columnIndex: Int): java.io.InputStream = throw UnsupportedOperationException("Not implemented 28")
+    override fun getBinaryStream(columnIndex: Int): java.io.InputStream {
+        val raw: String? = getString(columnIndex)
+        if (wasNull() || raw == null) {
+            return ByteArrayInputStream(ByteArray(0))
+        }
+        // If raw is base64 encoded, use Base64.getDecoder().decode(raw)
+        val bytes = raw.toByteArray(StandardCharsets.UTF_8)
+        return ByteArrayInputStream(bytes)
+    }
 
-    override fun getBinaryStream(columnLabel: String?): java.io.InputStream = throw UnsupportedOperationException("Not implemented 29")
+    override fun getBinaryStream(columnLabel: String?): java.io.InputStream {
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        val raw: String? = getString(columnLabel)
+        if (wasNull() || raw == null) {
+            return ByteArrayInputStream(ByteArray(0))
+        }
+        // If raw is base64 encoded, use Base64.getDecoder().decode(raw)
+        val bytes = raw.toByteArray(StandardCharsets.UTF_8)
+        return ByteArrayInputStream(bytes)
+    }
 
     override fun getWarnings(): SQLWarning? = warnings
 
     override fun clearWarnings() { warnings = null }
 
-    override fun getCursorName(): String = throw UnsupportedOperationException("Not implemented 30")
+    override fun getCursorName(): String {
+        throw SQLFeatureNotSupportedException("getCursorName is not supported for forward-only result sets")
+    }
 
-    override fun getObject(columnLabel: String, map: MutableMap<String, Class<*>>?): Any = throw UnsupportedOperationException("Not implemented 31")
+    override fun getObject(columnLabel: String, map: MutableMap<String, Class<*>>?): Any? {
+        // The type-map is ignored; simply return the default object
+        return getObject(columnLabel)
+    }
 
     override fun getCharacterStream(columnLabel: String): Reader =
         java.io.StringReader(getString(columnLabel) ?: "")
@@ -493,11 +696,17 @@ class PaginatedResultSet(
     override fun getRow(): Int =
         if (currentIndex < 0) 0 else currentOffset - rows.size + currentIndex + 1
 
-    override fun absolute(row: Int): Boolean = throw UnsupportedOperationException("Not implemented 48")
+    override fun absolute(row: Int): Boolean {
+        throw SQLException("absolute($row) is not supported for TYPE_FORWARD_ONLY result sets")
+    }
 
-    override fun relative(rows: Int): Boolean = throw UnsupportedOperationException("Not implemented 49")
+    override fun relative(rows: Int): Boolean {
+        throw SQLException("relative($rows) is not supported for TYPE_FORWARD_ONLY result sets")
+    }
 
-    override fun previous(): Boolean = throw UnsupportedOperationException("Not implemented 50")
+    override fun previous(): Boolean {
+        throw SQLException("previous() is not supported for TYPE_FORWARD_ONLY result sets")
+    }
 
     override fun setFetchDirection(direction: Int) {
         if (direction != ResultSet.FETCH_FORWARD)
@@ -524,263 +733,396 @@ class PaginatedResultSet(
 
     override fun rowDeleted(): Boolean = false
 
-    override fun updateNull(columnIndex: Int) = throw UnsupportedOperationException("Not implemented 59")
+    override fun updateNull(columnIndex: Int) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateNull($columnIndex) is not supported")
+    }
 
-    override fun updateBoolean(columnIndex: Int, x: Boolean) = throw UnsupportedOperationException("Not implemented 60")
+    override fun updateBoolean(columnIndex: Int, x: Boolean) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBoolean($columnIndex) is not supported")
+    }
 
-    override fun updateByte(columnIndex: Int, x: Byte) = throw UnsupportedOperationException("Not implemented 61")
+    override fun updateByte(columnIndex: Int, x: Byte) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateByte($columnIndex) is not supported")
+    }
 
-    override fun updateShort(columnIndex: Int, x: Short) = throw UnsupportedOperationException("Not implemented 62")
+    override fun updateShort(columnIndex: Int, x: Short) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateShort($columnIndex) is not supported")
+    }
 
-    override fun updateInt(columnIndex: Int, x: Int) = throw UnsupportedOperationException("Not implemented 63")
+    override fun updateInt(columnIndex: Int, x: Int) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateInt($columnIndex) is not supported")
+    }
 
-    override fun updateLong(columnIndex: Int, x: Long) = throw UnsupportedOperationException("Not implemented 64")
+    override fun updateLong(columnIndex: Int, x: Long) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateLong($columnIndex) is not supported")
+    }
 
-    override fun updateFloat(columnIndex: Int, x: Float) = throw UnsupportedOperationException("Not implemented 65")
+    override fun updateFloat(columnIndex: Int, x: Float) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateFloat($columnIndex) is not supported")
+    }
 
-    override fun updateDouble(columnIndex: Int, x: Double) = throw UnsupportedOperationException("Not implemented 66")
+    override fun updateDouble(columnIndex: Int, x: Double) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateDouble($columnIndex) is not supported")
+    }
 
-    override fun updateBigDecimal(columnIndex: Int, x: BigDecimal?) = throw UnsupportedOperationException("Not implemented 67")
+    override fun updateBigDecimal(columnIndex: Int, x: BigDecimal?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBigDecimal($columnIndex) is not supported")
+    }
 
-    override fun updateString(columnIndex: Int, x: String?) = throw UnsupportedOperationException("Not implemented 68")
+    override fun updateString(columnIndex: Int, x: String?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateString($columnIndex) is not supported")
+    }
 
-    override fun updateBytes(columnIndex: Int, x: ByteArray?) = throw UnsupportedOperationException("Not implemented 69")
+    override fun updateBytes(columnIndex: Int, x: ByteArray?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBytes($columnIndex) is not supported")
+    }
 
-    override fun updateDate(columnIndex: Int, x: java.sql.Date?) = throw UnsupportedOperationException("Not implemented 70")
+    override fun updateDate(columnIndex: Int, x: java.sql.Date?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateDate($columnIndex) is not supported")
+    }
 
-    override fun updateTime(columnIndex: Int, x: java.sql.Time?) = throw UnsupportedOperationException("Not implemented 71")
+    override fun updateTime(columnIndex: Int, x: java.sql.Time?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateTime($columnIndex) is not supported")
+    }
 
-    override fun updateTimestamp(columnIndex: Int, x: java.sql.Timestamp?) = throw UnsupportedOperationException("Not implemented 72")
+    override fun updateTimestamp(columnIndex: Int, x: java.sql.Timestamp?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateTimestamp($columnIndex) is not supported")
+    }
 
-    override fun updateAsciiStream(columnIndex: Int, x: java.io.InputStream?, length: Int) = throw UnsupportedOperationException("Not implemented 73")
+    override fun updateAsciiStream(columnIndex: Int, x: java.io.InputStream?, length: Int) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateAsciiStream($columnIndex, length=$length) is not supported")
+    }
 
-    override fun updateBinaryStream(columnIndex: Int, x: java.io.InputStream?, length: Int) = throw UnsupportedOperationException("Not implemented 74")
+    override fun updateBinaryStream(columnIndex: Int, x: java.io.InputStream?, length: Int) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBinaryStream($columnIndex, length=$length) is not supported")
+    }
 
     override fun updateBinaryStream(columnLabel: String?, x: InputStream?, length: Int) {
-        TODO("Not yet implemented 7")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBinaryStream('$columnLabel', length=$length) is not supported")
     }
 
     override fun updateBinaryStream(columnIndex: Int, x: InputStream?, length: Long) {
-        TODO("Not yet implemented 8")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBinaryStream($columnIndex, length=$length) is not supported")
     }
 
     override fun updateBinaryStream(columnLabel: String?, x: InputStream?, length: Long) {
-        TODO("Not yet implemented 9")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBinaryStream('$columnLabel', length=$length) is not supported")
     }
 
     override fun updateBinaryStream(columnIndex: Int, x: InputStream?) {
-        TODO("Not yet implemented 10")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBinaryStream($columnIndex) is not supported")
     }
 
     override fun updateBinaryStream(columnLabel: String?, x: InputStream?) {
-        TODO("Not yet implemented 11")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBinaryStream('$columnLabel') is not supported")
     }
 
     override fun updateCharacterStream(columnIndex: Int, x: Reader?, length: Int) {
-        TODO("Not yet implemented 12")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateCharacterStream($columnIndex, length=$length) is not supported")
     }
 
     override fun updateCharacterStream(columnLabel: String?, reader: Reader?, length: Int) {
-        TODO("Not yet implemented 13")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateCharacterStream('$columnLabel', length=$length) is not supported")
     }
 
     override fun updateCharacterStream(columnIndex: Int, x: Reader?, length: Long) {
-        TODO("Not yet implemented 14")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateCharacterStream($columnIndex, length=$length) is not supported")
     }
 
     override fun updateCharacterStream(columnLabel: String?, reader: Reader?, length: Long) {
-        TODO("Not yet implemented 15")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateCharacterStream('$columnLabel', length=$length) is not supported")
     }
 
     override fun updateCharacterStream(columnIndex: Int, x: Reader?) {
-        TODO("Not yet implemented 16")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateCharacterStream($columnIndex) is not supported")
     }
 
     override fun updateCharacterStream(columnLabel: String?, reader: Reader?) {
-        TODO("Not yet implemented 17")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateCharacterStream('$columnLabel') is not supported")
     }
 
-    override fun updateObject(columnIndex: Int, x: Any?, scaleOrLength: Int) = throw UnsupportedOperationException("Not implemented 75")
+    override fun updateObject(columnIndex: Int, x: Any?, scaleOrLength: Int) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateObject($columnIndex, scaleOrLength=$scaleOrLength) is not supported")
+    }
 
-    override fun updateObject(columnIndex: Int, x: Any?) = throw UnsupportedOperationException("Not implemented 76")
+    override fun updateObject(columnIndex: Int, x: Any?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateObject($columnIndex) is not supported")
+    }
 
-    override fun updateNull(columnLabel: String) = throw UnsupportedOperationException("Not implemented 77")
+    override fun updateNull(columnLabel: String) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateNull('$columnLabel') is not supported")
+    }
 
-    override fun updateBoolean(columnLabel: String, x: Boolean) = throw UnsupportedOperationException("Not implemented 78")
+    override fun updateBoolean(columnLabel: String, x: Boolean) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBoolean('$columnLabel') is not supported")
+    }
 
-    override fun updateByte(columnLabel: String, x: Byte) = throw UnsupportedOperationException("Not implemented 79")
+    override fun updateByte(columnLabel: String, x: Byte) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateByte('$columnLabel') is not supported")
+    }
 
-    override fun updateShort(columnLabel: String, x: Short) = throw UnsupportedOperationException("Not implemented 80")
+    override fun updateShort(columnLabel: String, x: Short) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateShort('$columnLabel') is not supported")
+    }
 
-    override fun updateInt(columnLabel: String, x: Int) = throw UnsupportedOperationException("Not implemented 81")
+    override fun updateInt(columnLabel: String, x: Int) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateInt('$columnLabel') is not supported")
+    }
 
-    override fun updateLong(columnLabel: String, x: Long) = throw UnsupportedOperationException("Not implemented 82")
+    override fun updateLong(columnLabel: String, x: Long) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateLong('$columnLabel') is not supported")
+    }
 
-    override fun updateFloat(columnLabel: String, x: Float) = throw UnsupportedOperationException("Not implemented 83")
+    override fun updateFloat(columnLabel: String, x: Float) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateFloat('$columnLabel') is not supported")
+    }
 
-    override fun updateDouble(columnLabel: String, x: Double) = throw UnsupportedOperationException("Not implemented 84")
+    override fun updateDouble(columnLabel: String, x: Double) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateDouble('$columnLabel') is not supported")
+    }
 
-    override fun updateBigDecimal(columnLabel: String, x: BigDecimal?) = throw UnsupportedOperationException("Not implemented 85")
+    override fun updateBigDecimal(columnLabel: String, x: BigDecimal?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBigDecimal('$columnLabel') is not supported")
+    }
 
-    override fun updateString(columnLabel: String, x: String?) = throw UnsupportedOperationException("Not implemented 86")
+    override fun updateString(columnLabel: String, x: String?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateString('$columnLabel') is not supported")
+    }
 
-    override fun updateBytes(columnLabel: String, x: ByteArray?) = throw UnsupportedOperationException("Not implemented 87")
+    override fun updateBytes(columnLabel: String, x: ByteArray?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBytes('$columnLabel') is not supported")
+    }
 
-    override fun updateDate(columnLabel: String?, x: java.sql.Date?) = throw UnsupportedOperationException("Not implemented 88")
+    override fun updateDate(columnLabel: String?, x: java.sql.Date?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateDate('$columnLabel') is not supported")
+    }
 
-    override fun updateTime(columnLabel: String, x: java.sql.Time?) = throw UnsupportedOperationException("Not implemented 89")
+    override fun updateTime(columnLabel: String, x: java.sql.Time?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateTime('$columnLabel') is not supported")
+    }
 
-    override fun updateTimestamp(columnLabel: String, x: java.sql.Timestamp?) = throw UnsupportedOperationException("Not implemented 90")
+    override fun updateTimestamp(columnLabel: String, x: java.sql.Timestamp?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateTimestamp('$columnLabel') is not supported")
+    }
 
-    override fun updateAsciiStream(columnLabel: String, x: java.io.InputStream?, length: Int) = throw UnsupportedOperationException("Not implemented 91")
+    override fun updateAsciiStream(columnLabel: String, x: java.io.InputStream?, length: Int) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateAsciiStream('$columnLabel', length=$length) is not supported")
+    }
 
     override fun updateAsciiStream(columnIndex: Int, x: InputStream?, length: Long) {
-        TODO("Not yet implemented 18")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateAsciiStream($columnIndex, length=$length) is not supported")
     }
 
     override fun updateAsciiStream(columnLabel: String?, x: InputStream?, length: Long) {
-        TODO("Not yet implemented 19")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateAsciiStream('$columnLabel', length=$length) is not supported")
     }
 
     override fun updateAsciiStream(columnIndex: Int, x: InputStream?) {
-        TODO("Not yet implemented 20")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateAsciiStream($columnIndex) is not supported")
     }
 
     override fun updateAsciiStream(columnLabel: String?, x: InputStream?) {
-        TODO("Not yet implemented 21")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateAsciiStream('$columnLabel') is not supported")
     }
 
-    override fun updateObject(columnLabel: String, x: Any?, scaleOrLength: Int) = throw UnsupportedOperationException("Not implemented 92")
+    override fun updateObject(columnLabel: String, x: Any?, scaleOrLength: Int) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateObject('$columnLabel', scaleOrLength=$scaleOrLength) is not supported")
+    }
 
-    override fun updateObject(columnLabel: String, x: Any?) = throw UnsupportedOperationException("Not implemented 93")
+    override fun updateObject(columnLabel: String, x: Any?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateObject('$columnLabel') is not supported")
+    }
 
-    override fun insertRow() = throw UnsupportedOperationException("Not implemented 94")
+    override fun insertRow() {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; insertRow() is not supported")
+    }
 
-    override fun updateRow() = throw UnsupportedOperationException("Not implemented 95")
+    override fun updateRow() {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateRow() is not supported")
+    }
 
-    override fun deleteRow() = throw UnsupportedOperationException("Not implemented 96")
+    override fun deleteRow() {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; deleteRow() is not supported")
+    }
 
-    override fun refreshRow() = throw UnsupportedOperationException("Not implemented 97")
+    override fun refreshRow() {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; refreshRow() is not supported")
+    }
 
-    override fun cancelRowUpdates() = throw UnsupportedOperationException("Not implemented 98")
+    override fun cancelRowUpdates() {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; cancelRowUpdates() is not supported")
+    }
 
-    override fun moveToInsertRow() = throw UnsupportedOperationException("Not implemented 99")
+    override fun moveToInsertRow() {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; moveToInsertRow() is not supported")
+    }
 
-    override fun moveToCurrentRow() = throw UnsupportedOperationException("Not implemented 100")
+    override fun moveToCurrentRow() {
+        throw SQLFeatureNotSupportedException("moveToCurrentRow() is not supported for TYPE_FORWARD_ONLY result sets")
+    }
 
-    override fun getStatement(): java.sql.Statement = throw UnsupportedOperationException("Not implemented 101")
+    override fun getStatement(): java.sql.Statement {
+        throw SQLFeatureNotSupportedException("getStatement() is not supported by PaginatedResultSet")
+    }
 
-    override fun getRef(columnIndex: Int): Ref? = throw UnsupportedOperationException("Not implemented 102")
+    override fun getRef(columnIndex: Int): Ref? {
+        throw SQLFeatureNotSupportedException("getRef($columnIndex) is not supported by this driver")
+    }
 
     override fun getRef(columnLabel: String?): Ref {
-        TODO("Not yet implemented 22")
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("getRef('$columnLabel') is not supported by this driver")
     }
 
     override fun getBlob(columnIndex: Int): Blob {
-        TODO("Not yet implemented 23")
+        throw SQLFeatureNotSupportedException("getBlob($columnIndex) is not supported by this driver")
     }
 
     override fun getBlob(columnLabel: String?): Blob {
-        TODO("Not yet implemented 24")
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("getBlob('$columnLabel') is not supported by this driver")
     }
 
     override fun getClob(columnIndex: Int): Clob {
-        TODO("Not yet implemented 25")
+        throw SQLFeatureNotSupportedException("getClob($columnIndex) is not supported by this driver")
     }
 
     override fun getClob(columnLabel: String?): Clob {
-        TODO("Not yet implemented 26")
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("getClob('$columnLabel') is not supported by this driver")
     }
 
-    override fun getArray(columnIndex: Int): Array {
-        TODO("Not yet implemented 27")
+    override fun getArray(columnIndex: Int): java.sql.Array {
+        throw SQLFeatureNotSupportedException("getArray($columnIndex) is not supported by this driver")
     }
 
-    override fun getArray(columnLabel: String?): Array {
-        TODO("Not yet implemented 28")
+    override fun getArray(columnLabel: String?): java.sql.Array {
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("getArray('$columnLabel') is not supported by this driver")
     }
 
-    override fun getURL(columnIndex: Int): URL {
-        TODO("Not yet implemented 29")
+    override fun getURL(columnIndex: Int): java.net.URL {
+        throw SQLFeatureNotSupportedException("getURL($columnIndex) is not supported by this driver")
     }
 
-    override fun getURL(columnLabel: String?): URL {
-        TODO("Not yet implemented 30")
+    override fun getURL(columnLabel: String?): java.net.URL {
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("getURL('$columnLabel') is not supported by this driver")
     }
 
     override fun updateRef(columnIndex: Int, x: Ref?) {
-        TODO("Not yet implemented 31")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateRef($columnIndex) is not supported")
     }
 
     override fun updateRef(columnLabel: String?, x: Ref?) {
-        TODO("Not yet implemented 32")
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateRef('$columnLabel') is not supported")
     }
 
     override fun updateBlob(columnIndex: Int, x: Blob?) {
-        TODO("Not yet implemented 33")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBlob($columnIndex) is not supported")
     }
 
     override fun updateBlob(columnLabel: String?, x: Blob?) {
-        TODO("Not yet implemented 34")
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBlob('$columnLabel') is not supported")
     }
 
     override fun updateBlob(columnIndex: Int, inputStream: InputStream?, length: Long) {
-        TODO("Not yet implemented 35")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBlob($columnIndex, length=$length) is not supported")
     }
 
     override fun updateBlob(columnLabel: String?, inputStream: InputStream?, length: Long) {
-        TODO("Not yet implemented 36")
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBlob('$columnLabel', length=$length) is not supported")
     }
 
     override fun updateBlob(columnIndex: Int, inputStream: InputStream?) {
-        TODO("Not yet implemented 37")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBlob($columnIndex) is not supported")
     }
 
     override fun updateBlob(columnLabel: String?, inputStream: InputStream?) {
-        TODO("Not yet implemented 38")
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateBlob('$columnLabel') is not supported")
     }
 
     override fun updateClob(columnIndex: Int, x: Clob?) {
-        TODO("Not yet implemented 39")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateClob($columnIndex) is not supported")
     }
 
     override fun updateClob(columnLabel: String?, x: Clob?) {
-        TODO("Not yet implemented 40")
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateClob('$columnLabel') is not supported")
     }
 
     override fun updateClob(columnIndex: Int, reader: Reader?, length: Long) {
-        TODO("Not yet implemented 41")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateClob($columnIndex, length=$length) is not supported")
     }
 
     override fun updateClob(columnLabel: String?, reader: Reader?, length: Long) {
-        TODO("Not yet implemented 42")
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateClob('$columnLabel', length=$length) is not supported")
     }
 
     override fun updateClob(columnIndex: Int, reader: Reader?) {
-        TODO("Not yet implemented 43")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateClob($columnIndex) is not supported")
     }
 
     override fun updateClob(columnLabel: String?, reader: Reader?) {
-        TODO("Not yet implemented 44")
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateClob('$columnLabel') is not supported")
     }
 
-    override fun updateArray(columnIndex: Int, x: Array?) {
-        TODO("Not yet implemented 45")
+    override fun updateArray(columnIndex: Int, x: java.sql.Array?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateArray($columnIndex) is not supported")
     }
 
-    override fun updateArray(columnLabel: String?, x: Array?) {
-        TODO("Not yet implemented 46")
+    override fun updateArray(columnLabel: String?, x: java.sql.Array?) {
+        if (columnLabel == null) {
+            throw SQLException("Column label cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateArray('$columnLabel') is not supported")
     }
 
     override fun getRowId(columnIndex: Int): RowId {
-        TODO("Not yet implemented 47")
+        throw SQLFeatureNotSupportedException("getRowId($columnIndex) is not supported by this driver")
     }
 
-    override fun getObject(columnIndex: Int, map: MutableMap<String, Class<*>>?): Any = throw UnsupportedOperationException("Not implemented 103")
+    override fun getObject(columnIndex: Int, map: MutableMap<String, Class<*>>?): Any? {
+        return getObject(columnIndex)
+    }
 
-    override fun <T : Any?> getObject(columnIndex: Int, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 104")
+    override fun <T : Any?> getObject(columnIndex: Int, type: Class<T>?): T {
+        throw SQLFeatureNotSupportedException("getObject($columnIndex, type=$type) is not supported by this driver")
+    }
 
-    override fun <T : Any?> getObject(columnLabel: String, type: Class<T>?): T = throw UnsupportedOperationException("Not implemented 105")
+    override fun <T : Any?> getObject(columnLabel: String, type: Class<T>?): T {
+        throw SQLFeatureNotSupportedException("getObject('$columnLabel', type=$type) is not supported by this driver")
+    }
 
     override fun findColumn(columnLabel: String?): Int {
         columnLabel ?: throw SQLException("Column label cannot be null")
@@ -790,67 +1132,142 @@ class PaginatedResultSet(
             )
     }
 
-    override fun getRowId(columnLabel: String): java.sql.RowId = throw UnsupportedOperationException("Not implemented 107")
+    override fun getRowId(columnLabel: String): RowId {
+        if (columnLabel.isBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("getRowId('$columnLabel') is not supported by this driver")
+    }
 
-    override fun updateRowId(columnIndex: Int, x: java.sql.RowId?) = throw UnsupportedOperationException("Not implemented 108")
+    override fun updateRowId(columnIndex: Int, x: RowId?) {
+        throw SQLFeatureNotSupportedException("updateRowId($columnIndex) is not supported by this driver")
+    }
 
-    override fun updateRowId(columnLabel: String, x: java.sql.RowId?) = throw UnsupportedOperationException("Not implemented 109")
+    override fun updateRowId(columnLabel: String, x: RowId?) {
+        if (columnLabel.isBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("updateRowId('$columnLabel') is not supported by this driver")
+    }
 
     override fun getHoldability(): Int = ResultSet.HOLD_CURSORS_OVER_COMMIT
 
     override fun isClosed(): Boolean = closed
 
-    override fun updateNString(columnIndex: Int, nString: String?) = throw UnsupportedOperationException("Not implemented 111")
+    override fun updateNString(columnIndex: Int, nString: String?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateNString($columnIndex) is not supported")
+    }
 
-    override fun updateNString(columnLabel: String?, nString: String?) = throw UnsupportedOperationException("Not implemented 112")
+    override fun updateNString(columnLabel: String?, nString: String?) {
+        if (columnLabel == null || columnLabel.isBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateNString('$columnLabel') is not supported")
+    }
 
-    override fun updateNClob(columnIndex: Int, nClob: java.sql.NClob?) = throw UnsupportedOperationException("Not implemented 113")
+    override fun updateNClob(columnIndex: Int, nClob: NClob?) {
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateNClob($columnIndex) is not supported")
+    }
 
-    override fun updateNClob(columnLabel: String?, nClob: java.sql.NClob?) = throw UnsupportedOperationException("Not implemented 114")
+    override fun updateNClob(columnLabel: String?, nClob: NClob?) {
+        if (columnLabel == null || columnLabel.isBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateNClob('$columnLabel') is not supported")
+    }
 
     override fun updateNClob(columnIndex: Int, reader: Reader?, length: Long) {
-        TODO("Not yet implemented 48")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateNClob($columnIndex, length=$length) is not supported")
     }
 
     override fun updateNClob(columnLabel: String?, reader: Reader?, length: Long) {
-        TODO("Not yet implemented 49")
+        if (columnLabel == null || columnLabel.isBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateNClob('$columnLabel', length=$length) is not supported")
     }
 
     override fun updateNClob(columnIndex: Int, reader: Reader?) {
-        TODO("Not yet implemented 50")
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateNClob($columnIndex) is not supported")
     }
 
     override fun updateNClob(columnLabel: String?, reader: Reader?) {
-        TODO("Not yet implemented 51")
+        if (columnLabel == null || columnLabel.isBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("ResultSet is read-only; updateNClob('$columnLabel') is not supported")
     }
 
-    override fun getNClob(columnIndex: Int): java.sql.NClob = throw UnsupportedOperationException("Not implemented 115")
+    override fun getNClob(columnIndex: Int): NClob {
+        throw SQLFeatureNotSupportedException("getNClob($columnIndex) is not supported by this driver")
+    }
 
-    override fun getNClob(columnLabel: String?): java.sql.NClob = throw UnsupportedOperationException("Not implemented 116")
+    override fun getNClob(columnLabel: String?): NClob {
+        if (columnLabel == null || columnLabel.isBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("getNClob('$columnLabel') is not supported by this driver")
+    }
 
-    override fun getSQLXML(columnIndex: Int): java.sql.SQLXML = throw UnsupportedOperationException("Not implemented 117")
+    override fun getSQLXML(columnIndex: Int): SQLXML {
+        throw SQLFeatureNotSupportedException("getSQLXML($columnIndex) is not supported by this driver")
+    }
 
-    override fun getSQLXML(columnLabel: String?): java.sql.SQLXML = throw UnsupportedOperationException("Not implemented 118")
+    override fun getSQLXML(columnLabel: String?): SQLXML {
+        if (columnLabel.isNullOrBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("getSQLXML('$columnLabel') is not supported by this driver")
+    }
 
-    override fun updateSQLXML(columnIndex: Int, xmlObject: java.sql.SQLXML?) = throw UnsupportedOperationException("Not implemented 119")
+    override fun updateSQLXML(columnIndex: Int, xmlObject: SQLXML?) {
+        throw SQLFeatureNotSupportedException("updateSQLXML($columnIndex) is not supported by this driver")
+    }
 
-    override fun updateSQLXML(columnLabel: String?, xmlObject: java.sql.SQLXML?) = throw UnsupportedOperationException("Not implemented 120")
+    override fun updateSQLXML(columnLabel: String?, xmlObject: SQLXML?) {
+        if (columnLabel.isNullOrBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("updateSQLXML('$columnLabel') is not supported by this driver")
+    }
 
+    // getNString methods delegate to getString, so they remain unchanged
     override fun getNString(columnLabel: String): String? = getString(columnLabel)
 
     override fun getNString(columnIndex: Int): String? = getString(columnIndex)
 
-    override fun getNCharacterStream(columnIndex: Int): java.io.Reader = throw UnsupportedOperationException("Not implemented 123")
+    override fun getNCharacterStream(columnIndex: Int): Reader {
+        throw SQLFeatureNotSupportedException("getNCharacterStream($columnIndex) is not supported by this driver")
+    }
 
-    override fun getNCharacterStream(columnLabel: String?): java.io.Reader = throw UnsupportedOperationException("Not implemented 124")
+    override fun getNCharacterStream(columnLabel: String?): Reader {
+        if (columnLabel.isNullOrBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("getNCharacterStream('$columnLabel') is not supported by this driver")
+    }
 
-    override fun updateNCharacterStream(columnIndex: Int, x: java.io.Reader?, length: Long) = throw UnsupportedOperationException("Not implemented 125")
+    override fun updateNCharacterStream(columnIndex: Int, x: Reader?, length: Long) {
+        throw SQLFeatureNotSupportedException("updateNCharacterStream($columnIndex, length=$length) is not supported by this driver")
+    }
 
-    override fun updateNCharacterStream(columnLabel: String?, reader: java.io.Reader?, length: Long) = throw UnsupportedOperationException("Not implemented 126")
+    override fun updateNCharacterStream(columnLabel: String?, reader: Reader?, length: Long) {
+        if (columnLabel.isNullOrBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("updateNCharacterStream('$columnLabel', length=$length) is not supported by this driver")
+    }
 
-    override fun updateNCharacterStream(columnIndex: Int, x: java.io.Reader?) = throw UnsupportedOperationException("Not implemented 127")
+    override fun updateNCharacterStream(columnIndex: Int, x: Reader?) {
+        throw SQLFeatureNotSupportedException("updateNCharacterStream($columnIndex) is not supported by this driver")
+    }
 
-    override fun updateNCharacterStream(columnLabel: String?, reader: java.io.Reader?) = throw UnsupportedOperationException("Not implemented 128")
+    override fun updateNCharacterStream(columnLabel: String?, reader: Reader?) {
+        if (columnLabel.isNullOrBlank()) {
+            throw SQLException("Column label cannot be null or empty")
+        }
+        throw SQLFeatureNotSupportedException("updateNCharacterStream('$columnLabel') is not supported by this driver")
+    }
 
     override fun <T> unwrap(iface: Class<T>?): T {
         if (iface == null) throw SQLException("Interface cannot be null")
