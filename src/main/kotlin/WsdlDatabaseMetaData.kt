@@ -34,7 +34,8 @@ object LocalMetadataCache {
                     TYPE_SCHEM VARCHAR,
                     TYPE_NAME VARCHAR,
                     SELF_REFERENCING_COL_NAME VARCHAR,
-                    REF_GENERATION VARCHAR
+                    REF_GENERATION VARCHAR,
+                    PRIMARY KEY (TABLE_SCHEM, TABLE_NAME)
                 )
                 """.trimIndent()
             )
@@ -51,7 +52,8 @@ object LocalMetadataCache {
                     DECIMAL_DIGITS INTEGER,
                     NUM_PREC_RADIX INTEGER,
                     NULLABLE INTEGER,
-                    ORDINAL_POSITION INTEGER
+                    ORDINAL_POSITION INTEGER,
+                    PRIMARY KEY (TABLE_SCHEM, TABLE_NAME, COLUMN_NAME)
                 )
                 """.trimIndent()
             )
@@ -70,7 +72,8 @@ object LocalMetadataCache {
                     ASC_OR_DESC VARCHAR,
                     CARDINALITY BIGINT,
                     PAGES INTEGER,
-                    FILTER_CONDITION VARCHAR
+                    FILTER_CONDITION VARCHAR,
+                    PRIMARY KEY (TABLE_SCHEM, TABLE_NAME, INDEX_NAME, COLUMN_NAME)
                 )
                 """.trimIndent()
             )
@@ -374,15 +377,32 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         types: Array<out String>?
     ): ResultSet {
         val localConn = LocalMetadataCache.connection
-        val cachedRows = mutableListOf<Map<String, String>>()
+
+        // Normalise requested table‐types (if any) to UPPER‑CASE so we can
+        // compare against Oracle’s OBJECT_TYPE values.
+        val requestedTypes: Set<String>? =
+            types?.filterNotNull()
+                 ?.map { it.uppercase() }
+                 ?.toSet()
+                 ?.takeIf { it.isNotEmpty() }
 
         //The only schema we need
         val defSchema = "FUSION"
 
         // First, attempt to read from the local cache.
+        val cachedRows = mutableListOf<Map<String, String>>()
         try {
+            val typeFilterSql =
+                requestedTypes?.joinToString(prefix = " AND TABLE_TYPE IN ('", separator = "','", postfix = "')")
+                    ?: ""
             localConn.createStatement().use { stmt ->
-                stmt.executeQuery("SELECT * FROM CACHED_TABLES ORDER BY TABLE_NAME").use { rs ->
+                stmt.executeQuery(
+                    """
+                    SELECT * FROM CACHED_TABLES
+                    WHERE 1=1$typeFilterSql
+                    ORDER BY TABLE_NAME
+                    """.trimIndent()
+                ).use { rs ->
                     val meta = rs.metaData
                     while (rs.next()) {
                         val row = mutableMapOf<String, String>()
@@ -401,23 +421,26 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
             return XmlResultSet(cachedRows)
         }
 
-        val finalSql = """SELECT distinct
-	                        NULL AS TABLE_CAT,
-                            owner AS TABLE_SCHEM,
-                            upper(object_name) AS TABLE_NAME,
-                            NULL AS TABLE_TYPE,
-                            NULL AS REMARKS,
-                            NULL AS TYPE_CAT,
-                            NULL AS TYPE_SCHEM,
-                            NULL AS TYPE_NAME,
-                            NULL AS SELF_REFERENCING_COL_NAME,
-                            NULL AS REF_GENERATION
-                            FROM
-                                all_objects
-                            WHERE
-                                owner = 'FUSION'
-                                AND object_type IN ('TABLE', 'VIEW')
-                                """
+        val typeListSql = requestedTypes
+            ?.joinToString(prefix = "('", separator = "','", postfix = "')")
+            ?: "('TABLE','VIEW')" // todo need to investigate where other is needed -  ,'SYNONYM','GLOBAL TEMPORARY','LOCAL TEMPORARY')"
+
+        val finalSql = """
+            SELECT DISTINCT
+                NULL AS TABLE_CAT,
+                owner AS TABLE_SCHEM,
+                UPPER(object_name) AS TABLE_NAME,
+                object_type AS TABLE_TYPE,
+                NULL AS REMARKS,
+                NULL AS TYPE_CAT,
+                NULL AS TYPE_SCHEM,
+                NULL AS TYPE_NAME,
+                NULL AS SELF_REFERENCING_COL_NAME,
+                NULL AS REF_GENERATION
+            FROM all_objects
+            WHERE owner = '$defSchema'
+              AND object_type IN $typeListSql
+        """.trimIndent()
 
         logger.info("Executing remote getTables SQL: {}", finalSql)
         val responseXml = sendSqlViaWsdl(
@@ -439,45 +462,79 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
             }
         }
 
-        // Cache the remote metadata into the local DuckDB cache.
+        // ---------------------------------------------------------
+        // 3) Parse XML -> Kotlin maps so we can deduplicate rows
+        // ---------------------------------------------------------
+        val remoteRows = mutableListOf<Map<String, String>>()
+        for (i in 0 until rowNodes.length) {
+            val rowNode = rowNodes.item(i)
+            if (rowNode.nodeType == Node.ELEMENT_NODE) {
+                val rowMap = mutableMapOf<String, String>()
+                val children = rowNode.childNodes
+                for (j in 0 until children.length) {
+                    val child = children.item(j)
+                    if (child.nodeType == Node.ELEMENT_NODE) {
+                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
+                    }
+                }
+                remoteRows.add(rowMap)
+            }
+        }
+
+        /*
+         * DBeaver complains about “Duplicate object name … in cache SimpleObjectCache”.
+         * This happens because the same TABLE_NAME can be returned multiple times with
+         * different OBJECT_TYPEs (TABLE, VIEW, SYNONYM, GLOBAL TEMPORARY, …).
+         *
+         * We keep a single entry per (TABLE_SCHEM,TABLE_NAME) and choose a *preferred*
+         * OBJECT_TYPE using the following precedence:
+         *      1) TABLE
+         *      2) VIEW
+         *      3) SYNONYM
+         *      4) GLOBAL TEMPORARY / LOCAL TEMPORARY
+         * Any additional duplicates are discarded.
+         */
+        fun typePriority(t: String): Int = when (t.uppercase()) {
+            "TABLE"            -> 1
+            "VIEW"             -> 2
+            "SYNONYM"          -> 3
+            "GLOBAL TEMPORARY",
+            "LOCAL TEMPORARY"  -> 4
+            else               -> 5
+        }
+
+        val uniqueRows: Collection<Map<String, String>> =
+            remoteRows
+                // group by schema+table
+                .groupBy { "${it["TABLE_SCHEM"]}|${it["TABLE_NAME"]}" }
+                .map { (_, dupes) -> dupes.minBy { typePriority(it["TABLE_TYPE"] ?: "") } }
+
+        // ---------------------------------------------------------
+        // 4) Cache the unique rows into DuckDB & build result set
+        // ---------------------------------------------------------
         try {
             localConn.prepareStatement(
                 """
-            INSERT INTO CACHED_TABLES 
+            INSERT OR IGNORE INTO CACHED_TABLES 
             (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, TABLE_TYPE, REMARKS, TYPE_CAT, TYPE_SCHEM, TYPE_NAME, SELF_REFERENCING_COL_NAME, REF_GENERATION) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
             ).use { pstmt ->
-                for (i in 0 until rowNodes.length) {
-                    val rowNode = rowNodes.item(i)
-                    var tableCat = ""
-                    var tableSchem = ""
-                    var tableName = ""
-                    var tableType = ""
-                    var remarks = ""
-                    var typeCat = ""
-                    var typeSchem = ""
-                    var typeName = ""
-                    var selfRefCol = ""
-                    var refGeneration = ""
-                    val children = rowNode.childNodes
-                    for (j in 0 until children.length) {
-                        val child = children.item(j)
-                        if (child.nodeType == Node.ELEMENT_NODE) {
-                            when (child.nodeName.uppercase()) {
-                                "TABLE_CAT" -> tableCat = child.textContent.trim()
-                                "TABLE_SCHEM" -> tableSchem = child.textContent.trim()
-                                "TABLE_NAME" -> tableName = child.textContent.trim()
-                                "TABLE_TYPE" -> tableType = child.textContent.trim()
-                                "REMARKS" -> remarks = child.textContent.trim()
-                                "TYPE_CAT" -> typeCat = child.textContent.trim()
-                                "TYPE_SCHEM" -> typeSchem = child.textContent.trim()
-                                "TYPE_NAME" -> typeName = child.textContent.trim()
-                                "SELF_REFERENCING_COL_NAME" -> selfRefCol = child.textContent.trim()
-                                "REF_GENERATION" -> refGeneration = child.textContent.trim()
-                            }
-                        }
-                    }
+                val rowsToCache = if (requestedTypes == null)
+                    uniqueRows
+                else
+                    uniqueRows.filter { requestedTypes.contains(it["TABLE_TYPE"]?.uppercase()) }
+                for (row in rowsToCache) {
+                    val tableCat   = row["TABLE_CAT"] ?: ""
+                    val tableSchem = row["TABLE_SCHEM"] ?: ""
+                    val tableName  = row["TABLE_NAME"] ?: ""
+                    val tableType  = row["TABLE_TYPE"] ?: ""
+                    val remarks    = row["REMARKS"] ?: ""
+                    val typeCat    = row["TYPE_CAT"] ?: ""
+                    val typeSchem  = row["TYPE_SCHEM"] ?: ""
+                    val typeName   = row["TYPE_NAME"] ?: ""
+                    val selfRefCol = row["SELF_REFERENCING_COL_NAME"] ?: ""
+                    val refGeneration = row["REF_GENERATION"] ?: ""
                     pstmt.setString(1, tableCat)
                     pstmt.setString(2, tableSchem)
                     pstmt.setString(3, tableName)
@@ -497,25 +554,13 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
             logger.error("Error saving remote tables metadata to local cache: {}", ex.message)
         }
 
-        // Now re-read the local cache.
-        val newCachedRows = mutableListOf<Map<String, String>>()
-        try {
-            localConn.createStatement().use { stmt ->
-                stmt.executeQuery("SELECT * FROM CACHED_TABLES ORDER BY TABLE_NAME").use { rs ->
-                    val meta = rs.metaData
-                    while (rs.next()) {
-                        val row = mutableMapOf<String, String>()
-                        for (i in 1..meta.columnCount) {
-                            row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
-                        }
-                        newCachedRows.add(row)
-                    }
-                }
-            }
-        } catch (ex: Exception) {
-            logger.error("Error reading cached tables metadata: {}", ex.message)
-        }
-        return XmlResultSet(newCachedRows)
+        // Return the unique rows to DBeaver, lowercasing keys for XmlResultSet.
+        val resultRows = if (requestedTypes == null)
+            uniqueRows
+        else
+            uniqueRows.filter { requestedTypes.contains(it["TABLE_TYPE"]?.uppercase()) }
+
+        return XmlResultSet(resultRows.map { it.mapKeys { k -> k.key.lowercase() } })
     }
 
     override fun getSchemas(): ResultSet = createEmptyResultSet()
@@ -546,12 +591,15 @@ override fun getColumns(
     // The only schema we need
     val defSchema = "FUSION"
 
-    // Build filter conditions for the local cache query.
-    val schemaCondLocal = if (!schemaPattern.isNullOrBlank()) " AND TABLE_SCHEM LIKE '${defSchema.uppercase()}'" else ""
+    // Always limit metadata to the single supported schema (FUSION).
+    // This avoids duplicate‑object warnings when DBeaver requests columns
+    // without specifying a schema, because Oracle otherwise returns
+    // every accessible schema.
+    val schemaCondLocal  = " AND TABLE_SCHEM = '$defSchema'"
     val tableCondLocal = if (!tableNamePattern.isNullOrBlank()) " AND TABLE_NAME LIKE '${tableNamePattern.uppercase()}'" else ""
     val columnCondLocal = if (!columnNamePattern.isNullOrBlank()) " AND COLUMN_NAME LIKE '${columnNamePattern.uppercase()}'" else ""
     val localQuery = """
-        SELECT 
+        SELECT DISTINCT
             TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, 
             COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION 
         FROM CACHED_COLUMNS
@@ -573,8 +621,8 @@ override fun getColumns(
                     row["data_type"] = rs.getString("DATA_TYPE") ?: ""
                     row["type_name"] = rs.getString("TYPE_NAME") ?: ""
                     row["column_size"] = rs.getString("COLUMN_SIZE") ?: ""
-                    row["decimal_digits"] = rs.getString("DECIMAL_DIGITS")
-                    row["num_prec_radix"] = rs.getString("NUM_PREC_RADIX")
+                    row["decimal_digits"] = rs.getString("DECIMAL_DIGITS") ?: "0"
+                    row["num_prec_radix"] = rs.getString("NUM_PREC_RADIX") ?: "0"
                     row["nullable"] = rs.getString("NULLABLE") ?: ""
                     row["ordinal_position"] = rs.getString("ORDINAL_POSITION") ?: ""
                     localRows.add(row)
@@ -590,7 +638,7 @@ override fun getColumns(
     }
 
     // If local cache is empty, query the remote service.
-    val schemaCondRemote = if (!schemaPattern.isNullOrBlank()) " AND owner LIKE '${defSchema.uppercase()}'" else ""
+    val schemaCondRemote  = " AND owner = '$defSchema'"
     val tableCondRemote = if (!tableNamePattern.isNullOrBlank()) " AND table_name LIKE '${tableNamePattern.uppercase()}'" else ""
     val columnCondRemote = if (!columnNamePattern.isNullOrBlank()) " AND column_name LIKE '${columnNamePattern.uppercase()}'" else ""
 
@@ -643,20 +691,40 @@ override fun getColumns(
                     rowMap[child.nodeName.lowercase()] = child.textContent.trim()
                 }
             }
+            // Normalise blank numeric fields so DBeaver can parse them as Int
+            if (rowMap["decimal_digits"].isNullOrBlank()) {
+                rowMap["decimal_digits"] = "0"
+            }
+            if (rowMap["num_prec_radix"].isNullOrBlank()) {
+                rowMap["num_prec_radix"] = "0"
+            }
             remoteRows.add(rowMap)
         }
     }
+
+    // --- Deduplicate rows across quoted / un‑quoted column names -------------
+    // Some columns are returned twice: once as plain UPPERCASE and once quoted
+    // (e.g. LANGUAGE  vs  "LANGUAGE").  We collapse those variants here.
+    val uniqueRows: List<Map<String, String>> =
+        remoteRows
+            .groupBy {
+                val schem = it["table_schem"]?.uppercase() ?: ""
+                val tbl   = it["table_name"]?.uppercase() ?: ""
+                val col   = it["column_name"]?.replace("\"", "")?.uppercase() ?: ""
+                "$schem|$tbl|$col"
+            }
+            .map { (_, dupes) -> dupes.first() }
 
     // Save the remote metadata into the local cache.
     try {
         localConn.prepareStatement(
             """
-            INSERT INTO CACHED_COLUMNS 
+            INSERT OR IGNORE INTO CACHED_COLUMNS 
             (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         ).use { pstmt ->
-            for (row in remoteRows) {
+            for (row in uniqueRows) {
                 pstmt.setString(1, row["table_cat"] ?: "")
                 pstmt.setString(2, row["table_schem"] ?: "")
                 pstmt.setString(3, row["table_name"] ?: "")
@@ -671,12 +739,12 @@ override fun getColumns(
                 pstmt.addBatch()
             }
             pstmt.executeBatch()
-            logger.info("Saved remote columns into local cache (${remoteRows.size} rows).")
+            logger.info("Saved remote columns into local cache (${uniqueRows.size} rows).")
         }
     } catch (ex: Exception) {
         logger.error("Error saving remote metadata to local cache: ${ex.message}")
     }
-    return XmlResultSet(remoteRows)
+    return XmlResultSet(uniqueRows)
 }
 
     // No column-level privileges available via WSDL; return an empty result set.
@@ -1037,7 +1105,16 @@ override fun getColumns(
                     while (rs.next()) {
                         val row = mutableMapOf<String, String>()
                         for (i in 1..meta.columnCount) {
-                            row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
+                            val colName = meta.getColumnName(i).lowercase()
+                            val raw      = rs.getString(i)
+                            // For numeric columns (BIGINT/INTEGER) DuckDB returns null;
+                            // DBeaver expects "0" or a valid integer, not an empty string.
+                            val normalised = if (raw.isNullOrBlank() &&
+                                (colName == "cardinality" || colName == "pages" || colName == "ordinal_position"))
+                                "0"
+                            else
+                                raw ?: ""
+                            row[colName] = normalised
                         }
                         rows.add(row)
                     }
@@ -1118,7 +1195,7 @@ override fun getColumns(
         try {
             localConn.prepareStatement(
                 """
-                INSERT INTO CACHED_INDEXES
+                INSERT OR IGNORE INTO CACHED_INDEXES
                 (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, NON_UNIQUE, INDEX_QUALIFIER, INDEX_NAME,
                  TYPE, ORDINAL_POSITION, COLUMN_NAME, ASC_OR_DESC, CARDINALITY, PAGES, FILTER_CONDITION)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1132,14 +1209,22 @@ override fun getColumns(
                     pstmt.setString(5, row["index_qualifier"] ?: "")
                     pstmt.setString(6, row["index_name"] ?: "")
                     pstmt.setString(7, row["type"] ?: "")
-                    pstmt.setString(8, row["ordinal_position"] ?: "")
+                    // ORDINAL_POSITION (INTEGER)
+                    pstmt.setObject(
+                        8,
+                        row["ordinal_position"]?.takeIf { it.isNotBlank() }?.toIntOrNull()
+                    )
                     pstmt.setString(9, row["column_name"] ?: "")
                     pstmt.setString(10, row["asc_or_desc"] ?: "")
                     pstmt.setObject(
                         11,
                         row["cardinality"]?.takeIf { it.isNotBlank() }?.toLongOrNull()
                     )
-                    pstmt.setString(12, row["pages"] ?: "")
+                    // PAGES (INTEGER)
+                    pstmt.setObject(
+                        12,
+                        row["pages"]?.takeIf { it.isNotBlank() }?.toIntOrNull()
+                    )
                     pstmt.setString(13, row["filter_condition"] ?: "")
                     pstmt.addBatch()
                 }
@@ -1150,13 +1235,20 @@ override fun getColumns(
             logger.error("Error saving index info to local cache: ${ex.message}")
         }
 
-        // Only return maps with standard JDBC keys
+        // Only return maps with standard JDBC keys, normalising blank/null numeric columns to "0"
         val jdbcRows = remoteRows.map { row ->
             val keys = listOf(
                 "table_cat", "table_schem", "table_name", "non_unique", "index_qualifier", "index_name",
                 "type", "ordinal_position", "column_name", "asc_or_desc", "cardinality", "pages", "filter_condition"
             )
-            keys.associateWith { row[it] ?: "" }
+            keys.associateWith { key ->
+                val v = row[key] ?: ""
+                if (v.isBlank() &&
+                    (key == "cardinality" || key == "pages" || key == "ordinal_position"))
+                    "0"
+                else
+                    v
+            }
         }
         return XmlResultSet(jdbcRows)
     }
