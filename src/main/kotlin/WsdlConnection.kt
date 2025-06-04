@@ -2,6 +2,10 @@ package my.jdbc.wsdl_driver
 
 import org.slf4j.LoggerFactory
 import java.sql.*
+import java.sql.ResultSet
+import java.sql.SQLFeatureNotSupportedException
+import java.sql.SQLClientInfoException
+import java.sql.ClientInfoStatus
 import java.util.*
 
 class WsdlConnection(
@@ -21,6 +25,8 @@ class WsdlConnection(
     private var currentSchema: String? = "FUSION"
     /** Network timeout requested by caller (ms); driver ignores it but returns the same value. */
     private var networkTimeoutMillis: Int = 0
+    /** Cached client‑info properties (per JDBC 4.0) */
+    private val clientInfoProps: Properties = Properties()
 
     companion object {
         private val logger = LoggerFactory.getLogger(WsdlConnection::class.java)
@@ -51,10 +57,19 @@ class WsdlConnection(
         return WsdlPreparedStatement(sql, wsdlEndpoint, username, password, reportPath)
     }
 
-    override fun prepareCall(sql: String?): CallableStatement =
-        throw SQLFeatureNotSupportedException("Stored procedures are not supported")
+    override fun prepareCall(sql: String?): CallableStatement {
+        if (sql == null) {
+            throw SQLException("SQL text cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("Callable statements are not supported by this driver")
+    }
 
-    override fun nativeSQL(sql: String?): String = throw UnsupportedOperationException("Not implemented 209")
+    override fun nativeSQL(sql: String?): String {
+        if (sql == null) {
+            throw SQLException("SQL text cannot be null")
+        }
+        return sql
+    }
 
     override fun setAutoCommit(autoCommit: Boolean) {
         this.autoCommit = autoCommit
@@ -62,7 +77,7 @@ class WsdlConnection(
             logger.debug("setAutoCommit({}) called – read‑only connection, no effect.", autoCommit)
     }
 
-    override fun getAutoCommit(): Boolean =  autoCommit//throw UnsupportedOperationException("Not implemented 211")
+    override fun getAutoCommit(): Boolean =  autoCommit
 
     override fun commit() {
         // This connection is read-only and does not support transactions,
@@ -85,13 +100,23 @@ class WsdlConnection(
         this.readOnly = true
     }
 
-    override fun isReadOnly(): Boolean = this.readOnly //throw UnsupportedOperationException("Not implemented 215")
+    override fun isReadOnly(): Boolean = this.readOnly
 
-    override fun setCatalog(catalog: String?) = throw UnsupportedOperationException("Not implemented 216")
+    override fun setCatalog(catalog: String?) {
+        if (catalog == null) {
+            throw SQLException("Catalog cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("Catalogs are not supported by this driver")
+    }
 
     override fun getCatalog(): String? = null    // driver has no catalog concept
 
-    override fun setTransactionIsolation(level: Int) = throw UnsupportedOperationException("Not implemented 218")
+    override fun setTransactionIsolation(level: Int) {
+        if (level != Connection.TRANSACTION_READ_COMMITTED) {
+            throw SQLFeatureNotSupportedException("Only TRANSACTION_READ_COMMITTED is supported")
+        }
+        // no-op, since this driver is read-only and already uses READ_COMMITTED
+    }
 
     override fun getTransactionIsolation(): Int = Connection.TRANSACTION_READ_COMMITTED
 
@@ -99,7 +124,13 @@ class WsdlConnection(
 
     override fun clearWarnings() { /* no warnings to clear */ }
 
-    override fun createStatement(resultSetType: Int, resultSetConcurrency: Int): Statement = throw UnsupportedOperationException("Not implemented 222")
+    override fun createStatement(resultSetType: Int, resultSetConcurrency: Int): Statement {
+        // Only forward-only, read-only result sets are supported.
+        if (resultSetType != ResultSet.TYPE_FORWARD_ONLY || resultSetConcurrency != ResultSet.CONCUR_READ_ONLY) {
+            throw SQLFeatureNotSupportedException("Only TYPE_FORWARD_ONLY and CONCUR_READ_ONLY are supported")
+        }
+        return createStatement()
+    }
 
     override fun prepareStatement(sql: String?, resultSetType: Int, resultSetConcurrency: Int): PreparedStatement {
         if (sql == null) {
@@ -117,9 +148,17 @@ class WsdlConnection(
     ): CallableStatement =
         throw SQLFeatureNotSupportedException("Stored procedures are not supported")
 
-    override fun getTypeMap(): MutableMap<String, Class<*>> = throw UnsupportedOperationException("Not implemented 225")
+    override fun getTypeMap(): MutableMap<String, Class<*>> {
+        // Return an empty map since custom type mappings are not supported
+        return HashMap()
+    }
 
-    override fun setTypeMap(map: MutableMap<String, Class<*>>?) = throw UnsupportedOperationException("Not implemented 226")
+    override fun setTypeMap(map: MutableMap<String, Class<*>>?) {
+        if (map == null) {
+            throw SQLException("Type map cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("Custom type mappings are not supported by this driver")
+    }
 
     /** Forward‑only, read‑only driver: only HOLD_CURSORS_OVER_COMMIT is supported. */
     override fun setHoldability(holdability: Int) {
@@ -133,53 +172,156 @@ class WsdlConnection(
 
     override fun getHoldability(): Int = ResultSet.HOLD_CURSORS_OVER_COMMIT
 
-    override fun setSavepoint(): Savepoint = throw UnsupportedOperationException("Not implemented 229")
+    // --- Savepoint operations are not supported in this read‑only driver ---
+    override fun setSavepoint(): Savepoint {
+        throw SQLFeatureNotSupportedException("Savepoints are not supported by this read‑only driver")
+    }
 
-    override fun setSavepoint(name: String?): Savepoint = throw UnsupportedOperationException("Not implemented 230")
+    override fun setSavepoint(name: String?): Savepoint {
+        throw SQLFeatureNotSupportedException("Savepoints are not supported by this read‑only driver")
+    }
 
-    override fun rollback(savepoint: Savepoint?) = throw UnsupportedOperationException("Not implemented 231")
+    override fun rollback(savepoint: Savepoint?) {
+        throw SQLFeatureNotSupportedException("Savepoints are not supported by this read‑only driver")
+    }
 
-    override fun releaseSavepoint(savepoint: Savepoint?) = throw UnsupportedOperationException("Not implemented 232")
+    override fun releaseSavepoint(savepoint: Savepoint?) {
+        throw SQLFeatureNotSupportedException("Savepoints are not supported by this read‑only driver")
+    }
 
-    override fun createStatement(resultSetType: Int, resultSetConcurrency: Int, resultSetHoldability: Int): Statement = throw UnsupportedOperationException("Not implemented 233")
+    // --- Statement / PreparedStatement creation with explicit holdability ---
+    override fun createStatement(
+        resultSetType: Int,
+        resultSetConcurrency: Int,
+        resultSetHoldability: Int
+    ): Statement {
+        if (resultSetType != ResultSet.TYPE_FORWARD_ONLY ||
+            resultSetConcurrency != ResultSet.CONCUR_READ_ONLY ||
+            resultSetHoldability != ResultSet.HOLD_CURSORS_OVER_COMMIT) {
+            throw SQLFeatureNotSupportedException(
+                "Only TYPE_FORWARD_ONLY / CONCUR_READ_ONLY / HOLD_CURSORS_OVER_COMMIT are supported"
+            )
+        }
+        return createStatement()
+    }
 
-    override fun prepareStatement(sql: String?, resultSetType: Int, resultSetConcurrency: Int, resultSetHoldability: Int): PreparedStatement = throw UnsupportedOperationException("Not implemented 234")
+    override fun prepareStatement(
+        sql: String?,
+        resultSetType: Int,
+        resultSetConcurrency: Int,
+        resultSetHoldability: Int
+    ): PreparedStatement {
+        if (sql == null) {
+            throw SQLException("SQL cannot be null")
+        }
+        if (resultSetType != ResultSet.TYPE_FORWARD_ONLY ||
+            resultSetConcurrency != ResultSet.CONCUR_READ_ONLY ||
+            resultSetHoldability != ResultSet.HOLD_CURSORS_OVER_COMMIT) {
+            throw SQLFeatureNotSupportedException(
+                "Only TYPE_FORWARD_ONLY / CONCUR_READ_ONLY / HOLD_CURSORS_OVER_COMMIT are supported"
+            )
+        }
+        return WsdlPreparedStatement(sql, wsdlEndpoint, username, password, reportPath)
+    }
 
     override fun prepareCall(
         sql: String?,
         resultSetType: Int,
         resultSetConcurrency: Int,
         resultSetHoldability: Int
-    ): CallableStatement =
-        throw SQLFeatureNotSupportedException("Stored procedures are not supported")
+    ): CallableStatement {
+        if (sql == null) {
+            throw SQLException("SQL text cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("Callable statements are not supported by this driver")
+    }
 
-    override fun prepareStatement(sql: String?, autoGeneratedKeys: Int): PreparedStatement = throw UnsupportedOperationException("Not implemented 236")
+    // --- PreparedStatement variants for auto‑generated keys ---
+    override fun prepareStatement(sql: String?, autoGeneratedKeys: Int): PreparedStatement {
+        if (sql == null) {
+            throw SQLException("SQL cannot be null")
+        }
+        if (autoGeneratedKeys != Statement.NO_GENERATED_KEYS) {
+            throw SQLFeatureNotSupportedException("Auto‑generated keys are not supported by this driver")
+        }
+        return WsdlPreparedStatement(sql, wsdlEndpoint, username, password, reportPath)
+    }
 
-    override fun prepareStatement(sql: String?, columnIndexes: IntArray?): PreparedStatement = throw UnsupportedOperationException("Not implemented 237")
+    override fun prepareStatement(sql: String?, columnIndexes: IntArray?): PreparedStatement {
+        if (sql == null) {
+            throw SQLException("SQL cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("Auto‑generated keys are not supported by this driver")
+    }
 
-    override fun prepareStatement(sql: String?, columnNames: Array<out String>?): PreparedStatement = throw UnsupportedOperationException("Not implemented 238")
+    override fun prepareStatement(sql: String?, columnNames: Array<out String>?): PreparedStatement {
+        if (sql == null) {
+            throw SQLException("SQL cannot be null")
+        }
+        throw SQLFeatureNotSupportedException("Auto‑generated keys are not supported by this driver")
+    }
 
-    override fun createClob(): Clob = throw UnsupportedOperationException("Not implemented 239")
+    // --- Large object creation (unsupported) ---
+    override fun createClob(): Clob {
+        throw SQLFeatureNotSupportedException("CLOBs are not supported by this driver")
+    }
 
-    override fun createBlob(): Blob = throw UnsupportedOperationException("Not implemented 240")
+    override fun createBlob(): Blob {
+        throw SQLFeatureNotSupportedException("BLOBs are not supported by this driver")
+    }
 
-    override fun createNClob(): NClob = throw UnsupportedOperationException("Not implemented 241")
+    override fun createNClob(): NClob {
+        throw SQLFeatureNotSupportedException("NCLOBs are not supported by this driver")
+    }
 
-    override fun createSQLXML(): SQLXML = throw UnsupportedOperationException("Not implemented 242")
+    override fun createSQLXML(): SQLXML {
+        throw SQLFeatureNotSupportedException("SQLXML is not supported by this driver")
+    }
 
     override fun isValid(timeout: Int): Boolean = !isClosed()
 
-    override fun setClientInfo(name: String?, value: String?) = throw UnsupportedOperationException("Not implemented 244")
+    // --- Client‑info properties implementation ---
+    override fun setClientInfo(name: String?, value: String?) {
+        if (name == null) {
+            throw SQLClientInfoException("Client‑info name cannot be null", null as? Map<String, ClientInfoStatus>)
+        }
+        if (value == null) {
+            clientInfoProps.remove(name)
+        } else {
+            clientInfoProps[name] = value
+        }
+    }
 
-    override fun setClientInfo(properties: Properties?) = throw UnsupportedOperationException("Not implemented 245")
+    override fun setClientInfo(properties: Properties?) {
+        if (properties == null) {
+            throw SQLClientInfoException("Properties cannot be null", null as? Map<String, ClientInfoStatus>)
+        }
+        clientInfoProps.clear()
+        clientInfoProps.putAll(properties)
+    }
 
-    override fun getClientInfo(name: String?): String = throw UnsupportedOperationException("Not implemented 246")
+    override fun getClientInfo(name: String?): String {
+        if (name == null) {
+            throw SQLException("Client‑info name cannot be null")
+        }
+        return clientInfoProps.getProperty(name)
+    }
 
-    override fun getClientInfo(): Properties = throw UnsupportedOperationException("Not implemented 247")
+    override fun getClientInfo(): Properties {
+        // Return a defensive copy
+        val copy = Properties()
+        copy.putAll(clientInfoProps)
+        return copy
+    }
 
-    override fun createArrayOf(typeName: String?, elements: Array<out Any>?): java.sql.Array = throw UnsupportedOperationException("Not implemented 248")
+    // --- Advanced SQL types (unsupported) ---
+    override fun createArrayOf(typeName: String?, elements: Array<out Any>?): java.sql.Array {
+        throw SQLFeatureNotSupportedException("Array types are not supported by this driver")
+    }
 
-    override fun createStruct(typeName: String?, attributes: Array<out Any>?): Struct = throw UnsupportedOperationException("Not implemented 249")
+    override fun createStruct(typeName: String?, attributes: Array<out Any>?): Struct {
+        throw SQLFeatureNotSupportedException("Struct types are not supported by this driver")
+    }
 
     override fun setSchema(schema: String?) {
         currentSchema = schema
@@ -188,7 +330,23 @@ class WsdlConnection(
 
     override fun getSchema(): String = currentSchema ?: "FUSION"
 
-    override fun abort(executor: java.util.concurrent.Executor?) = throw UnsupportedOperationException("Not implemented 252")
+    override fun abort(executor: java.util.concurrent.Executor?) {
+        if (executor == null) {
+            throw SQLException("Executor cannot be null")
+        }
+        // If already closed, nothing to do.
+        if (isClosed()) return
+
+        // Execute the close asynchronously using the caller‑provided executor.
+        executor.execute {
+            try {
+                close()
+            } catch (e: SQLException) {
+                // Log and swallow – connection is being aborted anyway.
+                logger.warn("Error while aborting connection", e)
+            }
+        }
+    }
 
     override fun setNetworkTimeout(executor: java.util.concurrent.Executor?, milliseconds: Int) {
         // The WSDL driver is stateless / HTTP-based; we don't enforce socket timeouts here.

@@ -97,12 +97,60 @@ fun extractSoapFaultReason(body: String): String {
 }
 
 fun parseXml(xml: String): Document {
-    // Replace any '&' not followed by one of the allowed entity names.
-    val sanitizedXml = xml.replace(Regex("&(?!amp;|lt;|gt;|quot;|apos;)"), "&amp;")
-    val factory = DocumentBuilderFactory.newInstance()
-    factory.isNamespaceAware = true
+    //  Pre‑clean: escape stray '&' that are not part of an entity
+    var candidate = xml.replace(
+        Regex("&(?!amp;|lt;|gt;|quot;|apos;|#\\d+;|#x[0-9a-fA-F]+;)"),
+        "&amp;"
+    )
+
+    //   Remove leading BOM/whitespace and any bytes before first '<'
+    candidate = candidate.trimStart('\uFEFF', ' ', '\t', '\r', '\n')
+    val firstLt = candidate.indexOf('<')
+    if (firstLt > 0) candidate = candidate.substring(firstLt)
+
+    //  Collapse illegal spaces before '=' in attributes
+    candidate = candidate.replace(Regex("\\s+=\\s*"), "=")
+
+    // Force‑wrap any element whose text still contains raw '<' or '>'
+    candidate = Regex(
+        "<([A-Za-z][A-Za-z0-9_]*?)>([^<]*[<>][^<]*?)</\\1>",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+    ).replace(candidate) { m ->
+        val tag  = m.groupValues[1]
+        val body = m.groupValues[2].replace("]]>", "]]]]><![CDATA[>") // keep CDATA safe
+        "<$tag><![CDATA[$body]]></$tag>"
+    }
+
+    val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
     val builder = factory.newDocumentBuilder()
-    return builder.parse(InputSource(StringReader(sanitizedXml)))
+
+    fun tryParse(text: String): Document =
+        builder.parse(InputSource(StringReader(text)))
+
+    //  Fast path – try to parse as‑is
+    return try {
+        tryParse(candidate)
+    } catch (e: org.xml.sax.SAXParseException) {
+        // --- second‑pass sanitiser: escape < and > that occur *between* tags
+        val tagPlusText = Regex("(<[^>]+>)([^<]*[<>][^<]*)(?=<)").replace(candidate) { m ->
+            val openTag  = m.groupValues[1]
+            val badText  = m.groupValues[2]
+            val escaped  = badText.replace("<", "&lt;").replace(">", "&gt;")
+            openTag + escaped
+        }
+        // second stage – escape any remaining stray '>' then orphan '<WORD'
+        val withGtEscaped = Regex("([^>])>(?=[^<])").replace(tagPlusText) {
+            it.groupValues[1] + "&gt;"
+        }
+
+        // Escape orphan "<WORD" that is preceded by whitespace (e.g. " NAME> <CUSTOMER")
+        val sanitized = withGtEscaped.replace(
+            Regex("\\s<([A-Za-z][A-Za-z0-9_]{1,25})(?=[\\s<]|$)"),
+            " &lt;$1"
+        )
+
+        return tryParse(sanitized)
+    }
 }
 
 fun findNodeEndingWith(node: Node, suffix: String): Node? {
