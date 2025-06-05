@@ -1,9 +1,9 @@
-// (version variables removed; hard-coded versions used in dependencies below)
+// All dependencies configured to use latest versions with dynamic versioning
 
 plugins {
-    kotlin("jvm") version "2.0.21"
-    id("com.github.johnrengelman.shadow") version "8.1.1"
-    id("com.github.ben-manes.versions") version "0.47.0"
+    kotlin("jvm") version "+"
+    id("com.github.johnrengelman.shadow") version "+"
+    id("com.github.ben-manes.versions") version "+"
 }
 
 group = "org.example"
@@ -14,14 +14,14 @@ repositories {
 }
 
 dependencies {
-    // Use the Kotlin standard library from the plugin (version 2.0.21)
+    // Use the Kotlin standard library from the plugin
     implementation(kotlin("stdlib"))
     // Apache Commons Text for XML escaping/unescaping
-    implementation("org.apache.commons:commons-text:1.10.0")
-    implementation("org.slf4j:slf4j-api:1.7.36")
-    implementation("org.duckdb:duckdb_jdbc:1.3.0.0")
+    implementation("org.apache.commons:commons-text:+")
+    implementation("org.slf4j:slf4j-api:+")
+    implementation("org.duckdb:duckdb_jdbc:+")
     // A simple SLF4J binding (choose one that fits your needs; here we use slf4j-simple)
-    runtimeOnly("org.slf4j:slf4j-simple:1.7.36")
+    runtimeOnly("org.slf4j:slf4j-simple:+")
 }
 
 tasks.test {
@@ -29,7 +29,7 @@ tasks.test {
 }
 
 tasks.wrapper {
-    gradleVersion = "8.12.1"
+    gradleVersion = "+"
 }
 
 
