@@ -1,6 +1,7 @@
 # JDBC Driver and SQL Query Tool for Oracle Fusion
 [![License](https://img.shields.io/badge/License-Mit-blue.svg?style=for-the-badge&logo=mit)](LICENSE.md)
 [![Ko-Fi](https://img.shields.io/static/v1?style=for-the-badge&message=Support%20the%20Project&color=success&logo=ko-fi&label=$$)](https://ko-fi.com/sergeyrudenko)
+
 A read‑only JDBC driver that lets you run SQL queries against Oracle Fusion.
 This minimal viable implementation works seamlessly in mature IDE's - DBeaver, DbVisualizer and IntelliJ. 
 And it isn’t just for Java - it can be used from any JVM‑hosted language to build custom data pipelines.
