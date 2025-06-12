@@ -1,7 +1,5 @@
 # JDBC Driver and SQL Query Tool for Oracle Fusion
-
-[![Build Status](https://github.com/krokozyab/ofjdbc/actions/workflows/build.yml/badge.svg)](https://github.com/krokozyab/ofjdbc/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![License](https://img.shields.io/badge/License-Mit-blue.svg?style=for-the-badge&logo=mit)](LICENSE.md)
 
 A read‑only JDBC driver that lets you run SQL queries against Oracle Fusion.
 This minimal viable implementation works seamlessly in mature IDE's - DBeaver, DbVisualizer and IntelliJ. 
