@@ -58,7 +58,8 @@ Before using this driver, ensure you have the following:
 
 1. **Download the Driver:**
 
-   Download the latest version of the driver from the releases of this repository linked below:
+   Download the latest version of the driver from the releases of this repository linked below (orfujdbc-1.0-SNAPSHOT.zip
+file):
    
    [![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)
 
