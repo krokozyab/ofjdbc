@@ -216,8 +216,12 @@ class WsdlPreparedStatement(
         val finalSql = buildSql()
         logger.info("Retrieving metadata for prepared SQL: {}", finalSql)
 
-        // Fetch zero rows to obtain metadata without data transfer
-        val metaQuery = "$finalSql WHERE 1=0"
+        // Fetch zero rows to obtain metadata without transferring data.
+        // Wrap the original query to avoid breaking existing ORDER BY or
+        // pagination clauses when appending the WHERE predicate.
+        val metaQuery = "SELECT * FROM (" +
+            finalSql.trim().trimEnd(';') +
+            ") WHERE 1=0"
         super.executeQuery(metaQuery).use { rs ->
             val md = rs.metaData
             cachedMeta = md
