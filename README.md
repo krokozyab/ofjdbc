@@ -58,13 +58,13 @@ Before using this driver, ensure you have the following:
 
 1. **Download the Driver:**
 
-   Download the latest version of the driver from the releases of this repository (upper right corner of this page) linked below:
+   Download the latest version of the driver from the releases of this repository linked below:
+   
+   [![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)
 
-   [release driver](https://github.com/krokozyab/ofjdbc/releases/tag/17.06.2025)
+3. **Alternatively, clone the repository and build the driver from source.**
 
-2. **Alternatively, clone the repository and build the driver from source.**
-
-3. **Create report in OTBI**
+4. **Create report in OTBI**
 
    In you fusion instance un-archive _DM_ARB.xdm.catalog_ and _RP_ARB.xdo.catalog_ from **otbireport** catalog of this repository
 into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you will, see logic in source code). 
