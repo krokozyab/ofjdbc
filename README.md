@@ -1,7 +1,6 @@
 # JDBC Driver and SQL Query Tool for Oracle Fusion
 [![License](https://img.shields.io/badge/License-Mit-blue.svg?style=for-the-badge&logo=mit)](LICENSE.md)
 [![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)
-[![Clone repo](https://img.shields.io/badge/Git-Clone-blue?logo=git)](https://github.com/krokozyab/ofjdbc.git)
 [![Ko-Fi](https://img.shields.io/static/v1?style=for-the-badge&message=Support%20the%20Project&color=success&logo=ko-fi&label=$$)](https://ko-fi.com/sergeyrudenko)
 
 A read‑only JDBC driver that lets you run SQL queries against Oracle Fusion.
