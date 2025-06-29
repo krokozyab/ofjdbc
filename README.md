@@ -150,6 +150,7 @@ This project is a minimal viable implementation, and there are several areas for
 Check back on the GitHub repository for updates and improvements as the project evolves.
 
 ## 🔗 Other
+[Arrow Flight SQL server for Oracle Fusion] (https://github.com/krokozyab/ofarrow)
 - **Further reading:** Check out this article on LinkedIn:  
   [Bridging the Gap: Using an Open-Source JDBC Driver for Oracle Fusion SaaS](https://www.linkedin.com/pulse/bridging-gap-using-open-source-jdbc-driver-oracle-fusion-rudenko-i6cwf/?trackingId=5Mp2LNwgRpG1k9cZ1QWPzQ%3D%3D)
 
