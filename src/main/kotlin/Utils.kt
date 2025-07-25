@@ -124,6 +124,58 @@ fun parseXml(xml: String): Document {
     val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
     val builder = factory.newDocumentBuilder()
 
+    // fallback xml helper
+    fun escapeOutsideTags(text: String): String {
+        val entity = Regex("&(amp|lt|gt|quot|apos|#\\d+;|#x[0-9a-fA-F]+;)")
+        val sb = StringBuilder()
+        var i = 0
+        var inTag = false
+        while (i < text.length) {
+            val c = text[i]
+            when (c) {
+                '<' -> {
+                    val next = if (i + 1 < text.length) text[i + 1] else '\u0000'
+                    val looksLikeTag = next.isLetterOrDigit() || next == '/' || next == '!' || next == '?'
+                    if (!inTag && !looksLikeTag) {
+                        sb.append("&lt;")
+                        i++
+                        continue
+                    }
+                    inTag = true
+                    sb.append('<')
+                }
+                '>' -> {
+                    inTag = false
+                    sb.append('>')
+                }
+                '&' -> {
+                    if (!inTag) {
+                        val semi = text.indexOf(';', i)
+                        if (semi > i && entity.matches(text.substring(i, semi + 1))) {
+                            sb.append(text.substring(i, semi + 1))
+                            i = semi
+                        } else {
+                            sb.append("&amp;")
+                        }
+                    } else {
+                        sb.append('&')
+                    }
+                }
+                else -> {
+                    if (!inTag) {
+                        when (c) {
+                            '<' -> sb.append("&lt;")
+                            '>' -> sb.append("&gt;")
+                            else -> sb.append(c)
+                        }
+                    } else sb.append(c)
+                }
+            }
+            i++
+        }
+        return sb.toString()
+    }
+
     fun tryParse(text: String): Document =
         builder.parse(InputSource(StringReader(text)))
 
@@ -149,7 +201,12 @@ fun parseXml(xml: String): Document {
             " &lt;$1"
         )
 
-        return tryParse(sanitized)
+        return try {
+            tryParse(sanitized)
+        } catch (_: org.xml.sax.SAXParseException) {
+            val fallback = escapeOutsideTags(candidate)
+            tryParse(fallback)
+        }
     }
 }
 
