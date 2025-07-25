@@ -20,6 +20,7 @@ import javax.xml.transform.OutputKeys
 import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.StreamResult
+import my.jdbc.wsdl_driver.SecuredViewMappings
 
 val logger = LoggerFactory.getLogger("Utils")
 
@@ -241,8 +242,9 @@ fun sendSqlViaWsdl(
         .replace(Regex("--.*?(\\r?\\n|$)"), " ") // single-line comments --
         .replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), " ") // multi-line comments /**/
     val normalizedSql = sqlWithoutComments.replace("\\s+".toRegex(), " ").trim()
-    logger.info("Sending SQL to WSDL service: {}", normalizedSql)
-    val soapEnvelope = createSoapEnvelope(normalizedSql, reportPath)
+    val securedSql = SecuredViewMappings.apply(normalizedSql)
+    logger.info("Sending SQL to WSDL service: {}", securedSql)
+    val soapEnvelope = createSoapEnvelope(securedSql, reportPath)
     val authHeader = encodeCredentials(username, password)
     // Build a Java HttpClient (Java 11+)
     val client = HttpClient.newHttpClient()
