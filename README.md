@@ -15,6 +15,7 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 - [🛠 Prerequisites](#-prerequisites)
 - [📝 Installation](#-installation)
 - [⚙️ Configuration](#-configuration)
+- [🔒 Secured View Mappings](docs/hr_secured_views.md)
 - [❗ Limitations](#-Limitations)
 - [⚠️ Important Disclaimer](#-important-disclaimer)
 - [📝 TODO](#-todo)
