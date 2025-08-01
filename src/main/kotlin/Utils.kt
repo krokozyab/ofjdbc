@@ -24,6 +24,12 @@ import my.jdbc.wsdl_driver.SecuredViewMappings
 
 val logger = LoggerFactory.getLogger("Utils")
 
+// Reusable HttpClient - created once and reused
+private val httpClient: HttpClient by lazy {
+    HttpClient.newBuilder()
+        .connectTimeout(java.time.Duration.ofSeconds(30))
+        .build()
+}
 fun encodeCredentials(username: String, password: String): String =
     "Basic " + Base64.getEncoder().encodeToString("$username:$password".toByteArray(Charsets.UTF_8))
 
@@ -272,7 +278,7 @@ fun sendSqlViaWsdl(
     val soapEnvelope = createSoapEnvelope(securedSql, reportPath)
     val authHeader = encodeCredentials(username, password)
     // Build a Java HttpClient (Java 11+)
-    val client = HttpClient.newHttpClient()
+    //val client = HttpClient.newHttpClient()
     val request = HttpRequest.newBuilder()
         .uri(URI.create(wsdlEndpoint))
         .header("Content-Type", "application/soap+xml;charset=UTF-8")
@@ -282,7 +288,7 @@ fun sendSqlViaWsdl(
         .POST(HttpRequest.BodyPublishers.ofString(soapEnvelope))
         .build()
     // Send the request synchronously and obtain the response as a String
-    val response = client.send(request, HttpResponse.BodyHandlers.ofString())
+    val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
     val status = response.statusCode()
     val body = response.body()
     // Check if the response is an HTML error page
