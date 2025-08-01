@@ -98,6 +98,22 @@ fun extractSoapFaultReason(body: String): String {
 }
 
 fun parseXml(xml: String): Document {
+    val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
+    val builder = factory.newDocumentBuilder()
+
+    fun tryParse(text: String): Document =
+        builder.parse(InputSource(StringReader(text)))
+
+    // First, try to parse the XML as-is
+    return try {
+        tryParse(xml)
+    } catch (e: org.xml.sax.SAXParseException) {
+        // Only apply cleaning if the initial parse fails
+        parseXmlWithCleaning(xml)
+    }
+}
+
+private fun parseXmlWithCleaning(xml: String): Document {
     //  Pre‑clean: escape stray '&' that are not part of an entity
     var candidate = xml.replace(
         Regex("&(?!amp;|lt;|gt;|quot;|apos;|#\\d+;|#x[0-9a-fA-F]+;)"),
@@ -113,19 +129,28 @@ fun parseXml(xml: String): Document {
     candidate = candidate.replace(Regex("\\s+=\\s*"), "=")
 
     // Force‑wrap any element whose text still contains raw '<' or '>'
+    // But skip if content looks like XML
     candidate = Regex(
         "<([A-Za-z][A-Za-z0-9_]*?)>([^<]*[<>][^<]*?)</\\1>",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     ).replace(candidate) { m ->
-        val tag  = m.groupValues[1]
-        val body = m.groupValues[2].replace("]]>", "]]]]><![CDATA[>") // keep CDATA safe
-        "<$tag><![CDATA[$body]]></$tag>"
+        val tag = m.groupValues[1]
+        val body = m.groupValues[2]
+
+        // Skip CDATA wrapping if content looks like XML
+        val looksLikeXml = body.contains("</") || body.matches(Regex(".*<[A-Za-z][^>]*>.*"))
+
+        if (looksLikeXml) {
+            m.value // Keep original
+        } else {
+            val safeBody = body.replace("]]>", "]]]]><![CDATA[>") // keep CDATA safe
+            "<$tag><![CDATA[$safeBody]]></$tag>"
+        }
     }
 
     val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
     val builder = factory.newDocumentBuilder()
 
-    // fallback xml helper
     fun escapeOutsideTags(text: String): String {
         val entity = Regex("&(amp|lt|gt|quot|apos|#\\d+;|#x[0-9a-fA-F]+;)")
         val sb = StringBuilder()
