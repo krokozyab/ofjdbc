@@ -4,6 +4,13 @@ import org.apache.commons.text.StringEscapeUtils
 import org.w3c.dom.Node
 import java.sql.*
 
+/**
+ * Mutex used to synchronize access to the local DuckDB metadata cache.
+ * A `ThreadLocal<Connection>` could be used instead if each thread should
+ * maintain its own connection.
+ */
+private val lock = Any()
+
 
 object LocalMetadataCache {
     // Use a file path in the user's home directory.
@@ -395,21 +402,24 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
             val typeFilterSql =
                 requestedTypes?.joinToString(prefix = " AND TABLE_TYPE IN ('", separator = "','", postfix = "')")
                     ?: ""
-            localConn.createStatement().use { stmt ->
-                stmt.executeQuery(
-                    """
-                    SELECT * FROM CACHED_TABLES
-                    WHERE 1=1$typeFilterSql
-                    ORDER BY TABLE_NAME
-                    """.trimIndent()
-                ).use { rs ->
-                    val meta = rs.metaData
-                    while (rs.next()) {
-                        val row = mutableMapOf<String, String>()
-                        for (i in 1..meta.columnCount) {
-                            row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
+            // Access to DuckDB must be synchronized as the connection is shared
+            synchronized(lock) {
+                localConn.createStatement().use { stmt ->
+                    stmt.executeQuery(
+                        """
+                        SELECT * FROM CACHED_TABLES
+                        WHERE 1=1$typeFilterSql
+                        ORDER BY TABLE_NAME
+                        """.trimIndent()
+                    ).use { rs ->
+                        val meta = rs.metaData
+                        while (rs.next()) {
+                            val row = mutableMapOf<String, String>()
+                            for (i in 1..meta.columnCount) {
+                                row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
+                            }
+                            cachedRows.add(row)
                         }
-                        cachedRows.add(row)
                     }
                 }
             }
@@ -513,6 +523,8 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         // 4) Cache the unique rows into DuckDB & build result set
         // ---------------------------------------------------------
         try {
+            // Synchronise writes to the DuckDB cache
+                synchronized(lock) {
             localConn.prepareStatement(
                 """
             INSERT OR IGNORE INTO CACHED_TABLES 
@@ -549,6 +561,7 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
                 }
                 pstmt.executeBatch()
                 logger.info("Saved remote tables metadata into local cache.")
+            }
             }
         } catch (ex: Exception) {
             logger.error("Error saving remote tables metadata to local cache: {}", ex.message)
@@ -609,6 +622,8 @@ override fun getColumns(
 
     // Try reading from the local cache.
     try {
+        // Synchronize reads from the cache
+        synchronized(lock) {
         localConn.createStatement().use { stmt ->
             stmt.executeQuery(localQuery).use { rs ->
                 val localRows = mutableListOf<Map<String, String?>>()
@@ -632,6 +647,7 @@ override fun getColumns(
                     return XmlResultSet(localRows)
                 }
             }
+        }
         }
     } catch (ex: Exception) {
         logger.error("Error reading columns from local metadata cache: ${ex.message}")
@@ -717,6 +733,8 @@ override fun getColumns(
 
     // Save the remote metadata into the local cache.
     try {
+        // Synchronize writes to the cache
+        synchronized(lock) {
         localConn.prepareStatement(
             """
             INSERT OR IGNORE INTO CACHED_COLUMNS 
@@ -739,6 +757,7 @@ override fun getColumns(
                 pstmt.addBatch()
             }
             pstmt.executeBatch()
+        }
             logger.info("Saved remote columns into local cache (${uniqueRows.size} rows).")
         }
     } catch (ex: Exception) {
@@ -1098,6 +1117,8 @@ override fun getColumns(
         """.trimIndent()
 
         try {
+            // Synchronize reads from the cache
+            synchronized(lock) {
             localConn.createStatement().use { stmt ->
                 stmt.executeQuery(localSql).use { rs ->
                     val rows = mutableListOf<Map<String, String>>()
@@ -1123,6 +1144,7 @@ override fun getColumns(
                         return XmlResultSet(rows)
                     }
                 }
+            }
             }
         } catch (ex: Exception) {
             logger.error("Error reading index info from local cache: ${ex.message}")
@@ -1193,6 +1215,8 @@ override fun getColumns(
         }
         // Insert into cache with all 13 columns
         try {
+            // Synchronize writes to the cache
+            synchronized(lock) {
             localConn.prepareStatement(
                 """
                 INSERT OR IGNORE INTO CACHED_INDEXES
@@ -1229,6 +1253,7 @@ override fun getColumns(
                     pstmt.addBatch()
                 }
                 pstmt.executeBatch()
+            }
                 logger.info("Saved remote index info into local cache (${remoteRows.size} rows).")
             }
         } catch (ex: Exception) {
