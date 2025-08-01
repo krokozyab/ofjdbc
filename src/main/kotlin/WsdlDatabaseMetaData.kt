@@ -637,7 +637,7 @@ override fun getColumns(
                     row["type_name"] = rs.getString("TYPE_NAME") ?: ""
                     row["column_size"] = rs.getString("COLUMN_SIZE") ?: ""
                     row["decimal_digits"] = rs.getString("DECIMAL_DIGITS") ?: "0"
-                    row["num_prec_radix"] = rs.getString("NUM_PREC_RADIX") ?: "0"
+                    row["num_prec_radix"] = rs.getString("NUM_PREC_RADIX")
                     row["nullable"] = rs.getString("NULLABLE") ?: ""
                     row["ordinal_position"] = rs.getString("ORDINAL_POSITION") ?: ""
                     localRows.add(row)
@@ -667,8 +667,9 @@ override fun getColumns(
             ${java.sql.Types.VARCHAR} AS DATA_TYPE,
             data_type AS TYPE_NAME,
             data_length AS COLUMN_SIZE,
-            data_precision AS DECIMAL_DIGITS,
-            data_scale AS NUM_PREC_RADIX,
+            data_scale AS DECIMAL_DIGITS,
+            CASE WHEN data_precision IS NULL AND data_scale IS NULL
+                 THEN NULL ELSE 10 END AS NUM_PREC_RADIX,
             CASE WHEN nullable = 'Y' THEN 1 ELSE 0 END AS NULLABLE,
             column_id AS ORDINAL_POSITION
         FROM all_tab_columns
@@ -695,24 +696,18 @@ override fun getColumns(
         }
     }
 
-    val remoteRows = mutableListOf<Map<String, String>>()
+    val remoteRows = mutableListOf<Map<String, String?>>()
     for (i in 0 until rowNodes.length) {
         val rowNode = rowNodes.item(i)
         if (rowNode.nodeType == Node.ELEMENT_NODE) {
-            val rowMap = mutableMapOf<String, String>()
+            val rowMap = mutableMapOf<String, String?>()
             val children = rowNode.childNodes
             for (j in 0 until children.length) {
                 val child = children.item(j)
                 if (child.nodeType == Node.ELEMENT_NODE) {
-                    rowMap[child.nodeName.lowercase()] = child.textContent.trim()
+                    val text = child.textContent.trim()
+                    rowMap[child.nodeName.lowercase()] = text.takeIf { it.isNotEmpty() }
                 }
-            }
-            // Normalise blank numeric fields so DBeaver can parse them as Int
-            if (rowMap["decimal_digits"].isNullOrBlank()) {
-                rowMap["decimal_digits"] = "0"
-            }
-            if (rowMap["num_prec_radix"].isNullOrBlank()) {
-                rowMap["num_prec_radix"] = "0"
             }
             remoteRows.add(rowMap)
         }
@@ -721,7 +716,7 @@ override fun getColumns(
     // --- Deduplicate rows across quoted / un‑quoted column names -------------
     // Some columns are returned twice: once as plain UPPERCASE and once quoted
     // (e.g. LANGUAGE  vs  "LANGUAGE").  We collapse those variants here.
-    val uniqueRows: List<Map<String, String>> =
+    val uniqueRows: List<Map<String, String?>> =
         remoteRows
             .groupBy {
                 val schem = it["table_schem"]?.uppercase() ?: ""
