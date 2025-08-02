@@ -716,11 +716,23 @@ class PaginatedResultSet(
 
     override fun getFetchDirection(): Int = fetchDirection
 
+    /**
+     * Sets the fetch size for this ResultSet. This affects how many rows
+     * are fetched in each page from the server.
+     */
     override fun setFetchSize(rows: Int) {
-        fetchSize = rows
-        logger.info("Fetch size set to {}", rows)
+        val oldFetchSize = fetchSize
+        fetchSize = WsdlStatement.validateFetchSize(rows, "PaginatedResultSet.setFetchSize")
+        
+        if (fetchSize != oldFetchSize) {
+            logger.info("PaginatedResultSet fetch size changed from {} to {} (requested: {})", 
+                oldFetchSize, fetchSize, rows)
+        }
     }
 
+    /**
+     * Returns the current fetch size for this ResultSet
+     */
     override fun getFetchSize(): Int = fetchSize
 
     override fun getType(): Int = ResultSet.TYPE_FORWARD_ONLY
