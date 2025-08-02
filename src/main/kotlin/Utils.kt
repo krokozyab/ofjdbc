@@ -34,7 +34,7 @@ private val httpClient: HttpClient by lazy {
 
 // Per-request timeout; configurable via env var OFJDBC_HTTP_TIMEOUT_SECONDS
 private val requestTimeoutSeconds: Long =
-    System.getenv("OFJDBC_HTTP_TIMEOUT_SECONDS")?.toLongOrNull() ?: 60L
+    System.getenv("OFJDBC_HTTP_TIMEOUT_SECONDS")?.toLongOrNull() ?: 120L
 fun encodeCredentials(username: String, password: String): String =
     "Basic " + Base64.getEncoder().encodeToString("$username:$password".toByteArray(Charsets.UTF_8))
 
