@@ -8,9 +8,11 @@ import java.sql.*
 object LocalMetadataCache {
     // Use a file path in the user's home directory.
     private val userHome = System.getProperty("user.home")
-    private val duckDbFilePath = "$userHome/metadata.db"
+    private val ofjdbcDir = "$userHome/.ofjdbc"
+    private val duckDbFilePath = "$ofjdbcDir/metadata.db"
 
     val connection: Connection by lazy {
+        java.io.File(ofjdbcDir).mkdirs()
         logger.info("Using DuckDB file: $duckDbFilePath")
         val conn = DriverManager.getConnection("jdbc:duckdb:$duckDbFilePath")
         conn.createStatement().use { stmt ->
