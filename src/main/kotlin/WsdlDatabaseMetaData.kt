@@ -79,6 +79,67 @@ object LocalMetadataCache {
                 )
                 """.trimIndent()
             )
+            stmt.executeUpdate(
+                """
+                CREATE TABLE IF NOT EXISTS CACHED_FOREIGN_KEYS (
+                    PKTABLE_CAT VARCHAR,
+                    PKTABLE_SCHEM VARCHAR,
+                    PKTABLE_NAME VARCHAR,
+                    PKCOLUMN_NAME VARCHAR,
+                    FKTABLE_CAT VARCHAR,
+                    FKTABLE_SCHEM VARCHAR,
+                    FKTABLE_NAME VARCHAR,
+                    FKCOLUMN_NAME VARCHAR,
+                    KEY_SEQ INTEGER,
+                    UPDATE_RULE INTEGER,
+                    DELETE_RULE INTEGER,
+                    FK_NAME VARCHAR,
+                    PK_NAME VARCHAR,
+                    DEFERRABILITY INTEGER,
+                    PRIMARY KEY (FKTABLE_SCHEM, FKTABLE_NAME, FK_NAME, KEY_SEQ)
+                )
+                """.trimIndent()
+            )
+            stmt.executeUpdate(
+                """
+                CREATE TABLE IF NOT EXISTS CACHED_PROCEDURES (
+                    PROCEDURE_CAT VARCHAR,
+                    PROCEDURE_SCHEM VARCHAR,
+                    PROCEDURE_NAME VARCHAR,
+                    REMARKS VARCHAR,
+                    PROCEDURE_TYPE INTEGER,
+                    SPECIFIC_NAME VARCHAR,
+                    PRIMARY KEY (PROCEDURE_SCHEM, PROCEDURE_NAME)
+                )
+                """.trimIndent()
+            )
+            stmt.executeUpdate(
+                """
+                CREATE TABLE IF NOT EXISTS CACHED_FUNCTIONS (
+                    FUNCTION_CAT VARCHAR,
+                    FUNCTION_SCHEM VARCHAR,
+                    FUNCTION_NAME VARCHAR,
+                    REMARKS VARCHAR,
+                    FUNCTION_TYPE INTEGER,
+                    SPECIFIC_NAME VARCHAR,
+                    PRIMARY KEY (FUNCTION_SCHEM, FUNCTION_NAME)
+                )
+                """.trimIndent()
+            )
+            stmt.executeUpdate(
+                """
+                CREATE TABLE IF NOT EXISTS CACHED_UDTS (
+                    TYPE_CAT VARCHAR,
+                    TYPE_SCHEM VARCHAR,
+                    TYPE_NAME VARCHAR,
+                    CLASS_NAME VARCHAR,
+                    DATA_TYPE INTEGER,
+                    REMARKS VARCHAR,
+                    BASE_TYPE INTEGER,
+                    PRIMARY KEY (TYPE_SCHEM, TYPE_NAME)
+                )
+                """.trimIndent()
+            )
         }
         conn
     }
@@ -362,7 +423,127 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         catalog: String?,
         schemaPattern: String?,
         procedureNamePattern: String?
-    ): ResultSet = createEmptyResultSet()
+    ): ResultSet {
+        val localConn = LocalMetadataCache.connection
+        val defSchema = "FUSION"
+        
+        // Try cache first
+        val cachedRows = mutableListOf<Map<String, String>>()
+        try {
+            val schemaCondLocal = if (!schemaPattern.isNullOrBlank()) "AND PROCEDURE_SCHEM LIKE '${schemaPattern.uppercase()}'" else "AND PROCEDURE_SCHEM = '$defSchema'"
+            val nameCondLocal = if (!procedureNamePattern.isNullOrBlank()) "AND PROCEDURE_NAME LIKE '${procedureNamePattern.uppercase()}'" else ""
+            
+            localConn.createStatement().use { stmt ->
+                stmt.executeQuery(
+                    """
+                    SELECT PROCEDURE_CAT, PROCEDURE_SCHEM, PROCEDURE_NAME, REMARKS, PROCEDURE_TYPE, SPECIFIC_NAME
+                    FROM CACHED_PROCEDURES
+                    WHERE 1=1 $schemaCondLocal $nameCondLocal
+                    ORDER BY PROCEDURE_SCHEM, PROCEDURE_NAME
+                    """.trimIndent()
+                ).use { rs ->
+                    val meta = rs.metaData
+                    while (rs.next()) {
+                        val row = mutableMapOf<String, String>()
+                        for (i in 1..meta.columnCount) {
+                            row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
+                        }
+                        cachedRows.add(row)
+                    }
+                }
+            }
+        } catch (ex: Exception) {
+            logger.error("Error reading cached procedures metadata: ${ex.message}")
+        }
+        
+        if (cachedRows.isNotEmpty()) {
+            logger.info("Returning ${cachedRows.size} procedures from local cache.")
+            return XmlResultSet(cachedRows)
+        }
+        
+        // Fetch from remote
+        val schemaCondRemote = if (!schemaPattern.isNullOrBlank()) "AND owner LIKE '${schemaPattern.uppercase()}'" else "AND owner = '$defSchema'"
+        val nameCondRemote = if (!procedureNamePattern.isNullOrBlank()) "AND object_name LIKE '${procedureNamePattern.uppercase()}'" else ""
+        
+        val sql = """
+            SELECT 
+                NULL AS PROCEDURE_CAT,
+                owner AS PROCEDURE_SCHEM,
+                object_name AS PROCEDURE_NAME,
+                NULL AS REMARKS,
+                CASE 
+                    WHEN procedure_name IS NULL THEN 1
+                    ELSE 2
+                END AS PROCEDURE_TYPE,
+                object_name AS SPECIFIC_NAME
+            FROM all_procedures
+            WHERE 1=1 $schemaCondRemote $nameCondRemote
+            ORDER BY owner, object_name
+        """.trimIndent()
+        
+        logger.info("Executing remote getProcedures SQL: {}", sql)
+        val responseXml = sendSqlViaWsdl(
+            connection.wsdlEndpoint,
+            sql,
+            connection.username,
+            connection.password,
+            connection.reportPath
+        )
+        val doc = parseXml(responseXml)
+        var rowNodes = doc.getElementsByTagName("ROW")
+        if (rowNodes.length == 0) {
+            val resultNodes = doc.getElementsByTagName("RESULT")
+            if (resultNodes.length > 0) {
+                val resultText = resultNodes.item(0).textContent.trim()
+                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
+                val rowDoc = parseXml(unescapedXml)
+                rowNodes = rowDoc.getElementsByTagName("ROW")
+            }
+        }
+        
+        val remoteRows = mutableListOf<Map<String, String>>()
+        for (i in 0 until rowNodes.length) {
+            val rowNode = rowNodes.item(i)
+            if (rowNode.nodeType == Node.ELEMENT_NODE) {
+                val rowMap = mutableMapOf<String, String>()
+                val children = rowNode.childNodes
+                for (j in 0 until children.length) {
+                    val child = children.item(j)
+                    if (child.nodeType == Node.ELEMENT_NODE) {
+                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
+                    }
+                }
+                remoteRows.add(rowMap)
+            }
+        }
+        
+        // Cache the results
+        try {
+            localConn.prepareStatement(
+                """
+                INSERT OR IGNORE INTO CACHED_PROCEDURES 
+                (PROCEDURE_CAT, PROCEDURE_SCHEM, PROCEDURE_NAME, REMARKS, PROCEDURE_TYPE, SPECIFIC_NAME) 
+                VALUES (?, ?, ?, ?, ?, ?)
+                """.trimIndent()
+            ).use { pstmt ->
+                for (row in remoteRows) {
+                    pstmt.setString(1, row["PROCEDURE_CAT"] ?: "")
+                    pstmt.setString(2, row["PROCEDURE_SCHEM"] ?: "")
+                    pstmt.setString(3, row["PROCEDURE_NAME"] ?: "")
+                    pstmt.setString(4, row["REMARKS"] ?: "")
+                    pstmt.setObject(5, row["PROCEDURE_TYPE"]?.toIntOrNull())
+                    pstmt.setString(6, row["SPECIFIC_NAME"] ?: "")
+                    pstmt.addBatch()
+                }
+                pstmt.executeBatch()
+                logger.info("Saved remote procedures metadata into local cache.")
+            }
+        } catch (ex: Exception) {
+            logger.error("Error saving remote procedures metadata to local cache: {}", ex.message)
+        }
+        
+        return XmlResultSet(remoteRows.map { it.mapKeys { k -> k.key.lowercase() } })
+    }
 
     override fun getProcedureColumns(
         catalog: String?,
@@ -785,15 +966,333 @@ override fun getColumns(
         return XmlResultSet(resultRows)
     }
 
-    // Imported foreign key metadata not available via WSDL; return an empty result set.
+    // Imported foreign keys are foreign keys that reference this table (this table is the primary key table)
     override fun getImportedKeys(
         catalog: String?, schema: String?, table: String?
-    ): ResultSet = createEmptyResultSet()
+    ): ResultSet {
+        if (table.isNullOrBlank()) {
+            return createEmptyResultSet()
+        }
+        
+        val localConn = LocalMetadataCache.connection
+        val defSchema = (schema ?: "FUSION").uppercase()
+        val tableName = table.uppercase()
+        
+        // Try cache first - look for foreign keys where this table is the primary key table
+        val cachedRows = mutableListOf<Map<String, String>>()
+        try {
+            val schemaCondLocal = if (!schema.isNullOrBlank()) "AND PKTABLE_SCHEM = '$defSchema'" else ""
+            val tableCondLocal = "AND UPPER(PKTABLE_NAME) = '$tableName'"
+            
+            localConn.createStatement().use { stmt ->
+                stmt.executeQuery(
+                    """
+                    SELECT PKTABLE_CAT, PKTABLE_SCHEM, PKTABLE_NAME, PKCOLUMN_NAME,
+                           FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, FKCOLUMN_NAME,
+                           KEY_SEQ, UPDATE_RULE, DELETE_RULE, FK_NAME, PK_NAME, DEFERRABILITY
+                    FROM CACHED_FOREIGN_KEYS
+                    WHERE 1=1 $schemaCondLocal $tableCondLocal
+                    ORDER BY FKTABLE_SCHEM, FKTABLE_NAME, FK_NAME, KEY_SEQ
+                    """.trimIndent()
+                ).use { rs ->
+                    val meta = rs.metaData
+                    while (rs.next()) {
+                        val row = mutableMapOf<String, String>()
+                        for (i in 1..meta.columnCount) {
+                            row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
+                        }
+                        cachedRows.add(row)
+                    }
+                }
+            }
+        } catch (ex: Exception) {
+            logger.error("Error reading cached imported keys metadata: ${ex.message}")
+        }
+        
+        if (cachedRows.isNotEmpty()) {
+            logger.info("Returning ${cachedRows.size} imported keys from local cache.")
+            return XmlResultSet(cachedRows)
+        }
+        
+        // If cache is empty, delegate to getForeignKeys logic but filter for this table as PK table
+        val schemaCondRemote = if (!schema.isNullOrBlank()) "AND r.owner = '$defSchema'" else "AND r.owner = 'FUSION'"
+        val tableCondRemote = "AND UPPER(r.table_name) = '$tableName'"
+        
+        val finalSql = """
+            SELECT 
+                NULL AS PKTABLE_CAT,
+                r.owner AS PKTABLE_SCHEM,
+                r.table_name AS PKTABLE_NAME,
+                rc.column_name AS PKCOLUMN_NAME,
+                NULL AS FKTABLE_CAT,
+                c.owner AS FKTABLE_SCHEM,
+                c.table_name AS FKTABLE_NAME,
+                cc.column_name AS FKCOLUMN_NAME,
+                cc.position AS KEY_SEQ,
+                CASE c.delete_rule 
+                    WHEN 'CASCADE' THEN 0
+                    WHEN 'SET NULL' THEN 2
+                    ELSE 1 
+                END AS UPDATE_RULE,
+                CASE c.delete_rule 
+                    WHEN 'CASCADE' THEN 0
+                    WHEN 'SET NULL' THEN 2
+                    ELSE 1 
+                END AS DELETE_RULE,
+                c.constraint_name AS FK_NAME,
+                r.constraint_name AS PK_NAME,
+                7 AS DEFERRABILITY
+            FROM all_constraints c
+            JOIN all_cons_columns cc ON c.constraint_name = cc.constraint_name AND c.owner = cc.owner
+            JOIN all_constraints r ON c.r_constraint_name = r.constraint_name AND c.r_owner = r.owner
+            JOIN all_cons_columns rc ON r.constraint_name = rc.constraint_name AND r.owner = rc.owner
+            WHERE c.constraint_type = 'R'
+            AND cc.position = rc.position
+            $schemaCondRemote $tableCondRemote
+            ORDER BY c.owner, c.table_name, c.constraint_name, cc.position
+        """.trimIndent()
+        
+        logger.info("Executing remote getImportedKeys SQL: {}", finalSql)
+        val responseXml = sendSqlViaWsdl(
+            connection.wsdlEndpoint,
+            finalSql,
+            connection.username,
+            connection.password,
+            connection.reportPath
+        )
+        val doc = parseXml(responseXml)
+        var rowNodes = doc.getElementsByTagName("ROW")
+        if (rowNodes.length == 0) {
+            val resultNodes = doc.getElementsByTagName("RESULT")
+            if (resultNodes.length > 0) {
+                val resultText = resultNodes.item(0).textContent.trim()
+                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
+                val rowDoc = parseXml(unescapedXml)
+                rowNodes = rowDoc.getElementsByTagName("ROW")
+            }
+        }
+        
+        val remoteRows = mutableListOf<Map<String, String>>()
+        for (i in 0 until rowNodes.length) {
+            val rowNode = rowNodes.item(i)
+            if (rowNode.nodeType == Node.ELEMENT_NODE) {
+                val rowMap = mutableMapOf<String, String>()
+                val children = rowNode.childNodes
+                for (j in 0 until children.length) {
+                    val child = children.item(j)
+                    if (child.nodeType == Node.ELEMENT_NODE) {
+                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
+                    }
+                }
+                remoteRows.add(rowMap)
+            }
+        }
+        
+        // Cache the results (same cache table as getForeignKeys)
+        try {
+            localConn.prepareStatement(
+                """
+                INSERT OR IGNORE INTO CACHED_FOREIGN_KEYS 
+                (PKTABLE_CAT, PKTABLE_SCHEM, PKTABLE_NAME, PKCOLUMN_NAME, FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, FKCOLUMN_NAME, KEY_SEQ, UPDATE_RULE, DELETE_RULE, FK_NAME, PK_NAME, DEFERRABILITY) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """.trimIndent()
+            ).use { pstmt ->
+                for (row in remoteRows) {
+                    pstmt.setString(1, row["PKTABLE_CAT"] ?: "")
+                    pstmt.setString(2, row["PKTABLE_SCHEM"] ?: "")
+                    pstmt.setString(3, row["PKTABLE_NAME"] ?: "")
+                    pstmt.setString(4, row["PKCOLUMN_NAME"] ?: "")
+                    pstmt.setString(5, row["FKTABLE_CAT"] ?: "")
+                    pstmt.setString(6, row["FKTABLE_SCHEM"] ?: "")
+                    pstmt.setString(7, row["FKTABLE_NAME"] ?: "")
+                    pstmt.setString(8, row["FKCOLUMN_NAME"] ?: "")
+                    pstmt.setObject(9, row["KEY_SEQ"]?.toIntOrNull())
+                    pstmt.setObject(10, row["UPDATE_RULE"]?.toIntOrNull())
+                    pstmt.setObject(11, row["DELETE_RULE"]?.toIntOrNull())
+                    pstmt.setString(12, row["FK_NAME"] ?: "")
+                    pstmt.setString(13, row["PK_NAME"] ?: "")
+                    pstmt.setObject(14, row["DEFERRABILITY"]?.toIntOrNull())
+                    pstmt.addBatch()
+                }
+                pstmt.executeBatch()
+                logger.info("Saved remote imported keys metadata into local cache.")
+            }
+        } catch (ex: Exception) {
+            logger.error("Error saving remote imported keys metadata to local cache: {}", ex.message)
+        }
+        
+        return XmlResultSet(remoteRows.map { it.mapKeys { k -> k.key.lowercase() } })
+    }
 
-    // Exported foreign key metadata not available via WSDL; return an empty result set.
+    // Exported foreign keys are foreign keys from this table (this table is the foreign key table)
     override fun getExportedKeys(
         catalog: String?, schema: String?, table: String?
-    ): ResultSet = createEmptyResultSet()
+    ): ResultSet {
+        // For exported keys, this table is the foreign key table, so delegate to getForeignKeys
+        return getForeignKeys(catalog, schema, table)
+    }
+
+    // Note: JDBC DatabaseMetaData doesn't have getForeignKeys method, but we implement it for internal use
+    fun getForeignKeys(
+        catalog: String?,
+        schema: String?,
+        table: String?
+    ): ResultSet {
+        if (table.isNullOrBlank()) {
+            return createEmptyResultSet()
+        }
+        
+        val localConn = LocalMetadataCache.connection
+        val defSchema = (schema ?: "FUSION").uppercase()
+        val tableName = table.uppercase()
+        
+        // Try cache first
+        val cachedRows = mutableListOf<Map<String, String>>()
+        try {
+            val schemaCondLocal = if (!schema.isNullOrBlank()) "AND FKTABLE_SCHEM = '$defSchema'" else ""
+            val tableCondLocal = "AND UPPER(FKTABLE_NAME) = '$tableName'"
+            
+            localConn.createStatement().use { stmt ->
+                stmt.executeQuery(
+                    """
+                    SELECT PKTABLE_CAT, PKTABLE_SCHEM, PKTABLE_NAME, PKCOLUMN_NAME,
+                           FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, FKCOLUMN_NAME,
+                           KEY_SEQ, UPDATE_RULE, DELETE_RULE, FK_NAME, PK_NAME, DEFERRABILITY
+                    FROM CACHED_FOREIGN_KEYS
+                    WHERE 1=1 $schemaCondLocal $tableCondLocal
+                    ORDER BY FKTABLE_SCHEM, FKTABLE_NAME, FK_NAME, KEY_SEQ
+                    """.trimIndent()
+                ).use { rs ->
+                    val meta = rs.metaData
+                    while (rs.next()) {
+                        val row = mutableMapOf<String, String>()
+                        for (i in 1..meta.columnCount) {
+                            row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
+                        }
+                        cachedRows.add(row)
+                    }
+                }
+            }
+        } catch (ex: Exception) {
+            logger.error("Error reading cached foreign keys metadata: ${ex.message}")
+        }
+        
+        if (cachedRows.isNotEmpty()) {
+            logger.info("Returning ${cachedRows.size} foreign keys from local cache.")
+            return XmlResultSet(cachedRows)
+        }
+        
+        // Fetch from remote
+        val schemaCondRemote = if (!schema.isNullOrBlank()) "AND c.owner = '$defSchema'" else "AND c.owner = 'FUSION'"
+        val tableCondRemote = "AND UPPER(c.table_name) = '$tableName'"
+        
+        val finalSql = """
+            SELECT 
+                NULL AS PKTABLE_CAT,
+                r.owner AS PKTABLE_SCHEM,
+                r.table_name AS PKTABLE_NAME,
+                rc.column_name AS PKCOLUMN_NAME,
+                NULL AS FKTABLE_CAT,
+                c.owner AS FKTABLE_SCHEM,
+                c.table_name AS FKTABLE_NAME,
+                cc.column_name AS FKCOLUMN_NAME,
+                cc.position AS KEY_SEQ,
+                CASE c.delete_rule 
+                    WHEN 'CASCADE' THEN 0
+                    WHEN 'SET NULL' THEN 2
+                    ELSE 1 
+                END AS UPDATE_RULE,
+                CASE c.delete_rule 
+                    WHEN 'CASCADE' THEN 0
+                    WHEN 'SET NULL' THEN 2
+                    ELSE 1 
+                END AS DELETE_RULE,
+                c.constraint_name AS FK_NAME,
+                r.constraint_name AS PK_NAME,
+                7 AS DEFERRABILITY
+            FROM all_constraints c
+            JOIN all_cons_columns cc ON c.constraint_name = cc.constraint_name AND c.owner = cc.owner
+            JOIN all_constraints r ON c.r_constraint_name = r.constraint_name AND c.r_owner = r.owner
+            JOIN all_cons_columns rc ON r.constraint_name = rc.constraint_name AND r.owner = rc.owner
+            WHERE c.constraint_type = 'R'
+            AND cc.position = rc.position
+            $schemaCondRemote $tableCondRemote
+            ORDER BY c.owner, c.table_name, c.constraint_name, cc.position
+        """.trimIndent()
+        
+        logger.info("Executing remote getForeignKeys SQL: {}", finalSql)
+        val responseXml = sendSqlViaWsdl(
+            connection.wsdlEndpoint,
+            finalSql,
+            connection.username,
+            connection.password,
+            connection.reportPath
+        )
+        val doc = parseXml(responseXml)
+        var rowNodes = doc.getElementsByTagName("ROW")
+        if (rowNodes.length == 0) {
+            val resultNodes = doc.getElementsByTagName("RESULT")
+            if (resultNodes.length > 0) {
+                val resultText = resultNodes.item(0).textContent.trim()
+                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
+                val rowDoc = parseXml(unescapedXml)
+                rowNodes = rowDoc.getElementsByTagName("ROW")
+            }
+        }
+        
+        // Parse XML -> Kotlin maps
+        val remoteRows = mutableListOf<Map<String, String>>()
+        for (i in 0 until rowNodes.length) {
+            val rowNode = rowNodes.item(i)
+            if (rowNode.nodeType == Node.ELEMENT_NODE) {
+                val rowMap = mutableMapOf<String, String>()
+                val children = rowNode.childNodes
+                for (j in 0 until children.length) {
+                    val child = children.item(j)
+                    if (child.nodeType == Node.ELEMENT_NODE) {
+                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
+                    }
+                }
+                remoteRows.add(rowMap)
+            }
+        }
+        
+        // Cache the results
+        try {
+            localConn.prepareStatement(
+                """
+                INSERT OR IGNORE INTO CACHED_FOREIGN_KEYS 
+                (PKTABLE_CAT, PKTABLE_SCHEM, PKTABLE_NAME, PKCOLUMN_NAME, FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, FKCOLUMN_NAME, KEY_SEQ, UPDATE_RULE, DELETE_RULE, FK_NAME, PK_NAME, DEFERRABILITY) 
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """.trimIndent()
+            ).use { pstmt ->
+                for (row in remoteRows) {
+                    pstmt.setString(1, row["PKTABLE_CAT"] ?: "")
+                    pstmt.setString(2, row["PKTABLE_SCHEM"] ?: "")
+                    pstmt.setString(3, row["PKTABLE_NAME"] ?: "")
+                    pstmt.setString(4, row["PKCOLUMN_NAME"] ?: "")
+                    pstmt.setString(5, row["FKTABLE_CAT"] ?: "")
+                    pstmt.setString(6, row["FKTABLE_SCHEM"] ?: "")
+                    pstmt.setString(7, row["FKTABLE_NAME"] ?: "")
+                    pstmt.setString(8, row["FKCOLUMN_NAME"] ?: "")
+                    pstmt.setObject(9, row["KEY_SEQ"]?.toIntOrNull())
+                    pstmt.setObject(10, row["UPDATE_RULE"]?.toIntOrNull())
+                    pstmt.setObject(11, row["DELETE_RULE"]?.toIntOrNull())
+                    pstmt.setString(12, row["FK_NAME"] ?: "")
+                    pstmt.setString(13, row["PK_NAME"] ?: "")
+                    pstmt.setObject(14, row["DEFERRABILITY"]?.toIntOrNull())
+                    pstmt.addBatch()
+                }
+                pstmt.executeBatch()
+                logger.info("Saved remote foreign keys metadata into local cache.")
+            }
+        } catch (ex: Exception) {
+            logger.error("Error saving remote foreign keys metadata to local cache: {}", ex.message)
+        }
+        
+        // Return the results with lowercase keys for XmlResultSet
+        return XmlResultSet(remoteRows.map { it.mapKeys { k -> k.key.lowercase() } })
+    }
 
     // Cross-reference (foreign key relationship) metadata not available via WSDL; return an empty result set.
     override fun getCrossReference(
@@ -1323,8 +1822,133 @@ override fun getColumns(
         typeNamePattern: String?,
         types: IntArray?
     ): ResultSet {
-        // Return an empty result set for UDT queries.
-        return createEmptyResultSet()
+        val localConn = LocalMetadataCache.connection
+        val defSchema = "FUSION"
+        
+        // Try cache first
+        val cachedRows = mutableListOf<Map<String, String>>()
+        try {
+            val schemaCondLocal = if (!schemaPattern.isNullOrBlank()) "AND TYPE_SCHEM LIKE '${schemaPattern.uppercase()}'" else "AND TYPE_SCHEM = '$defSchema'"
+            val nameCondLocal = if (!typeNamePattern.isNullOrBlank()) "AND TYPE_NAME LIKE '${typeNamePattern.uppercase()}'" else ""
+            val typeCondLocal = if (types != null && types.isNotEmpty()) {
+                val typeList = types.joinToString(",")
+                "AND DATA_TYPE IN ($typeList)"
+            } else ""
+            
+            localConn.createStatement().use { stmt ->
+                stmt.executeQuery(
+                    """
+                    SELECT TYPE_CAT, TYPE_SCHEM, TYPE_NAME, CLASS_NAME, DATA_TYPE, REMARKS, BASE_TYPE
+                    FROM CACHED_UDTS
+                    WHERE 1=1 $schemaCondLocal $nameCondLocal $typeCondLocal
+                    ORDER BY TYPE_SCHEM, TYPE_NAME
+                    """.trimIndent()
+                ).use { rs ->
+                    val meta = rs.metaData
+                    while (rs.next()) {
+                        val row = mutableMapOf<String, String>()
+                        for (i in 1..meta.columnCount) {
+                            row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
+                        }
+                        cachedRows.add(row)
+                    }
+                }
+            }
+        } catch (ex: Exception) {
+            logger.error("Error reading cached UDTs metadata: ${ex.message}")
+        }
+        
+        if (cachedRows.isNotEmpty()) {
+            logger.info("Returning ${cachedRows.size} UDTs from local cache.")
+            return XmlResultSet(cachedRows)
+        }
+        
+        // Fetch from remote
+        val schemaCondRemote = if (!schemaPattern.isNullOrBlank()) "AND owner LIKE '${schemaPattern.uppercase()}'" else "AND owner = '$defSchema'"
+        val nameCondRemote = if (!typeNamePattern.isNullOrBlank()) "AND type_name LIKE '${typeNamePattern.uppercase()}'" else ""
+        
+        val sql = """
+            SELECT 
+                NULL AS TYPE_CAT,
+                owner AS TYPE_SCHEM,
+                type_name AS TYPE_NAME,
+                NULL AS CLASS_NAME,
+                CASE 
+                    WHEN typecode = 'OBJECT' THEN 2000
+                    WHEN typecode = 'COLLECTION' THEN 2003
+                    ELSE 2000
+                END AS DATA_TYPE,
+                NULL AS REMARKS,
+                NULL AS BASE_TYPE
+            FROM all_types
+            WHERE predefined = 'NO'
+            $schemaCondRemote $nameCondRemote
+            ORDER BY owner, type_name
+        """.trimIndent()
+        
+        logger.info("Executing remote getUDTs SQL: {}", sql)
+        val responseXml = sendSqlViaWsdl(
+            connection.wsdlEndpoint,
+            sql,
+            connection.username,
+            connection.password,
+            connection.reportPath
+        )
+        val doc = parseXml(responseXml)
+        var rowNodes = doc.getElementsByTagName("ROW")
+        if (rowNodes.length == 0) {
+            val resultNodes = doc.getElementsByTagName("RESULT")
+            if (resultNodes.length > 0) {
+                val resultText = resultNodes.item(0).textContent.trim()
+                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
+                val rowDoc = parseXml(unescapedXml)
+                rowNodes = rowDoc.getElementsByTagName("ROW")
+            }
+        }
+        
+        val remoteRows = mutableListOf<Map<String, String>>()
+        for (i in 0 until rowNodes.length) {
+            val rowNode = rowNodes.item(i)
+            if (rowNode.nodeType == Node.ELEMENT_NODE) {
+                val rowMap = mutableMapOf<String, String>()
+                val children = rowNode.childNodes
+                for (j in 0 until children.length) {
+                    val child = children.item(j)
+                    if (child.nodeType == Node.ELEMENT_NODE) {
+                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
+                    }
+                }
+                remoteRows.add(rowMap)
+            }
+        }
+        
+        // Cache the results
+        try {
+            localConn.prepareStatement(
+                """
+                INSERT OR IGNORE INTO CACHED_UDTS 
+                (TYPE_CAT, TYPE_SCHEM, TYPE_NAME, CLASS_NAME, DATA_TYPE, REMARKS, BASE_TYPE) 
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                """.trimIndent()
+            ).use { pstmt ->
+                for (row in remoteRows) {
+                    pstmt.setString(1, row["TYPE_CAT"] ?: "")
+                    pstmt.setString(2, row["TYPE_SCHEM"] ?: "")
+                    pstmt.setString(3, row["TYPE_NAME"] ?: "")
+                    pstmt.setString(4, row["CLASS_NAME"] ?: "")
+                    pstmt.setObject(5, row["DATA_TYPE"]?.toIntOrNull())
+                    pstmt.setString(6, row["REMARKS"] ?: "")
+                    pstmt.setObject(7, row["BASE_TYPE"]?.toIntOrNull())
+                    pstmt.addBatch()
+                }
+                pstmt.executeBatch()
+                logger.info("Saved remote UDTs metadata into local cache.")
+            }
+        } catch (ex: Exception) {
+            logger.error("Error saving remote UDTs metadata to local cache: {}", ex.message)
+        }
+        
+        return XmlResultSet(remoteRows.map { it.mapKeys { k -> k.key.lowercase() } })
     }
 
     override fun getConnection(): Connection =
@@ -1393,7 +2017,125 @@ override fun getColumns(
 
     override fun getFunctions(
         catalog: String?, schemaPattern: String?, functionNamePattern: String?
-    ): ResultSet = createEmptyResultSet()
+    ): ResultSet {
+        val localConn = LocalMetadataCache.connection
+        val defSchema = "FUSION"
+        
+        // Try cache first
+        val cachedRows = mutableListOf<Map<String, String>>()
+        try {
+            val schemaCondLocal = if (!schemaPattern.isNullOrBlank()) "AND FUNCTION_SCHEM LIKE '${schemaPattern.uppercase()}'" else "AND FUNCTION_SCHEM = '$defSchema'"
+            val nameCondLocal = if (!functionNamePattern.isNullOrBlank()) "AND FUNCTION_NAME LIKE '${functionNamePattern.uppercase()}'" else ""
+            
+            localConn.createStatement().use { stmt ->
+                stmt.executeQuery(
+                    """
+                    SELECT FUNCTION_CAT, FUNCTION_SCHEM, FUNCTION_NAME, REMARKS, FUNCTION_TYPE, SPECIFIC_NAME
+                    FROM CACHED_FUNCTIONS
+                    WHERE 1=1 $schemaCondLocal $nameCondLocal
+                    ORDER BY FUNCTION_SCHEM, FUNCTION_NAME
+                    """.trimIndent()
+                ).use { rs ->
+                    val meta = rs.metaData
+                    while (rs.next()) {
+                        val row = mutableMapOf<String, String>()
+                        for (i in 1..meta.columnCount) {
+                            row[meta.getColumnName(i).lowercase()] = rs.getString(i) ?: ""
+                        }
+                        cachedRows.add(row)
+                    }
+                }
+            }
+        } catch (ex: Exception) {
+            logger.error("Error reading cached functions metadata: ${ex.message}")
+        }
+        
+        if (cachedRows.isNotEmpty()) {
+            logger.info("Returning ${cachedRows.size} functions from local cache.")
+            return XmlResultSet(cachedRows)
+        }
+        
+        // Fetch from remote - functions are procedures with procedure_name NOT NULL
+        val schemaCondRemote = if (!schemaPattern.isNullOrBlank()) "AND owner LIKE '${schemaPattern.uppercase()}'" else "AND owner = '$defSchema'"
+        val nameCondRemote = if (!functionNamePattern.isNullOrBlank()) "AND object_name LIKE '${functionNamePattern.uppercase()}'" else ""
+        
+        val sql = """
+            SELECT 
+                NULL AS FUNCTION_CAT,
+                owner AS FUNCTION_SCHEM,
+                object_name AS FUNCTION_NAME,
+                NULL AS REMARKS,
+                2 AS FUNCTION_TYPE,
+                object_name AS SPECIFIC_NAME
+            FROM all_procedures
+            WHERE procedure_name IS NOT NULL
+            $schemaCondRemote $nameCondRemote
+            ORDER BY owner, object_name
+        """.trimIndent()
+        
+        logger.info("Executing remote getFunctions SQL: {}", sql)
+        val responseXml = sendSqlViaWsdl(
+            connection.wsdlEndpoint,
+            sql,
+            connection.username,
+            connection.password,
+            connection.reportPath
+        )
+        val doc = parseXml(responseXml)
+        var rowNodes = doc.getElementsByTagName("ROW")
+        if (rowNodes.length == 0) {
+            val resultNodes = doc.getElementsByTagName("RESULT")
+            if (resultNodes.length > 0) {
+                val resultText = resultNodes.item(0).textContent.trim()
+                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
+                val rowDoc = parseXml(unescapedXml)
+                rowNodes = rowDoc.getElementsByTagName("ROW")
+            }
+        }
+        
+        val remoteRows = mutableListOf<Map<String, String>>()
+        for (i in 0 until rowNodes.length) {
+            val rowNode = rowNodes.item(i)
+            if (rowNode.nodeType == Node.ELEMENT_NODE) {
+                val rowMap = mutableMapOf<String, String>()
+                val children = rowNode.childNodes
+                for (j in 0 until children.length) {
+                    val child = children.item(j)
+                    if (child.nodeType == Node.ELEMENT_NODE) {
+                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
+                    }
+                }
+                remoteRows.add(rowMap)
+            }
+        }
+        
+        // Cache the results
+        try {
+            localConn.prepareStatement(
+                """
+                INSERT OR IGNORE INTO CACHED_FUNCTIONS 
+                (FUNCTION_CAT, FUNCTION_SCHEM, FUNCTION_NAME, REMARKS, FUNCTION_TYPE, SPECIFIC_NAME) 
+                VALUES (?, ?, ?, ?, ?, ?)
+                """.trimIndent()
+            ).use { pstmt ->
+                for (row in remoteRows) {
+                    pstmt.setString(1, row["FUNCTION_CAT"] ?: "")
+                    pstmt.setString(2, row["FUNCTION_SCHEM"] ?: "")
+                    pstmt.setString(3, row["FUNCTION_NAME"] ?: "")
+                    pstmt.setString(4, row["REMARKS"] ?: "")
+                    pstmt.setObject(5, row["FUNCTION_TYPE"]?.toIntOrNull())
+                    pstmt.setString(6, row["SPECIFIC_NAME"] ?: "")
+                    pstmt.addBatch()
+                }
+                pstmt.executeBatch()
+                logger.info("Saved remote functions metadata into local cache.")
+            }
+        } catch (ex: Exception) {
+            logger.error("Error saving remote functions metadata to local cache: {}", ex.message)
+        }
+        
+        return XmlResultSet(remoteRows.map { it.mapKeys { k -> k.key.lowercase() } })
+    }
 
     override fun getFunctionColumns(
         catalog: String?, schemaPattern: String?,
