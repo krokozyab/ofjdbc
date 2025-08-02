@@ -425,7 +425,7 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
             ?.joinToString(prefix = "('", separator = "','", postfix = "')")
             ?: "('TABLE','VIEW')" // todo need to investigate where other is needed -  ,'SYNONYM','GLOBAL TEMPORARY','LOCAL TEMPORARY')"
 
-        val finalSql = """
+        val baseSql = """
             SELECT DISTINCT
                 NULL AS TABLE_CAT,
                 owner AS TABLE_SCHEM,
@@ -442,65 +442,32 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
               AND object_type IN $typeListSql
         """.trimIndent()
 
-        logger.info("Executing remote getTables SQL: {}", finalSql)
-        val responseXml = sendSqlViaWsdl(
+        logger.info("Executing paginated getTables query")
+        val remoteRows = executeWithPagination(
             connection.wsdlEndpoint,
-            finalSql,
+            baseSql,
             connection.username,
             connection.password,
             connection.reportPath
         )
-        val doc = parseXml(responseXml)
-        var rowNodes = doc.getElementsByTagName("ROW")
-        if (rowNodes.length == 0) {
-            val resultNodes = doc.getElementsByTagName("RESULT")
-            if (resultNodes.length > 0) {
-                val resultText = resultNodes.item(0).textContent.trim()
-                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
-                val rowDoc = parseXml(unescapedXml)
-                rowNodes = rowDoc.getElementsByTagName("ROW")
-            }
-        }
-
-        // ---------------------------------------------------------
-        // 3) Parse XML -> Kotlin maps so we can deduplicate rows
-        // ---------------------------------------------------------
-        val remoteRows = mutableListOf<Map<String, String>>()
-        for (i in 0 until rowNodes.length) {
-            val rowNode = rowNodes.item(i)
-            if (rowNode.nodeType == Node.ELEMENT_NODE) {
-                val rowMap = mutableMapOf<String, String>()
-                val children = rowNode.childNodes
-                for (j in 0 until children.length) {
-                    val child = children.item(j)
-                    if (child.nodeType == Node.ELEMENT_NODE) {
-                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
-                    }
-                }
-                remoteRows.add(rowMap)
-            }
-        }
 
         /*
          * DBeaver complains about “Duplicate object name … in cache SimpleObjectCache”.
          * This happens because the same TABLE_NAME can be returned multiple times with
-         * different OBJECT_TYPEs (TABLE, VIEW, SYNONYM, GLOBAL TEMPORARY, …).
+         * different OBJECT_TYPEs (TABLE, VIEW, SYNONYM).
          *
          * We keep a single entry per (TABLE_SCHEM,TABLE_NAME) and choose a *preferred*
          * OBJECT_TYPE using the following precedence:
          *      1) TABLE
          *      2) VIEW
          *      3) SYNONYM
-         *      4) GLOBAL TEMPORARY / LOCAL TEMPORARY
          * Any additional duplicates are discarded.
          */
         fun typePriority(t: String): Int = when (t.uppercase()) {
             "TABLE"            -> 1
             "VIEW"             -> 2
             "SYNONYM"          -> 3
-            "GLOBAL TEMPORARY",
-            "LOCAL TEMPORARY"  -> 4
-            else               -> 5
+            else               -> 4
         }
 
         val uniqueRows: Collection<Map<String, String>> =
@@ -1251,6 +1218,77 @@ override fun getColumns(
             }
         }
         return XmlResultSet(jdbcRows)
+    }
+
+    private fun executeWithPagination(
+        endpoint: String,
+        baseSql: String,
+        username: String,
+        password: String,
+        reportPath: String,
+        pageSize: Int = 2000
+    ): List<Map<String, String>> {
+        val allRows = mutableListOf<Map<String, String>>()
+        var offset = 0
+        var hasMoreData = true
+
+        while (hasMoreData) {
+            // Add ROWNUM-based pagination to the SQL
+            val paginatedSql = """
+            SELECT * FROM (
+                SELECT ROWNUM as rn, sub.* FROM (
+                    $baseSql
+                ) sub
+                WHERE ROWNUM <= ${offset + pageSize}
+            )
+            WHERE rn > $offset
+        """.trimIndent()
+
+            logger.info("Executing paginated query (offset: $offset, limit: $pageSize)")
+            val responseXml = sendSqlViaWsdl(endpoint, paginatedSql, username, password, reportPath)
+            val doc = parseXml(responseXml)
+            var rowNodes = doc.getElementsByTagName("ROW")
+
+            if (rowNodes.length == 0) {
+                val resultNodes = doc.getElementsByTagName("RESULT")
+                if (resultNodes.length > 0) {
+                    val resultText = resultNodes.item(0).textContent.trim()
+                    val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
+                    val rowDoc = parseXml(unescapedXml)
+                    rowNodes = rowDoc.getElementsByTagName("ROW")
+                }
+            }
+
+            val pageRows = mutableListOf<Map<String, String>>()
+            for (i in 0 until rowNodes.length) {
+                val rowNode = rowNodes.item(i)
+                if (rowNode.nodeType == Node.ELEMENT_NODE) {
+                    val rowMap = mutableMapOf<String, String>()
+                    val children = rowNode.childNodes
+                    for (j in 0 until children.length) {
+                        val child = children.item(j)
+                        if (child.nodeType == Node.ELEMENT_NODE) {
+                            // Skip the ROWNUM column we added for pagination
+                            if (child.nodeName.uppercase() != "RN") {
+                                rowMap[child.nodeName.uppercase()] = child.textContent.trim()
+                            }
+                        }
+                    }
+                    pageRows.add(rowMap)
+                }
+            }
+
+            allRows.addAll(pageRows)
+
+            // Check if we got a full page - if not, we're done
+            hasMoreData = pageRows.size == pageSize
+            offset += pageSize
+
+            logger.info("Retrieved ${pageRows.size} rows in this page, total so far: ${allRows.size}")
+        }
+
+        logger.info("Pagination complete. Total rows retrieved: ${allRows.size}")
+        return allRows
     }
 
     override fun supportsResultSetType(type: Int): Boolean = type == ResultSet.TYPE_FORWARD_ONLY
