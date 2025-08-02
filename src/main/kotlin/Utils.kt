@@ -12,6 +12,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
 import java.sql.ResultSet
 import java.sql.SQLException
 import java.util.Base64
@@ -24,12 +25,64 @@ import my.jdbc.wsdl_driver.SecuredViewMappings
 
 val logger = LoggerFactory.getLogger("Utils")
 
-// Reusable HttpClient - created once and reused
-private val httpClient: HttpClient by lazy {
-    HttpClient.newBuilder()
-        .connectTimeout(java.time.Duration.ofSeconds(30))
-        .build()
+
+
+
+
+// Reusable HttpClient - created once and reused with proper resource management
+object HttpClientManager {
+    @Volatile
+    private var _httpClient: HttpClient? = null
+    private val clientLock = Any()
+    private var shutdownHookRegistered = false
+    
+    val httpClient: HttpClient
+        get() {
+            return _httpClient ?: synchronized(clientLock) {
+                _httpClient ?: createHttpClient().also {
+                    _httpClient = it
+                    registerShutdownHook()
+                }
+            }
+        }
+    
+    private fun createHttpClient(): HttpClient {
+        return HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofSeconds(30))
+            .build()
+    }
+    
+    private fun registerShutdownHook() {
+        if (!shutdownHookRegistered) {
+            Runtime.getRuntime().addShutdownHook(Thread {
+                logger.info("Shutting down HttpClientManager")
+                close()
+            })
+            shutdownHookRegistered = true
+        }
+    }
+    
+    fun close() {
+        synchronized(clientLock) {
+            _httpClient?.let { client ->
+                try {
+                    // HttpClient doesn't have explicit close method in Java 11+
+                    // Resources are managed by the JVM
+                    logger.info("HttpClient resources released")
+                } catch (ex: Exception) {
+                    logger.error("Error releasing HttpClient resources: ${ex.message}")
+                } finally {
+                    _httpClient = null
+                }
+            }
+        }
+    }
 }
+
+// Per-request timeout; configurable via env var OFJDBC_HTTP_TIMEOUT_SECONDS
+private val requestTimeoutSeconds: Long =
+    System.getenv("OFJDBC_HTTP_TIMEOUT_SECONDS")?.toLongOrNull() ?: 120L
+
 fun encodeCredentials(username: String, password: String): String =
     "Basic " + Base64.getEncoder().encodeToString("$username:$password".toByteArray(Charsets.UTF_8))
 
@@ -104,6 +157,25 @@ fun extractSoapFaultReason(body: String): String {
 }
 
 fun parseXml(xml: String): Document {
+    val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
+    val builder = factory.newDocumentBuilder()
+
+    fun tryParse(text: String): Document {
+        return StringReader(text).use { reader ->
+            builder.parse(InputSource(reader))
+        }
+    }
+
+    // First, try to parse the XML as-is
+    return try {
+        tryParse(xml)
+    } catch (e: org.xml.sax.SAXParseException) {
+        // Only apply cleaning if the initial parse fails
+        parseXmlWithCleaning(xml)
+    }
+}
+
+private fun parseXmlWithCleaning(xml: String): Document {
     //  Pre‑clean: escape stray '&' that are not part of an entity
     var candidate = xml.replace(
         Regex("&(?!amp;|lt;|gt;|quot;|apos;|#\\d+;|#x[0-9a-fA-F]+;)"),
@@ -119,19 +191,34 @@ fun parseXml(xml: String): Document {
     candidate = candidate.replace(Regex("\\s+=\\s*"), "=")
 
     // Force‑wrap any element whose text still contains raw '<' or '>'
+    // But skip if content looks like XML
     candidate = Regex(
         "<([A-Za-z][A-Za-z0-9_]*?)>([^<]*[<>][^<]*?)</\\1>",
         setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
     ).replace(candidate) { m ->
-        val tag  = m.groupValues[1]
-        val body = m.groupValues[2].replace("]]>", "]]]]><![CDATA[>") // keep CDATA safe
-        "<$tag><![CDATA[$body]]></$tag>"
+        val tag = m.groupValues[1]
+        val body = m.groupValues[2]
+
+        // Skip CDATA wrapping if content looks like XML
+        val looksLikeXml = body.contains("</") || body.matches(Regex(".*<[A-Za-z][^>]*>.*"))
+
+        if (looksLikeXml) {
+            m.value // Keep original
+        } else {
+            val safeBody = body.replace("]]>", "]]]]><![CDATA[>") // keep CDATA safe
+            "<$tag><![CDATA[$safeBody]]></$tag>"
+        }
     }
 
     val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
     val builder = factory.newDocumentBuilder()
 
-    // fallback xml helper
+    fun tryParse(text: String): Document {
+        return StringReader(text).use { reader ->
+            builder.parse(InputSource(reader))
+        }
+    }
+
     fun escapeOutsideTags(text: String): String {
         val entity = Regex("&(amp|lt|gt|quot|apos|#\\d+;|#x[0-9a-fA-F]+;)")
         val sb = StringBuilder()
@@ -183,9 +270,6 @@ fun parseXml(xml: String): Document {
         return sb.toString()
     }
 
-    fun tryParse(text: String): Document =
-        builder.parse(InputSource(StringReader(text)))
-
     //  Fast path – try to parse as‑is
     return try {
         tryParse(candidate)
@@ -231,12 +315,80 @@ fun documentToString(doc: Document): String {
     val transformer = TransformerFactory.newInstance().newTransformer().apply {
         setOutputProperty(OutputKeys.INDENT, "yes")
     }
-    val writer = StringWriter()
-    transformer.transform(DOMSource(doc), StreamResult(writer))
-    return writer.toString()
+    return StringWriter().use { writer ->
+        transformer.transform(DOMSource(doc), StreamResult(writer))
+        writer.toString()
+    }
+}
+
+/**
+ * Execute an operation with retry logic and exponential backoff
+ */
+fun <T> executeWithRetry(
+    operation: String,
+    retryConfig: RetryConfig = RetryConfig.fromEnvironment(),
+    block: () -> T
+): T {
+    val context = RetryContext(operation)
+    var lastException: Exception? = null
+    
+    repeat(retryConfig.maxAttempts) { attemptIndex ->
+        try {
+            context.recordAttempt(null)
+            val result = block()
+            if (attemptIndex > 0) {
+                logger.info("Operation '{}' succeeded on attempt {} after {}ms", 
+                    operation, attemptIndex + 1, context.totalElapsedMs())
+            }
+            return result
+        } catch (e: Exception) {
+            lastException = e
+            context.recordAttempt(e)
+            
+            val isRetryable = isRetryableException(e) || 
+                (e is SQLException && e.message?.let { msg ->
+                    val lowerMsg = msg.lowercase()
+                    lowerMsg.contains("http") && (
+                        lowerMsg.contains("500") || lowerMsg.contains("502") ||
+                        lowerMsg.contains("503") || lowerMsg.contains("504")
+                    )
+                } == true)
+            
+            if (!isRetryable || attemptIndex == retryConfig.maxAttempts - 1) {
+                logger.error("Operation '{}' failed after {} attempts in {}ms. Last error: {}", 
+                    operation, context.attempt, context.totalElapsedMs(), e.message)
+                throw e
+            }
+            
+            val delay = retryConfig.calculateDelay(attemptIndex)
+            logger.warn("Operation '{}' failed on attempt {} ({}), retrying in {}ms", 
+                operation, attemptIndex + 1, e.message, delay)
+            
+            try {
+                Thread.sleep(delay)
+            } catch (ie: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw SQLException("Retry interrupted", ie)
+            }
+        }
+    }
+    
+    throw lastException ?: SQLException("Retry logic failed unexpectedly")
 }
 
 fun sendSqlViaWsdl(
+    wsdlEndpoint: String,
+    sql: String,
+    username: String,
+    password: String,
+    reportPath: String
+): String {
+    return executeWithRetry("WSDL SQL Execution") {
+        sendSqlViaWsdlInternal(wsdlEndpoint, sql, username, password, reportPath)
+    }
+}
+
+private fun sendSqlViaWsdlInternal(
     wsdlEndpoint: String,
     sql: String,
     username: String,
@@ -252,28 +404,37 @@ fun sendSqlViaWsdl(
     logger.info("Sending SQL to WSDL service: {}", securedSql)
     val soapEnvelope = createSoapEnvelope(securedSql, reportPath)
     val authHeader = encodeCredentials(username, password)
-    // Build a Java HttpClient (Java 11+)
+    
     val request = HttpRequest.newBuilder()
         .uri(URI.create(wsdlEndpoint))
         .header("Content-Type", "application/soap+xml;charset=UTF-8")
         .header("SOAPAction", "#POST")
         .header("Authorization", authHeader)
         .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.133 Safari/537.36")
+        .timeout(Duration.ofSeconds(requestTimeoutSeconds))
         .POST(HttpRequest.BodyPublishers.ofString(soapEnvelope))
         .build()
-    // Send the request synchronously and obtain the response as a String
-    val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+    
+    val response = HttpClientManager.httpClient.send(request, HttpResponse.BodyHandlers.ofString())
     val status = response.statusCode()
     val body = response.body()
+    
+    // Check for retryable HTTP status codes
+    if (isRetryableHttpStatus(status)) {
+        throw SQLException("WSDL service returned retryable error ($status): $body")
+    }
+    
     // Check if the response is an HTML error page
     if (body.trim().startsWith("<html", ignoreCase = true) ||
         body.trim().startsWith("<!DOCTYPE html", ignoreCase = true)) {
         logger.error("Received an HTML error response (HTTP {}): {}", status, body)
         throw SQLException("WSDL service error ($status): Received an HTML error response. Details: $body")
     }
+    
     if (body.isBlank()) {
         throw SQLException("Empty SOAP response from WSDL service. HTTP Status: $status")
     }
+    
     val doc = parseXml(body)
     if (status == 200) {
         val reportNode = findNodeEndingWith(doc.documentElement, "reportBytes")

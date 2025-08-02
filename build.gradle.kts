@@ -1,12 +1,12 @@
-// All dependencies configured to use latest versions with dynamic versioning
+// Gradle build file with plugins and dependencies pinned to explicit versions
 
 plugins {
-    kotlin("jvm") version "+"
-    id("com.github.johnrengelman.shadow") version "+"
-    id("com.github.ben-manes.versions") version "+"
+    kotlin("jvm") version "2.2.20-Beta2"
+    id("com.github.johnrengelman.shadow") version "8.1.1"
+    id("com.github.ben-manes.versions") version "0.52.0"
 }
 
-group = "org.example"
+group = "my.jdbc"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -14,14 +14,10 @@ repositories {
 }
 
 dependencies {
-    // Use the Kotlin standard library from the plugin
-    implementation(kotlin("stdlib"))
-    // Apache Commons Text for XML escaping/unescaping
-    implementation("org.apache.commons:commons-text:+")
-    implementation("org.slf4j:slf4j-api:+")
-    implementation("org.duckdb:duckdb_jdbc:+")
-    // A simple SLF4J binding (choose one that fits your needs; here we use slf4j-simple)
-    runtimeOnly("org.slf4j:slf4j-simple:+")
+    implementation(kotlin("stdlib", "2.2.20-Beta2"))
+    implementation("org.apache.commons:commons-text:1.14.0")
+    implementation("org.slf4j:slf4j-api:2.1.0-alpha1")
+    implementation("org.duckdb:duckdb_jdbc:1.3.2.0")
 }
 
 tasks.test {
@@ -29,24 +25,16 @@ tasks.test {
 }
 
 tasks.wrapper {
-    gradleVersion = "+"
+    gradleVersion = "8.8"
 }
 
 
 tasks {
-    // Configure the ShadowJar (uberjar) task.
     named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
-        // Set no classifier so the resulting jar is named without "-all"
         archiveClassifier.set("")
-        manifest {
-            // Adjust the main class as necessary.
-            attributes["Main-Class"] = "org.example.MainKt"
-        }
         mergeServiceFiles {
-            // Merge service files for auto‑discovery (for example, JDBC drivers)
             include("META-INF/services/java.sql.Driver")
         }
-        // Exclude overlapping resources that cause warnings.
         exclude("META-INF/MANIFEST.MF")
         exclude("META-INF/LICENSE.txt")
         exclude("META-INF/NOTICE.txt")
