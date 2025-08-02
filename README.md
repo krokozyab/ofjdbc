@@ -39,11 +39,10 @@ _**DBeaver**_
 <!-- ![dbeaver](pics/dbv1.png) -->
 <!-- [dbeaver](pics/dbv2.png) -->
 <!-- ![dbeaver](pics/dbv3.png) -->
-
-![ofjdbc_scn_rec](docs/ofjdbc_scn_rec.gif)
-
 - **JVM-Hosted Flexibility:** Use this driver not only from Java but from any JVM‑hosted language for building custom data pipelines.
 - **Easy to Configure:** Simple setup by providing your connection URL and credentials.
+
+![ofjdbc_scn_rec](docs/ofjdbc_scn_rec.gif)
 
 ---
 
