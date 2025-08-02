@@ -22,6 +22,9 @@ dependencies {
     implementation("org.duckdb:duckdb_jdbc:+")
     // A simple SLF4J binding (choose one that fits your needs; here we use slf4j-simple)
     runtimeOnly("org.slf4j:slf4j-simple:+")
+
+    testImplementation(kotlin("test"))
+    testImplementation("io.mockk:mockk:+")
 }
 
 tasks.test {

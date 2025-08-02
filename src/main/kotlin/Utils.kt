@@ -345,3 +345,46 @@ fun createResultSetFromRowNodes(rowNodes: NodeList): ResultSet {
 }
 
 fun createEmptyResultSet(): ResultSet = XmlResultSet(emptyList())
+
+/**
+ * Execute the given SQL repeatedly using OFFSET/FETCH NEXT pagination and
+ * accumulate rows until a page returns fewer rows than [fetchSize].
+ * The [parsePage] function is applied to each page's XML response to obtain the
+ * rows for that page.
+ */
+fun <T> fetchAllPages(
+    wsdlEndpoint: String,
+    sql: String,
+    username: String,
+    password: String,
+    reportPath: String,
+    fetchSize: Int,
+    parsePage: (String) -> List<T>
+): List<T> {
+    fun rewriteQuery(originalSql: String, offset: Int, size: Int): String {
+        if (size <= 0) return originalSql.trim()
+
+        val sqlWithoutComments = originalSql
+            .replace(Regex("--.*?(\\r?\\n|$)"), " ")
+            .replace(Regex("/\\*.*?\\*/", RegexOption.DOT_MATCHES_ALL), " ")
+        val normalizedSql = sqlWithoutComments.replace("\\s+".toRegex(), " ").trim()
+        val detect = normalizedSql.uppercase()
+        if (!detect.startsWith("SELECT")) return originalSql
+        if (detect.contains(" OFFSET ") || detect.contains(" FETCH ")) return originalSql
+        if (detect.contains(" ROWNUM ")) return originalSql
+        return "$normalizedSql OFFSET $offset ROWS FETCH NEXT $size ROWS ONLY"
+    }
+
+    val allRows = mutableListOf<T>()
+    var offset = 0
+    do {
+        val pagedSql = rewriteQuery(sql, offset, fetchSize)
+        val xml = sendSqlViaWsdl(wsdlEndpoint, pagedSql, username, password, reportPath)
+        val rows = parsePage(xml)
+        allRows.addAll(rows)
+        offset += rows.size
+        if (fetchSize <= 0) break
+    } while (rows.isNotEmpty() && rows.size == fetchSize)
+
+    return allRows
+}

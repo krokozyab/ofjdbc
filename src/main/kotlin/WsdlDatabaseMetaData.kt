@@ -182,6 +182,9 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
     companion object {
         private const val DEFAULT_SCHEMA = "FUSION"
         private const val CACHE_BATCH_SIZE = 1000
+        /** Page size used when fetching metadata via pagination. */
+        @JvmField
+        var METADATA_FETCH_SIZE: Int = 1000
     }
 
     override fun getDatabaseProductName(): String = "Oracle Fusion JDBC Driver"
@@ -312,17 +315,16 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         """.trimIndent()
 
         return try {
-            logger.debug("Executing remote getTables query")
-            val responseXml = sendSqlViaWsdl(
-                connection.wsdlEndpoint,
-                sql,
-                connection.username,
-                connection.password,
-                connection.reportPath
+            logger.debug("Executing remote getTables query with pagination")
+            val remoteRows = fetchAllPages(
+                wsdlEndpoint = connection.wsdlEndpoint,
+                sql = sql,
+                username = connection.username,
+                password = connection.password,
+                reportPath = connection.reportPath,
+                fetchSize = METADATA_FETCH_SIZE,
+                parsePage = this::parseTablesResponse
             )
-
-            val remoteRows = parseTablesResponse(responseXml)
-            //val uniqueRows = remoteRows//deduplicateTableRows(remoteRows)
 
             // Cache the results
             cacheTableRows(remoteRows)
@@ -535,15 +537,15 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         """.trimIndent()
 
         return try {
-            val responseXml = sendSqlViaWsdl(
-                connection.wsdlEndpoint,
-                sql,
-                connection.username,
-                connection.password,
-                connection.reportPath
+            val remoteRows = fetchAllPages(
+                wsdlEndpoint = connection.wsdlEndpoint,
+                sql = sql,
+                username = connection.username,
+                password = connection.password,
+                reportPath = connection.reportPath,
+                fetchSize = METADATA_FETCH_SIZE,
+                parsePage = this::parseColumnsResponse
             )
-
-            val remoteRows = parseColumnsResponse(responseXml)
             val uniqueRows = deduplicateColumnRows(remoteRows)
 
             // Cache the results
@@ -827,34 +829,36 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         """.trimIndent()
 
         return try {
-            val responseXml = sendSqlViaWsdl(
-                connection.wsdlEndpoint,
-                sql,
-                connection.username,
-                connection.password,
-                connection.reportPath
-            )
-
-            val doc = parseXml(responseXml)
-            val rowNodes = doc.getElementsByTagName("ROW")
-            val resultRows = mutableListOf<Map<String, String>>()
-
-            for (i in 0 until rowNodes.length) {
-                val rowNode = rowNodes.item(i)
-                if (rowNode.nodeType == Node.ELEMENT_NODE) {
-                    val rowMap = mutableMapOf<String, String>()
-                    val children = rowNode.childNodes
-                    for (j in 0 until children.length) {
-                        val child = children.item(j)
-                        if (child.nodeType == Node.ELEMENT_NODE) {
-                            rowMap[child.nodeName.lowercase()] = child.textContent.trim()
+            val remoteRows = fetchAllPages(
+                wsdlEndpoint = connection.wsdlEndpoint,
+                sql = sql,
+                username = connection.username,
+                password = connection.password,
+                reportPath = connection.reportPath,
+                fetchSize = METADATA_FETCH_SIZE,
+                parsePage = { xml ->
+                    val doc = parseXml(xml)
+                    val rowNodes = doc.getElementsByTagName("ROW")
+                    val resultRows = mutableListOf<Map<String, String>>()
+                    for (i in 0 until rowNodes.length) {
+                        val rowNode = rowNodes.item(i)
+                        if (rowNode.nodeType == Node.ELEMENT_NODE) {
+                            val rowMap = mutableMapOf<String, String>()
+                            val children = rowNode.childNodes
+                            for (j in 0 until children.length) {
+                                val child = children.item(j)
+                                if (child.nodeType == Node.ELEMENT_NODE) {
+                                    rowMap[child.nodeName.lowercase()] = child.textContent.trim()
+                                }
+                            }
+                            resultRows.add(rowMap)
                         }
                     }
-                    resultRows.add(rowMap)
+                    resultRows
                 }
-            }
+            )
 
-            XmlResultSet(resultRows)
+            XmlResultSet(remoteRows)
         } catch (e: Exception) {
             logger.error("Error fetching primary keys", e)
             createEmptyResultSet()
@@ -1128,16 +1132,16 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         """.trimIndent()
 
         return try {
-            logger.debug("Executing remote getIndexInfo query")
-            val responseXml = sendSqlViaWsdl(
-                connection.wsdlEndpoint,
-                sql,
-                connection.username,
-                connection.password,
-                connection.reportPath
+            logger.debug("Executing remote getIndexInfo query with pagination")
+            val remoteRows = fetchAllPages(
+                wsdlEndpoint = connection.wsdlEndpoint,
+                sql = sql,
+                username = connection.username,
+                password = connection.password,
+                reportPath = connection.reportPath,
+                fetchSize = METADATA_FETCH_SIZE,
+                parsePage = this::parseIndexResponse
             )
-
-            val remoteRows = parseIndexResponse(responseXml)
 
             // Cache the results
             cacheIndexRows(remoteRows)
