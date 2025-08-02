@@ -10,11 +10,27 @@ object LocalMetadataCache {
     private val userHome = System.getProperty("user.home")
     private val ofjdbcDir = "$userHome/.ofjdbc"
     private val duckDbFilePath = "$ofjdbcDir/metadata.db"
+    
+    @Volatile
+    private var _connection: Connection? = null
+    private val connectionLock = Any()
+    private var shutdownHookRegistered = false
 
-    val connection: Connection by lazy {
+    val connection: Connection
+        get() {
+            return _connection ?: synchronized(connectionLock) {
+                _connection ?: createConnection().also { 
+                    _connection = it
+                    registerShutdownHook()
+                }
+            }
+        }
+    
+    private fun createConnection(): Connection {
         java.io.File(ofjdbcDir).mkdirs()
         logger.info("Using DuckDB file: $duckDbFilePath")
         val conn = DriverManager.getConnection("jdbc:duckdb:$duckDbFilePath")
+        conn.autoCommit = true
         conn.createStatement().use { stmt ->
             stmt.executeUpdate(
                 """
@@ -141,17 +157,65 @@ object LocalMetadataCache {
                 """.trimIndent()
             )
         }
-        conn
+        return conn
+    }
+    
+    private fun registerShutdownHook() {
+        if (!shutdownHookRegistered) {
+            Runtime.getRuntime().addShutdownHook(Thread {
+                logger.info("Shutting down LocalMetadataCache")
+                close()
+            })
+            shutdownHookRegistered = true
+        }
+    }
+    
+    fun executeBatch(
+        sql: String,
+        rows: List<Map<String, String>>,
+        parameterSetter: (PreparedStatement, Map<String, String>) -> Unit,
+        batchSize: Int = 1000
+    ) {
+        if (rows.isEmpty()) return
+        
+        connection.prepareStatement(sql).use { pstmt ->
+            var count = 0
+            for (row in rows) {
+                try {
+                    parameterSetter(pstmt, row)
+                    pstmt.addBatch()
+                    count++
+                    
+                    if (count % batchSize == 0) {
+                        pstmt.executeBatch()
+                        pstmt.clearBatch()
+                    }
+                } catch (ex: SQLException) {
+                    logger.warn("Error adding row to batch: ${ex.message}")
+                }
+            }
+            
+            // Execute remaining batch
+            if (count % batchSize != 0) {
+                pstmt.executeBatch()
+            }
+        }
     }
 
     fun close() {
-        try {
-            if (!connection.isClosed) {
-                logger.info("Closing DuckDB connection.")
-                connection.close()
+        synchronized(connectionLock) {
+            _connection?.let { conn ->
+                try {
+                    if (!conn.isClosed) {
+                        logger.info("Closing DuckDB connection.")
+                        conn.close()
+                    }
+                } catch (ex: Exception) {
+                    logger.error("Error closing DuckDB connection: ${ex.message}")
+                } finally {
+                    _connection = null
+                }
             }
-        } catch (ex: Exception) {
-            logger.error("Error closing DuckDB connection: ${ex.message}")
         }
     }
 }

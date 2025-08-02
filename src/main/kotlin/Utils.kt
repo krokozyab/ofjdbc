@@ -25,11 +25,58 @@ import my.jdbc.wsdl_driver.SecuredViewMappings
 
 val logger = LoggerFactory.getLogger("Utils")
 
-// Reusable HttpClient - created once and reused
-private val httpClient: HttpClient by lazy {
-    HttpClient.newBuilder()
-        .connectTimeout(java.time.Duration.ofSeconds(30))
-        .build()
+
+
+
+
+// Reusable HttpClient - created once and reused with proper resource management
+object HttpClientManager {
+    @Volatile
+    private var _httpClient: HttpClient? = null
+    private val clientLock = Any()
+    private var shutdownHookRegistered = false
+    
+    val httpClient: HttpClient
+        get() {
+            return _httpClient ?: synchronized(clientLock) {
+                _httpClient ?: createHttpClient().also {
+                    _httpClient = it
+                    registerShutdownHook()
+                }
+            }
+        }
+    
+    private fun createHttpClient(): HttpClient {
+        return HttpClient.newBuilder()
+            .connectTimeout(java.time.Duration.ofSeconds(30))
+            .build()
+    }
+    
+    private fun registerShutdownHook() {
+        if (!shutdownHookRegistered) {
+            Runtime.getRuntime().addShutdownHook(Thread {
+                logger.info("Shutting down HttpClientManager")
+                close()
+            })
+            shutdownHookRegistered = true
+        }
+    }
+    
+    fun close() {
+        synchronized(clientLock) {
+            _httpClient?.let { client ->
+                try {
+                    // HttpClient doesn't have explicit close method in Java 11+
+                    // Resources are managed by the JVM
+                    logger.info("HttpClient resources released")
+                } catch (ex: Exception) {
+                    logger.error("Error releasing HttpClient resources: ${ex.message}")
+                } finally {
+                    _httpClient = null
+                }
+            }
+        }
+    }
 }
 
 // Per-request timeout; configurable via env var OFJDBC_HTTP_TIMEOUT_SECONDS
@@ -113,8 +160,11 @@ fun parseXml(xml: String): Document {
     val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
     val builder = factory.newDocumentBuilder()
 
-    fun tryParse(text: String): Document =
-        builder.parse(InputSource(StringReader(text)))
+    fun tryParse(text: String): Document {
+        return StringReader(text).use { reader ->
+            builder.parse(InputSource(reader))
+        }
+    }
 
     // First, try to parse the XML as-is
     return try {
@@ -162,6 +212,12 @@ private fun parseXmlWithCleaning(xml: String): Document {
 
     val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
     val builder = factory.newDocumentBuilder()
+
+    fun tryParse(text: String): Document {
+        return StringReader(text).use { reader ->
+            builder.parse(InputSource(reader))
+        }
+    }
 
     fun escapeOutsideTags(text: String): String {
         val entity = Regex("&(amp|lt|gt|quot|apos|#\\d+;|#x[0-9a-fA-F]+;)")
@@ -214,9 +270,6 @@ private fun parseXmlWithCleaning(xml: String): Document {
         return sb.toString()
     }
 
-    fun tryParse(text: String): Document =
-        builder.parse(InputSource(StringReader(text)))
-
     //  Fast path – try to parse as‑is
     return try {
         tryParse(candidate)
@@ -262,9 +315,10 @@ fun documentToString(doc: Document): String {
     val transformer = TransformerFactory.newInstance().newTransformer().apply {
         setOutputProperty(OutputKeys.INDENT, "yes")
     }
-    val writer = StringWriter()
-    transformer.transform(DOMSource(doc), StreamResult(writer))
-    return writer.toString()
+    return StringWriter().use { writer ->
+        transformer.transform(DOMSource(doc), StreamResult(writer))
+        writer.toString()
+    }
 }
 
 /**
@@ -361,7 +415,7 @@ private fun sendSqlViaWsdlInternal(
         .POST(HttpRequest.BodyPublishers.ofString(soapEnvelope))
         .build()
     
-    val response = httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+    val response = HttpClientManager.httpClient.send(request, HttpResponse.BodyHandlers.ofString())
     val status = response.statusCode()
     val body = response.body()
     
