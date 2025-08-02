@@ -12,6 +12,7 @@ import java.net.URI
 import java.net.http.HttpClient
 import java.net.http.HttpRequest
 import java.net.http.HttpResponse
+import java.time.Duration
 import java.sql.ResultSet
 import java.sql.SQLException
 import java.util.Base64
@@ -30,6 +31,10 @@ private val httpClient: HttpClient by lazy {
         .connectTimeout(java.time.Duration.ofSeconds(30))
         .build()
 }
+
+// Per-request timeout; configurable via env var OFJDBC_HTTP_TIMEOUT_SECONDS
+private val requestTimeoutSeconds: Long =
+    System.getenv("OFJDBC_HTTP_TIMEOUT_SECONDS")?.toLongOrNull() ?: 60L
 fun encodeCredentials(username: String, password: String): String =
     "Basic " + Base64.getEncoder().encodeToString("$username:$password".toByteArray(Charsets.UTF_8))
 
@@ -255,10 +260,14 @@ fun sendSqlViaWsdl(
     // Build a Java HttpClient (Java 11+)
     val request = HttpRequest.newBuilder()
         .uri(URI.create(wsdlEndpoint))
+        .timeout(Duration.ofSeconds(requestTimeoutSeconds))
         .header("Content-Type", "application/soap+xml;charset=UTF-8")
         .header("SOAPAction", "#POST")
         .header("Authorization", authHeader)
-        .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.133 Safari/537.36")
+        .header(
+            "User-Agent",
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/114.0.5735.133 Safari/537.36"
+        )
         .POST(HttpRequest.BodyPublishers.ofString(soapEnvelope))
         .build()
     // Send the request synchronously and obtain the response as a String
