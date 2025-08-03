@@ -44,7 +44,7 @@ _**DBeaver**_
 - **JVM-Hosted Flexibility:** Use this driver not only from Java but from any JVM‑hosted language for building custom data pipelines.
 - **Easy to Configure:** Simple setup by providing your connection URL and credentials.
 
-![ofjdbc_scn_rec](docs/ofjdbc_scn_rec_opt.gif)
+![![Watch the demo](screenshot.png)](https://youtu.be/AC6T3Mtsy6g) 
 
 ---
 
