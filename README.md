@@ -31,6 +31,8 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 
 <img src="pics/formatted_sql.png" alt="dbeaver" width="400"/>
 
+<img src="pics/erd.png" alt="dbeaver" width="600"/>
+
 - **Incremental Introspection**: Enjoy real‑time code completions as you type! The driver leverages a local metadata cache that incrementally introspects and stores schema information, dramatically speeding up completion suggestions in DBeaver. (maybe slow only at 1-st run, wait a minute)
 - **Minimalist Design:** A read‑only, no‑frills JDBC driver for Oracle Fusion exploring/reporting via WSDL.
 - **IDE Integration:** Run SQL queries directly from your favorite IDE - DBeaver, DbVisualizer, IntelliJ, etc. without the extra overhead.
