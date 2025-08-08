@@ -1,8 +1,6 @@
 # JDBC Driver & SQL Query Tool for Oracle Fusion
 
-[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE.md)  
-[![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)  
-[![Ko-Fi](https://img.shields.io/static/v1?style=for-the-badge&message=Support%20the%20Project&color=success&logo=ko-fi&label=$$)](https://ko-fi.com/sergeyrudenko)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE.md)   [![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)   [![Ko-Fi](https://img.shields.io/static/v1?style=for-the-badge&message=Support%20the%20Project&color=success&logo=ko-fi&label=$$)](https://ko-fi.com/sergeyrudenko)
 
 **Run SQL queries against Oracle Fusion – right from DBeaver.**  
 This lightweight, read-only JDBC driver lets you explore and report on your Oracle Fusion data using familiar SQL tools – without giving up control of your credentials or paying for a black-box solution.
