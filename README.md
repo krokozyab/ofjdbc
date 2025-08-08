@@ -1,11 +1,37 @@
-# JDBC Driver and SQL Query Tool for Oracle Fusion
-[![License](https://img.shields.io/badge/License-Mit-blue.svg?style=for-the-badge&logo=mit)](LICENSE.md)
-[![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)
+# JDBC Driver & SQL Query Tool for Oracle Fusion
+
+[![License](https://img.shields.io/badge/License-MIT-blue.svg?style=for-the-badge)](LICENSE.md)  
+[![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)  
 [![Ko-Fi](https://img.shields.io/static/v1?style=for-the-badge&message=Support%20the%20Project&color=success&logo=ko-fi&label=$$)](https://ko-fi.com/sergeyrudenko)
 
-A read‑only JDBC driver that lets you run SQL queries against Oracle Fusion.
-This minimal viable implementation works seamlessly in mature IDE's - DBeaver, DbVisualizer and IntelliJ. 
-And it isn’t just for Java - it can be used from any JVM‑hosted language to build custom data pipelines.
+**Run SQL queries against Oracle Fusion – right from DBeaver.**  
+This lightweight, read-only JDBC driver lets you explore and report on your Oracle Fusion data using familiar SQL tools – without giving up control of your credentials or paying for a black-box solution.
+
+---
+
+## 💡 Why DBeaver + ofjdbc?
+
+| 🚀 **Feature** | 🎯 **Benefit** |
+|----------------|----------------|
+| 📚 **Full Metadata Support** | Smart auto-complete, ER diagrams, and rich SQL highlighting |
+| ⚡ **Local Metadata Cache** | Lightning-fast schema browsing after the first run |
+| 🔒 **Secure & Open-Source** | Keep full control of your Oracle Fusion credentials |
+| 🖱 **One-Click Setup in DBeaver** | Just add the JAR, connect, and query |
+| 🛡 **Read-Only by Design** | Safe for reporting without risking production data |
+
+> **In short:** You get the power of DBeaver + the data from Oracle Fusion, without the hassle or hidden black boxes.
+
+---
+
+## ⚡ Quick Start in 3 Steps
+
+<div align="center">
+
+| <img src="pics/icon_download.png" width="80" alt="Download icon"/> | <img src="pics/icon_connect.png" width="80" alt="Connect icon"/> | <img src="pics/icon_query.png" width="80" alt="Query icon"/> |
+|---|---|---|
+| **1. Download**<br/>Grab the JAR from [**Releases**](https://github.com/krokozyab/ofjdbc/releases)<br/>*(~10 sec)* | **2. Connect**<br/>In DBeaver → Add New Driver<br/>Set Class to `my.jdbc.wsdl_driver.WsdlDriver`<br/>*(~1 min)* | **3. Query**<br/>Browse tables, run SQL, enjoy instant auto-complete |
+
+</div>
 
 ---
 
@@ -13,152 +39,90 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 
 - [🚀 Features](#-features)
 - [🛠 Prerequisites](#-prerequisites)
-- [📝 Installation](#-installation)
-- [⚙️ Configuration](#-configuration)
-- [🔒 Secured views mappings](docs/hr_secured_views.md)
-- [❗ Limitations](#-Limitations)
-- [⚠️ Important Disclaimer](#-important-disclaimer)
-- [📝 TODO](#-todo)
-- [🔗 Other ](#-other)
-- [📫 Contact](#-contact)
-
+- [📝 Installation & Setup](#-installation--setup)
+- [💡 Tips for DBeaver Users](#-tips-for-dbeaver-users)
+- [❗ Limitations](#-limitations)
+- [⚠ Disclaimer](#-disclaimer)
+- [📬 Contact](#-contact)
 
 ---
 
 ## 🚀 Features
-- **Your Credentials, Your Control:** Unlike many closed‑source solutions, this driver keeps your credentials under your control, ensuring peace of mind and security.
-- **Enhanced Syntax Highlighting:** As complete metadata is available, DBeaver uses that information to provide advanced SQL syntax highlighting. This not only enhances the visual presentation of your SQL code but also improves auto‑completion by accurately recognizing table and column names.
 
-<img src="pics/formatted_sql.png" alt="dbeaver" width="400"/>
+- **Secure & Transparent** – Your credentials stay with you.  
+- **Designed for DBeaver** – Complete metadata means:
+  - Smart **SQL syntax highlighting**
+  - Accurate **auto-completion**
+  - **ER diagrams** that just work
+- **Fast After First Run** – Local metadata cache makes completions snappy (only the first introspection can be slow).  
+- **Minimalist & Focused** – No unnecessary features. Just query, explore, and export.  
+- **Easy Setup** – Drop in the JAR, point DBeaver to it, and start querying.  
 
-<img src="pics/erd.png" alt="dbeaver" width="600"/>
+<img src="pics/formatted_sql.png" alt="dbeaver" width="450"/>  
+<img src="pics/erd.png" alt="dbeaver" width="650"/>  
 
-- **Incremental Introspection**: Enjoy real‑time code completions as you type! The driver leverages a local metadata cache that incrementally introspects and stores schema information, dramatically speeding up completion suggestions in DBeaver. (maybe slow only at 1-st run, wait a minute)
-- **Minimalist Design:** A read‑only, no‑frills JDBC driver for Oracle Fusion exploring/reporting via WSDL.
-- **IDE Integration:** Run SQL queries directly from your favorite IDE - DBeaver, DbVisualizer, IntelliJ, etc. without the extra overhead.
-_**DBeaver**_
-<!-- ![dbeaver](pics/dbeaver.jpg) -->
-<!-- ![dbeaver](pics/dbv1.png) -->
-<!-- [dbeaver](pics/dbv2.png) -->
-<!-- ![dbeaver](pics/dbv3.png) -->
-- **JVM-Hosted Flexibility:** Use this driver not only from Java but from any JVM‑hosted language for building custom data pipelines.
-- **Easy to Configure:** Simple setup by providing your connection URL and credentials.
-
-[![Watch the demo](https://img.shields.io/badge/▶️%20Watch%20Demo-red?logo=youtube&logoColor=white)](https://youtu.be/AC6T3Mtsy6g?si=nEh5hrlhKV3nTYc7)
+[![Watch the Demo](https://img.shields.io/badge/▶%20Watch%20Demo-red?logo=youtube)](https://youtu.be/AC6T3Mtsy6g?si=nEh5hrlhKV3nTYc7)
 
 ---
 
 ## 🛠 Prerequisites
 
-Before using this driver, ensure you have the following:
-
-- **Oracle Fusion Access:** Valid credentials with access to Oracle Fusion reporting (via WSDL).
-- **JDK/JRE:** A Java 8 (or later) runtime installed on your machine.
-- **Your IDE of Choice:** DBeaver, DbVisualizer, IntelliJ IDEA (or any other mature development environment I don't know and tested yet :)) .
+- **Oracle Fusion Access** – With OTBI reporting (WSDL) enabled  
+- **Java 8+** – JDK or JRE  
+- **DBeaver** – (or another mature SQL IDE, but DBeaver shines here)
 
 ---
 
-## 📝 Installation
+## 📝 Installation & Setup
 
-1. **Download the Driver:**
-
-   Download the latest version of the driver from the releases of this repository linked below (orfujdbc-1.0-SNAPSHOT.zip
-file):
-   
+1. **Download the latest release**  
    [![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)
 
-3. **Alternatively, clone the repository and build the driver from source.**
+2. **Import OTBI reports**  
+   From the `otbireport` folder, import  
+   `_DM_ARB.xdm.catalog_` and `_RP_ARB.xdo.catalog_` into  
+   `/Shared Folders/Custom/Financials` in your Fusion instance.
 
-4. **Create report in OTBI**
+3. **Register the driver in DBeaver**  
+   - **Driver Class:** `my.jdbc.wsdl_driver.WsdlDriver`  
+   - **JDBC URL:**  
+     ```
+     jdbc:wsdl://your-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo
+     ```
+   - Enter your Fusion username & password
 
-   In you fusion instance un-archive _DM_ARB.xdm.catalog_ and _RP_ARB.xdo.catalog_ from **otbireport** catalog of this repository
-into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you will). 
+4. **(Windows only)** Enable **"View Indexes"** in driver settings.
 
+> **Note:** After Feb 27, 2025 – refresh the local cache by deleting `metadata.db` and `metadata.db.wal` from your user folder when upgrading.
 
+---
 
-## ⚙️ Configuration
-1. **Place the Driver File: Place the driver JAR file into your designated folder.**
-2. **Register the Driver in Your IDE: In your IDE (DBeaver, DBVisualizer, IntelliJ), register a new driver pointing to the driver JAR file.**
-3. **Set the Driver Class: Choose my.jdbc.wsdl_driver.WsdlDriver as the driver class name.**
+## 💡 Tips for DBeaver Users
 
-<img src="pics/setup_1.png" alt="dbeaver" width="600"/>
+- Don’t “Refresh” the **Indexes** folder at the root – it will scan everything (slow).  
+- Instead: expand **Tables → Your Table → Indexes** for on-demand metadata.  
+- For a full index list, run a script using `ALL_INDEXES` + `ALL_IND_COLUMNS` once, rather than browsing via the UI.
 
-<img src="pics/setup_2.png" alt="dbeaver" width="600"/>
-
-4. **Create a New Database Connection: In your IDE, create a new database connection using the driver you just registered.**
-
-<img src="pics/setup_3.png" alt="dbeaver" width="600"/>
-
-5. **Enter the Connection String (JDBC URL): jdbc:wsdl://you-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo**
-6. **Enter Your Credentials: Provide the username and password for basic authentication.**
-<font color="orange">
-
-<img src="pics/setup_4.png" alt="dbeaver" width="600"/>
-
-<img src="pics/setup_5.png" alt="dbeaver" width="600"/>
-
-<img src="pics/setup_6.png" alt="dbeaver" width="600"/>
-
-7. **On Windows enable view indexes on driver settings** 
-
-<img src="pics/indexes_meta.png" alt="dbeaver" width="600"/>
-
-0. **After February 27, 2025, the incremental cache algorithm has been updated. In addition to installing the new release JAR file, please refresh your local cache by deleting the metadata.db and metadata.db.wal files from your user folder.**
-</font>
+---
 
 ## ❗ Limitations
 
-While this driver offers a lightweight and open‑source alternative to closed‑source solutions, it is important to note that:
+- Read-only by design  
+- Proxies SQL execution via WSDL – not all JDBC features are supported  
+- Bound by Oracle Fusion’s own reporting constraints  
 
-It is a minimal implementation designed as a proxy for executing SQL via WSDL, so it may not support all advanced JDBC features.
-Some limitations are inherent to the underlying Oracle Fusion reporting architecture.
-For further insights on some of these challenges, see this article on using synchronous BIP for data extraction.
-https://www.ateam-oracle.com/post/using-synchronous-bip-for-extracting-data-dont
+For background, see: [Using synchronous BIP for extracting data – don’t](https://www.ateam-oracle.com/post/using-synchronous-bip-for-extracting-data-dont)
 
-### Tips for DBeaver users
+---
 
-1. **Don’t Click → Refresh on the “Indexes” folder** of your connection root—this will still trigger schema-wide metadata.
-2. Instead, **expand** the connection, then the **Tables** node, find your table, and **only then** expand its **Indexes** subnode.
-3. If you really need a full index list, consider scripting it via SQL (e.g. using `ALL_INDEXES` + `ALL_IND_COLUMNS`) and running it in the SQL editor once, rather than relying on the UI tree.
+## ⚠ Disclaimer
 
-By following this pattern, you get all the index metadata you need _on demand_—and avoid thousands of background SOAP calls that would otherwise slow down or break your session.
+Check with your company’s security team before use.  
+By using this driver, you confirm it meets your organization’s policies.
 
-## ⚠️ Important Disclaimer
-Before using this driver in your organization, please ensure that you consult with your company’s security team or other responsible personnel. It is important to verify that the driver complies with your organization’s security policies and standards. By using this driver, you acknowledge that you have reviewed and obtained the necessary approvals regarding the security implications of its deployment.
+---
 
+## 📬 Contact
 
-
-## 📝 TODO
-
-This project is a minimal viable implementation, and there are several areas for future enhancement:
-
-- **Additional JDBC Features:**
-   - Support for advanced JDBC methods (scrollable ResultSets, etc.).
-
-- **Error Handling:**
-   - Improve the integration with IDE-specific features (e.g., better error messages).
-
-- **Performance & Scalability:**
-   ~~- Optimize query pagination and fetch size management.~~
-   ~~- Currently, if you enter 'select * from xyz', the driver automatically converts it to 'select * from xyz FETCH FIRST 50 ROWS ONLY'. However, if you enter a query that already includes pagination (e.g., 'select * from xyz FETCH FIRST 1000 ROWS ONLY'), it remains unchanged. Pagination is currently your responsibility.~~
-   - Done
-
-- **Extended Metadata:**
-   - Implement additional DatabaseMetaData methods to provide richer metadata support.
-   Im happy whih as it is now, if you want to improve Oracle internals recognition then
-  fix in getNumericFunctions, getStringFunctions, getSystemFunctions, getTimeDateFunctions funcions of this repo.
-
-- **Customizability:**
-   - Explore supporting additional authentication mechanisms beyond Basic Auth.
-
-Check back on the GitHub repository for updates and improvements as the project evolves.
-
-## 🔗 Other
-[Arrow Flight SQL server for Oracle Fusion](https://github.com/krokozyab/ofarrow)
-- **Further reading:** Check out this article on LinkedIn:  
-  [Bridging the Gap: Using an Open-Source JDBC Driver for Oracle Fusion SaaS](https://www.linkedin.com/pulse/bridging-gap-using-open-source-jdbc-driver-oracle-fusion-rudenko-i6cwf/?trackingId=5Mp2LNwgRpG1k9cZ1QWPzQ%3D%3D)
-
-## 📫 Contact
-If you have questions, feel free to reach out via GitHub Issues or [email@sergey.rudenko.ba@gmail.com].
-
-
+Questions or feedback?  
+Open a GitHub Issue or email **sergey.rudenko.ba@gmail.com**.
