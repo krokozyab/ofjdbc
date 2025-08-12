@@ -44,7 +44,7 @@ _**DBeaver**_
 - **JVM-Hosted Flexibility:** Use this driver not only from Java but from any JVM‑hosted language for building custom data pipelines.
 - **Easy to Configure:** Simple setup by providing your connection URL and credentials.
 
-[![Watch the demo](https://img.shields.io/badge/▶️%20Watch%20Demo-red?logo=youtube&logoColor=white)](https://youtu.be/AC6T3Mtsy6g?si=nEh5hrlhKV3nTYc7)
+[![Watch the demo](https://img.shields.io/badge/▶️%20Watch%20Demo-red?logo=youtube&logoColor=white)](https://https://youtu.be/7HQwmzQriRM?si=Xk1Pm1RJDEQlRjm3)
 
 ---
 
