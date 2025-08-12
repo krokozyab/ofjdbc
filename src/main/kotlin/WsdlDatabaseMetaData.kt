@@ -53,6 +53,7 @@ object LocalMetadataCache {
                     TYPE_NAME VARCHAR,
                     SELF_REFERENCING_COL_NAME VARCHAR,
                     REF_GENERATION VARCHAR,
+                    TABLE_ID VARCHAR,
                     PRIMARY KEY (TABLE_SCHEM, TABLE_NAME)
                 )
                 """.trimIndent()
@@ -553,33 +554,8 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
             connection.password,
             connection.reportPath
         )
-        val doc = parseXml(responseXml)
-        var rowNodes = doc.getElementsByTagName("ROW")
-        if (rowNodes.length == 0) {
-            val resultNodes = doc.getElementsByTagName("RESULT")
-            if (resultNodes.length > 0) {
-                val resultText = resultNodes.item(0).textContent.trim()
-                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
-                val rowDoc = parseXml(unescapedXml)
-                rowNodes = rowDoc.getElementsByTagName("ROW")
-            }
-        }
-        
-        val remoteRows = mutableListOf<Map<String, String>>()
-        for (i in 0 until rowNodes.length) {
-            val rowNode = rowNodes.item(i)
-            if (rowNode.nodeType == Node.ELEMENT_NODE) {
-                val rowMap = mutableMapOf<String, String>()
-                val children = rowNode.childNodes
-                for (j in 0 until children.length) {
-                    val child = children.item(j)
-                    if (child.nodeType == Node.ELEMENT_NODE) {
-                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
-                    }
-                }
-                remoteRows.add(rowMap)
-            }
-        }
+        val remoteRows = parseRows(responseXml)
+
         
         // Cache the results
         try {
@@ -673,20 +649,38 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
             ?: "('TABLE','VIEW')" // todo need to investigate where other is needed -  ,'SYNONYM','GLOBAL TEMPORARY','LOCAL TEMPORARY')"
 
         val baseSql = """
-            SELECT DISTINCT
-                NULL AS TABLE_CAT,
-                owner AS TABLE_SCHEM,
-                UPPER(object_name) AS TABLE_NAME,
-                object_type AS TABLE_TYPE,
-                NULL AS REMARKS,
-                NULL AS TYPE_CAT,
-                NULL AS TYPE_SCHEM,
-                NULL AS TYPE_NAME,
-                NULL AS SELF_REFERENCING_COL_NAME,
-                NULL AS REF_GENERATION
-            FROM all_objects
-            WHERE owner = '$defSchema'
-              AND object_type IN $typeListSql
+            /*+ FIRST_ROWS(1000) */
+                SELECT
+                  CAST(NULL AS VARCHAR2(1))          AS TABLE_CAT,
+                  'FUSION'                           AS TABLE_SCHEM,
+                    t.table_name,
+                    t.table_type,
+                  t.description                      AS REMARKS,
+                  CAST(NULL AS VARCHAR2(1))          AS TYPE_CAT,
+                  CAST(NULL AS VARCHAR2(1))          AS TYPE_SCHEM,
+                  CAST(NULL AS VARCHAR2(1))          AS TYPE_NAME,
+                  CAST(NULL AS VARCHAR2(1))          AS SELF_REFERENCING_COL_NAME,
+                  CAST(NULL AS VARCHAR2(1))          AS REF_GENERATION,
+                  t.table_id                         AS TABLE_ID
+                FROM (
+                  SELECT 
+                         view_id   AS table_id,
+                         view_name AS table_name,
+                         'VIEW'    AS table_type,
+                          description
+                  FROM   FND_VIEWS
+                  UNION ALL
+                  SELECT 
+                         table_id,
+                         table_name,
+                         'TABLE'   AS table_type,
+                         description
+                  FROM   FND_TABLES
+                ) t
+                WHERE t.table_type IN $typeListSql
+                  --AND t.table_name IS NOT NULL 
+                  --AND TRIM(t.table_name) != ''
+                  ORDER BY t.table_type, t.table_name
         """.trimIndent()
 
         logger.info("Executing paginated getTables query")
@@ -881,40 +875,8 @@ override fun getColumns(
         connection.password,
         connection.reportPath
     )
-    val doc = parseXml(responseXml)
-    var rowNodes = doc.getElementsByTagName("ROW")
-    if (rowNodes.length == 0) {
-        val resultNodes = doc.getElementsByTagName("RESULT")
-        if (resultNodes.length > 0) {
-            val resultText = resultNodes.item(0).textContent.trim()
-            val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
-            val rowDoc = parseXml(unescapedXml)
-            rowNodes = rowDoc.getElementsByTagName("ROW")
-        }
-    }
+    val remoteRows = parseRows(responseXml, true)
 
-    val remoteRows = mutableListOf<Map<String, String>>()
-    for (i in 0 until rowNodes.length) {
-        val rowNode = rowNodes.item(i)
-        if (rowNode.nodeType == Node.ELEMENT_NODE) {
-            val rowMap = mutableMapOf<String, String>()
-            val children = rowNode.childNodes
-            for (j in 0 until children.length) {
-                val child = children.item(j)
-                if (child.nodeType == Node.ELEMENT_NODE) {
-                    rowMap[child.nodeName.lowercase()] = child.textContent.trim()
-                }
-            }
-            // Normalise blank numeric fields so DBeaver can parse them as Int
-            if (rowMap["decimal_digits"].isNullOrBlank()) {
-                rowMap["decimal_digits"] = "0"
-            }
-            if (rowMap["num_prec_radix"].isNullOrBlank()) {
-                rowMap["num_prec_radix"] = "0"
-            }
-            remoteRows.add(rowMap)
-        }
-    }
 
     // --- Deduplicate rows across quoted / un‑quoted column names -------------
     // Some columns are returned twice: once as plain UPPERCASE and once quoted
@@ -1008,26 +970,10 @@ override fun getColumns(
             connection.reportPath
         )
 
-        val doc = parseXml(responseXml)
-        val rowNodes = doc.getElementsByTagName("ROW")
-        val resultRows = mutableListOf<Map<String, String>>()
+        val remoteRows = parseRows(responseXml, true)
 
-        for (i in 0 until rowNodes.length) {
-            val rowNode = rowNodes.item(i)
-            if (rowNode.nodeType == Node.ELEMENT_NODE) {
-                val rowMap = mutableMapOf<String, String>()
-                val children = rowNode.childNodes
-                for (j in 0 until children.length) {
-                    val child = children.item(j)
-                    if (child.nodeType == Node.ELEMENT_NODE) {
-                        rowMap[child.nodeName.lowercase()] = child.textContent.trim()
-                    }
-                }
-                resultRows.add(rowMap)
-            }
-        }
 
-        return XmlResultSet(resultRows)
+        return XmlResultSet(remoteRows)
     }
 
     // Imported foreign keys are foreign keys that reference this table (this table is the primary key table)
@@ -1124,33 +1070,8 @@ override fun getColumns(
             connection.password,
             connection.reportPath
         )
-        val doc = parseXml(responseXml)
-        var rowNodes = doc.getElementsByTagName("ROW")
-        if (rowNodes.length == 0) {
-            val resultNodes = doc.getElementsByTagName("RESULT")
-            if (resultNodes.length > 0) {
-                val resultText = resultNodes.item(0).textContent.trim()
-                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
-                val rowDoc = parseXml(unescapedXml)
-                rowNodes = rowDoc.getElementsByTagName("ROW")
-            }
-        }
-        
-        val remoteRows = mutableListOf<Map<String, String>>()
-        for (i in 0 until rowNodes.length) {
-            val rowNode = rowNodes.item(i)
-            if (rowNode.nodeType == Node.ELEMENT_NODE) {
-                val rowMap = mutableMapOf<String, String>()
-                val children = rowNode.childNodes
-                for (j in 0 until children.length) {
-                    val child = children.item(j)
-                    if (child.nodeType == Node.ELEMENT_NODE) {
-                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
-                    }
-                }
-                remoteRows.add(rowMap)
-            }
-        }
+        val remoteRows = parseRows(responseXml)
+
         
         // Cache the results (same cache table as getForeignKeys)
         try {
@@ -1292,34 +1213,8 @@ override fun getColumns(
             connection.password,
             connection.reportPath
         )
-        val doc = parseXml(responseXml)
-        var rowNodes = doc.getElementsByTagName("ROW")
-        if (rowNodes.length == 0) {
-            val resultNodes = doc.getElementsByTagName("RESULT")
-            if (resultNodes.length > 0) {
-                val resultText = resultNodes.item(0).textContent.trim()
-                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
-                val rowDoc = parseXml(unescapedXml)
-                rowNodes = rowDoc.getElementsByTagName("ROW")
-            }
-        }
-        
-        // Parse XML -> Kotlin maps
-        val remoteRows = mutableListOf<Map<String, String>>()
-        for (i in 0 until rowNodes.length) {
-            val rowNode = rowNodes.item(i)
-            if (rowNode.nodeType == Node.ELEMENT_NODE) {
-                val rowMap = mutableMapOf<String, String>()
-                val children = rowNode.childNodes
-                for (j in 0 until children.length) {
-                    val child = children.item(j)
-                    if (child.nodeType == Node.ELEMENT_NODE) {
-                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
-                    }
-                }
-                remoteRows.add(rowMap)
-            }
-        }
+        val remoteRows = parseRows(responseXml)
+
         
         // Cache the results
         try {
@@ -1697,32 +1592,8 @@ override fun getColumns(
             connection.password,
             connection.reportPath
         )
-        val doc = parseXml(responseXml)
-        var rowNodes = doc.getElementsByTagName("ROW")
-        if (rowNodes.length == 0) {
-            val resultNodes = doc.getElementsByTagName("RESULT")
-            if (resultNodes.length > 0) {
-                val unescaped = StringEscapeUtils.unescapeXml(resultNodes.item(0).textContent.trim())
-                rowNodes = parseXml(unescaped).getElementsByTagName("ROW")
-            }
-        }
+        val remoteRows = parseRows(responseXml, true)
 
-        // Map XML nodes to lowercase-keyed map for standard JDBC columns
-        val remoteRows = mutableListOf<Map<String, String>>()
-        for (i in 0 until rowNodes.length) {
-            val node = rowNodes.item(i)
-            if (node.nodeType == Node.ELEMENT_NODE) {
-                val map = mutableMapOf<String, String>()
-                val children = node.childNodes
-                for (j in 0 until children.length) {
-                    val child = children.item(j)
-                    if (child.nodeType == Node.ELEMENT_NODE) {
-                        map[child.nodeName.lowercase()] = child.textContent.trim()
-                    }
-                }
-                remoteRows.add(map)
-            }
-        }
         // Insert into cache with all 13 columns
         try {
             localConn.prepareStatement(
@@ -1811,45 +1682,25 @@ override fun getColumns(
 
             logger.info("Executing paginated query (offset: $offset, limit: $pageSize)")
             val responseXml = sendSqlViaWsdl(endpoint, paginatedSql, username, password, reportPath)
-            val doc = parseXml(responseXml)
-            var rowNodes = doc.getElementsByTagName("ROW")
+            val remoteRows = parseRows(responseXml)
 
-            if (rowNodes.length == 0) {
-                val resultNodes = doc.getElementsByTagName("RESULT")
-                if (resultNodes.length > 0) {
-                    val resultText = resultNodes.item(0).textContent.trim()
-                    val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
-                    val rowDoc = parseXml(unescapedXml)
-                    rowNodes = rowDoc.getElementsByTagName("ROW")
-                }
-            }
-
-            val pageRows = mutableListOf<Map<String, String>>()
-            for (i in 0 until rowNodes.length) {
-                val rowNode = rowNodes.item(i)
-                if (rowNode.nodeType == Node.ELEMENT_NODE) {
-                    val rowMap = mutableMapOf<String, String>()
-                    val children = rowNode.childNodes
-                    for (j in 0 until children.length) {
-                        val child = children.item(j)
-                        if (child.nodeType == Node.ELEMENT_NODE) {
-                            // Skip the ROWNUM column we added for pagination
-                            if (child.nodeName.uppercase() != "RN") {
-                                rowMap[child.nodeName.uppercase()] = child.textContent.trim()
-                            }
-                        }
+            val pageRows = remoteRows.map { row ->
+                val m = mutableMapOf<String, String>()
+                for ((k,v) in row) {
+                    if (k.uppercase() != "RN") {
+                        m[k.uppercase()] = (v ?: "").trim()
                     }
-                    pageRows.add(rowMap)
                 }
+                m
             }
 
             allRows.addAll(pageRows)
 
             // Check if we got a full page - if not, we're done
             hasMoreData = pageRows.size == pageSize
-            offset += pageSize
+            offset += pageRows.size
 
-            logger.info("Retrieved ${pageRows.size} rows in this page, total so far: ${allRows.size}")
+            logger.info("Retrieved ${'$'}{pageRows.size} rows in this page, total so far: ${'$'}{allRows.size}")
         }
 
         logger.info("Pagination complete. Total rows retrieved: ${allRows.size}")
@@ -1958,33 +1809,8 @@ override fun getColumns(
             connection.password,
             connection.reportPath
         )
-        val doc = parseXml(responseXml)
-        var rowNodes = doc.getElementsByTagName("ROW")
-        if (rowNodes.length == 0) {
-            val resultNodes = doc.getElementsByTagName("RESULT")
-            if (resultNodes.length > 0) {
-                val resultText = resultNodes.item(0).textContent.trim()
-                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
-                val rowDoc = parseXml(unescapedXml)
-                rowNodes = rowDoc.getElementsByTagName("ROW")
-            }
-        }
-        
-        val remoteRows = mutableListOf<Map<String, String>>()
-        for (i in 0 until rowNodes.length) {
-            val rowNode = rowNodes.item(i)
-            if (rowNode.nodeType == Node.ELEMENT_NODE) {
-                val rowMap = mutableMapOf<String, String>()
-                val children = rowNode.childNodes
-                for (j in 0 until children.length) {
-                    val child = children.item(j)
-                    if (child.nodeType == Node.ELEMENT_NODE) {
-                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
-                    }
-                }
-                remoteRows.add(rowMap)
-            }
-        }
+        val remoteRows = parseRows(responseXml)
+
         
         // Cache the results
         try {
@@ -2145,33 +1971,8 @@ override fun getColumns(
             connection.password,
             connection.reportPath
         )
-        val doc = parseXml(responseXml)
-        var rowNodes = doc.getElementsByTagName("ROW")
-        if (rowNodes.length == 0) {
-            val resultNodes = doc.getElementsByTagName("RESULT")
-            if (resultNodes.length > 0) {
-                val resultText = resultNodes.item(0).textContent.trim()
-                val unescapedXml = StringEscapeUtils.unescapeXml(resultText)
-                val rowDoc = parseXml(unescapedXml)
-                rowNodes = rowDoc.getElementsByTagName("ROW")
-            }
-        }
-        
-        val remoteRows = mutableListOf<Map<String, String>>()
-        for (i in 0 until rowNodes.length) {
-            val rowNode = rowNodes.item(i)
-            if (rowNode.nodeType == Node.ELEMENT_NODE) {
-                val rowMap = mutableMapOf<String, String>()
-                val children = rowNode.childNodes
-                for (j in 0 until children.length) {
-                    val child = children.item(j)
-                    if (child.nodeType == Node.ELEMENT_NODE) {
-                        rowMap[child.nodeName.uppercase()] = child.textContent.trim()
-                    }
-                }
-                remoteRows.add(rowMap)
-            }
-        }
+        val remoteRows = parseRows(responseXml)
+
         
         // Cache the results
         try {

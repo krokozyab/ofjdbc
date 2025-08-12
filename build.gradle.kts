@@ -18,6 +18,13 @@ dependencies {
     implementation("org.apache.commons:commons-text:1.14.0")
     implementation("org.slf4j:slf4j-api:2.1.0-alpha1")
     implementation("org.duckdb:duckdb_jdbc:1.3.2.0")
+    // Woodstox StAX XML parser (fast and robust)
+    implementation("com.fasterxml.woodstox:woodstox-core:6.5.1")
+    implementation("org.ccil.cowan.tagsoup:tagsoup:1.2.1")
+    // Testing
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.10.0")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.10.0")
+    testImplementation(kotlin("test"))
 }
 
 tasks.test {

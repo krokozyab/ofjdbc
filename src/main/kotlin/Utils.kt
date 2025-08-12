@@ -21,7 +21,61 @@ import javax.xml.transform.OutputKeys
 import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMSource
 import javax.xml.transform.stream.StreamResult
+import javax.xml.transform.dom.DOMResult
+import javax.xml.transform.stax.StAXSource
+import javax.xml.stream.XMLInputFactory
+import javax.xml.stream.XMLStreamReader
+import org.ccil.cowan.tagsoup.Parser
+import org.xml.sax.InputSource as SaxInputSource
 import my.jdbc.wsdl_driver.SecuredViewMappings
+import org.apache.commons.text.StringEscapeUtils
+import javax.xml.stream.XMLStreamConstants
+
+
+/**
+ * Conservative sanitizer that repairs common malformed XML fragments before parsing.
+ * It performs a small set of safe transforms:
+ *  - escapes stray '&' that are not entities
+ *  - closes unclosed start-tags when immediately followed by another tag
+ *  - fills bare attributes inside tags with a dummy value (attr="true")
+ *  - truncates trailing non-XML garbage after the final closing tag
+ */
+fun sanitizeXmlGeneral(input: String): String {
+    var s = input
+
+    // 1) Escape stray ampersands that are not part of entities
+    s = Regex("&(?!amp;|lt;|gt;|quot;|apos;|#[0-9]+;|#x[0-9a-fA-F]+;)").replace(s) { "&amp;" }
+
+    // 2) Close start-tags that are immediately followed by another '<' (possibly after whitespace/newline)
+    s = Regex("""<([A-Za-z][A-Za-z0-9_:-]*)\s*(?=\s*<)""").replace(s) { m ->
+        val tag = m.groupValues[1]
+        "<$tag></$tag>"
+    }
+
+    // 3) Fill bare attributes inside tags with a dummy value
+    try {
+        val tagRegex = Regex("<[^>]+>")
+        s = tagRegex.replace(s) { tm ->
+            var t = tm.value
+            // normalize internal whitespace
+            t = t.replace("\n", " ")
+            val innerRe = Regex("""\s([A-Za-z_:][A-Za-z0-9_.:-]*)(?!\s*=)""")
+            t = innerRe.replace(t) { it -> " ${it.groupValues[1]}=\"true\"" }
+            t
+        }
+    } catch (_: Exception) {}
+
+    // 4) Truncate trailing non-XML after last closing tag
+    try {
+        val lastClose = s.lastIndexOf("</")
+        if (lastClose >= 0) {
+            val gt = s.indexOf('>', lastClose)
+            if (gt > lastClose) s = s.substring(0, gt + 1)
+        }
+    } catch (_: Exception) {}
+
+    return s
+}
 
 val logger = LoggerFactory.getLogger("Utils")
 
@@ -157,25 +211,71 @@ fun extractSoapFaultReason(body: String): String {
 }
 
 fun parseXml(xml: String): Document {
+    // Universal parsing pipeline:
+    // 1) Try strict DOM parse
+    // 2) If fails, try TagSoup (for badly-formed markup)
+    // 3) If still fails, try lightweight cleaning heuristics and retry DOM
+    // 4) If still fails, try StAX -> DOM as last resort
+
     val factory = DocumentBuilderFactory.newInstance().apply { isNamespaceAware = true }
     val builder = factory.newDocumentBuilder()
 
-    fun tryParse(text: String): Document {
-        return StringReader(text).use { reader ->
-            builder.parse(InputSource(reader))
-        }
+    // Helper to try a DOM parse and wrap exceptions
+    fun tryDom(text: String): Document {
+        return StringReader(text).use { reader -> builder.parse(InputSource(reader)) }
     }
 
-    // First, try to parse the XML as-is
-    return try {
-        tryParse(xml)
-    } catch (e: org.xml.sax.SAXParseException) {
-        // Only apply cleaning if the initial parse fails
-        parseXmlWithCleaning(xml)
+    // Pre-sanitize the input to repair common malformations before attempting strict DOM.
+    val pre = sanitizeXmlGeneral(xml)
+
+    // 1) Try strict DOM on sanitized input
+    try {
+        return tryDom(pre)
+    } catch (_: Exception) {
+        // continue to fallback
+    }
+
+    // 2) Try TagSoup SAX -> DOM (very forgiving)
+    try {
+        val parser = org.ccil.cowan.tagsoup.Parser()
+        val saxSource = javax.xml.transform.sax.SAXSource(parser, org.xml.sax.InputSource(StringReader(pre)))
+        val doc = builder.newDocument()
+        javax.xml.transform.TransformerFactory.newInstance().newTransformer().transform(saxSource, DOMResult(doc))
+        return doc
+    } catch (_: Exception) {
+        // continue to next fallback
+    }
+
+    // 3) Try existing cleaning heuristics then DOM
+    try {
+        val cleaned = parseXmlWithCleaning(pre)
+        return cleaned
+    } catch (_: Exception) {
+        // continue to StAX fallback
+    }
+
+    // 4) StAX -> DOM via Transformer
+    try {
+        val xif = XMLInputFactory.newFactory()
+        try { xif.setProperty(XMLInputFactory.IS_COALESCING, java.lang.Boolean.TRUE) } catch (_: Exception) {}
+        try { xif.setProperty(XMLInputFactory.SUPPORT_DTD, java.lang.Boolean.FALSE) } catch (_: Exception) {}
+        try { xif.setProperty("javax.xml.stream.isSupportingExternalEntities", java.lang.Boolean.FALSE) } catch (_: Exception) {}
+        val xmlReader = xif.createXMLStreamReader(StringReader(pre))
+        try {
+            val source = StAXSource(xmlReader)
+            val doc = builder.newDocument()
+            javax.xml.transform.TransformerFactory.newInstance().newTransformer().transform(source, DOMResult(doc))
+            return doc
+        } finally {
+            try { xmlReader.close() } catch (_: Exception) {}
+        }
+    } catch (e: Exception) {
+        // if everything fails, rethrow last error as SAXParseException for callers
+        throw org.xml.sax.SAXParseException(e.message ?: "parse error", null)
     }
 }
 
-private fun parseXmlWithCleaning(xml: String): Document {
+fun parseXmlWithCleaning(xml: String): Document {
     //  Pre‑clean: escape stray '&' that are not part of an entity
     var candidate = xml.replace(
         Regex("&(?!amp;|lt;|gt;|quot;|apos;|#\\d+;|#x[0-9a-fA-F]+;)"),
@@ -187,15 +287,52 @@ private fun parseXmlWithCleaning(xml: String): Document {
     val firstLt = candidate.indexOf('<')
     if (firstLt > 0) candidate = candidate.substring(firstLt)
 
+
+    // Sanitize bare attribute names inside start-tags (e.g. <ROWSET attribute_without_value >)
+    // by adding a dummy value. We only perform this inside tag text to avoid touching normal content.
+    try {
+        val tagRegex = Regex("<[^>]+>")
+        candidate = tagRegex.replace(candidate) { tagMatch ->
+            var t = tagMatch.value
+            // Replace newlines inside tag with spaces to simplify matching
+            t = t.replace("\n", " ")
+            // Use double-escaped backslashes in Kotlin string literals so the
+            // regex engine receives single backslashes (e.g. \s for whitespace).
+            val innerRe = Regex("\\s([A-Za-z_:][A-Za-z0-9_.:-]*)(?!\\s*=)")
+            t = innerRe.replace(t) { it -> " ${it.groupValues[1]}=\"true\"" }
+            t
+        }
+    } catch (_: Exception) {}
+
+    // If there is extraneous markup after the root element (e.g. trailing text), truncate
+    // to the last closing tag to avoid "markup after root" parse errors.
+    try {
+        val lastClose = candidate.lastIndexOf("</")
+        if (lastClose >= 0) {
+            val gt = candidate.indexOf('>', lastClose)
+            if (gt > lastClose && gt < candidate.length - 1) {
+                // truncate after the final closing tag
+                candidate = candidate.substring(0, gt + 1)
+            }
+        }
+    } catch (_: Exception) {}
+
+
+    // Fix common malformed pattern: a start tag missing its closing '>' that is
+    // immediately followed by another '<' (e.g. "<area_id
+// <DESCRIPTION...").
+    // Convert "<tag <..." -> "<tag></tag><..." so the parser can continue.
+    candidate = Regex("""<([A-Za-z][A-Za-z0-9_-]*)\s*(?=\s*<)""").replace(candidate) { m ->
+        val tag = m.groupValues[1]
+        "<${tag}></${tag}>"
+    }
+
     //  Collapse illegal spaces before '=' in attributes
-    candidate = candidate.replace(Regex("\\s+=\\s*"), "=")
+    candidate = candidate.replace(Regex("""\s+=\s*"""), "=")
 
     // Force‑wrap any element whose text still contains raw '<' or '>'
     // But skip if content looks like XML
-    candidate = Regex(
-        "<([A-Za-z][A-Za-z0-9_]*?)>([^<]*[<>][^<]*?)</\\1>",
-        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
-    ).replace(candidate) { m ->
+    candidate = Regex("<([A-Za-z][A-Za-z0-9_]*?)>([^<]*[<>][^<]*?)</\\1>", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).replace(candidate) { m ->
         val tag = m.groupValues[1]
         val body = m.groupValues[2]
 
@@ -220,7 +357,7 @@ private fun parseXmlWithCleaning(xml: String): Document {
     }
 
     fun escapeOutsideTags(text: String): String {
-        val entity = Regex("&(amp|lt|gt|quot|apos|#\\d+;|#x[0-9a-fA-F]+;)")
+        val entity = Regex("""&(amp|lt|gt|quot|apos|#\d+;|#x[0-9a-fA-F]+;)""")
         val sb = StringBuilder()
         var i = 0
         var inTag = false
@@ -270,12 +407,15 @@ private fun parseXmlWithCleaning(xml: String): Document {
         return sb.toString()
     }
 
+    // Final general sanitizer to repair broad classes of malformed tags
+    
+
     //  Fast path – try to parse as‑is
     return try {
         tryParse(candidate)
     } catch (e: org.xml.sax.SAXParseException) {
         // --- second‑pass sanitiser: escape < and > that occur *between* tags
-        val tagPlusText = Regex("(<[^>]+>)([^<]*[<>][^<]*)(?=<)").replace(candidate) { m ->
+        val tagPlusText = Regex("""(<[^>]+>)([^<]*[<>][^<]*)(?=\s*<)""").replace(candidate) { m ->
             val openTag  = m.groupValues[1]
             val badText  = m.groupValues[2]
             val escaped  = badText.replace("<", "&lt;").replace(">", "&gt;")
@@ -288,7 +428,7 @@ private fun parseXmlWithCleaning(xml: String): Document {
 
         // Escape orphan "<WORD" that is preceded by whitespace (e.g. " NAME> <CUSTOMER")
         val sanitized = withGtEscaped.replace(
-            Regex("\\s<([A-Za-z][A-Za-z0-9_]{1,25})(?=[\\s<]|$)"),
+            Regex("""\s<([A-Za-z][A-Za-z0-9_]{1,25})(?=[\s<]|$)"""),
             " &lt;$1"
         )
 
@@ -480,3 +620,119 @@ fun createResultSetFromRowNodes(rowNodes: NodeList): ResultSet {
 }
 
 fun createEmptyResultSet(): ResultSet = XmlResultSet(emptyList())
+
+/**
+ * Parse all <ROW> elements from the provided XML using a StAX stream reader.
+ * This is a streaming, memory-efficient alternative to DOM-based extraction
+ * and supports nested escaped <RESULT> blocks containing XML.
+ *
+ * @param xml input XML text
+ * @param lowercaseKeys if true, map element names to lowercase keys (default: false)
+ */
+fun parseRows(xml: String, lowercaseKeys: Boolean = false): List<Map<String, String>> {
+    // Try streaming parse first; if the XML is malformed for StAX, fall back
+    // to DOM-based cleaned parsing which contains more heuristics.
+    try {
+        val rows = mutableListOf<Map<String, String>>()
+        val xif = XMLInputFactory.newFactory()
+        try { xif.setProperty(XMLInputFactory.IS_COALESCING, java.lang.Boolean.TRUE) } catch (_: Exception) {}
+        try { xif.setProperty(XMLInputFactory.SUPPORT_DTD, java.lang.Boolean.FALSE) } catch (_: Exception) {}
+        try { xif.setProperty("javax.xml.stream.isSupportingExternalEntities", java.lang.Boolean.FALSE) } catch (_: Exception) {}
+
+        val reader = xif.createXMLStreamReader(StringReader(xml))
+        var currentRow: MutableMap<String, String>? = null
+        var currentName: String? = null
+        val textBuf = StringBuilder()
+
+        fun finishElement(name: String) {
+            if (currentRow == null || currentName == null) return
+            val key = if (lowercaseKeys) currentName!!.lowercase() else currentName!!.uppercase()
+            currentRow!![key] = textBuf.toString().trim()
+            currentName = null
+            textBuf.setLength(0)
+        }
+
+        try {
+            while (reader.hasNext()) {
+                when (reader.next()) {
+                    XMLStreamConstants.START_ELEMENT -> {
+                        val local = reader.localName
+                        if (local.equals("ROW", ignoreCase = true)) {
+                            currentRow = mutableMapOf()
+                        } else if (currentRow != null) {
+                            currentName = local
+                            textBuf.setLength(0)
+                        } else if (local.equals("RESULT", ignoreCase = true)) {
+                            // capture the text inside RESULT (might be escaped XML)
+                            val txt = reader.elementText
+                            if (!txt.isNullOrBlank()) {
+                                val unescaped = StringEscapeUtils.unescapeXml(txt)
+                                rows.addAll(parseRows(unescaped, lowercaseKeys))
+                            }
+                        }
+                    }
+                    XMLStreamConstants.CHARACTERS, XMLStreamConstants.CDATA -> {
+                        if (currentRow != null && currentName != null) textBuf.append(reader.text)
+                    }
+                    XMLStreamConstants.END_ELEMENT -> {
+                        val local = reader.localName
+                        if (local.equals("ROW", ignoreCase = true)) {
+                            if (currentRow != null) {
+                                rows.add(currentRow)
+                                currentRow = null
+                            }
+                            currentName = null
+                            textBuf.setLength(0)
+                        } else if (currentRow != null && currentName != null && local.equals(currentName, ignoreCase = true)) {
+                            finishElement(local)
+                        }
+                    }
+                    else -> {}
+                }
+            }
+        } finally {
+            try { reader.close() } catch (_: Exception) {}
+        }
+
+        return rows
+    } catch (ex: Exception) {
+        logger.warn("StAX streaming parse failed (falling back to DOM cleaning): {}", ex.message)
+        // Fallback: parse via the cleaning DOM path and extract ROW elements
+        val doc = try {
+            parseXmlWithCleaning(xml)
+        } catch (e: Exception) {
+            // As last resort, try the plain DOM parse
+            parseXml(xml)
+        }
+
+        val result = mutableListOf<Map<String, String>>()
+        val rowNodes = doc.getElementsByTagName("ROW")
+        for (i in 0 until rowNodes.length) {
+            val rn = rowNodes.item(i)
+            if (rn.nodeType != Node.ELEMENT_NODE) continue
+            val map = mutableMapOf<String, String>()
+            val children = rn.childNodes
+            for (j in 0 until children.length) {
+                val child = children.item(j)
+                if (child.nodeType != Node.ELEMENT_NODE) continue
+                val name = if (lowercaseKeys) child.nodeName.lowercase() else child.nodeName.uppercase()
+                map[name] = child.textContent.trim()
+            }
+            result.add(map)
+        }
+
+        // Also handle nested RESULT blocks if document had them (some callers expect recursive handling)
+        if (rowNodes.length == 0) {
+            val results = doc.getElementsByTagName("RESULT")
+            for (k in 0 until results.length) {
+                val txt = results.item(k).textContent.trim()
+                if (txt.isNotBlank()) {
+                    val unescaped = StringEscapeUtils.unescapeXml(txt)
+                    result.addAll(parseRows(unescaped, lowercaseKeys))
+                }
+            }
+        }
+
+        return result
+    }
+}

@@ -158,39 +158,18 @@ class PaginatedResultSet(
         val effectiveSql = rewriteQueryForPagination(originalSql, currentOffset, fetchSize)
         logger.debug("Fetching page: SQL='{}'", effectiveSql)
         val responseXml = fetchPageXml(effectiveSql)
-        val doc: Document = parseXml(responseXml)
-        // Grab all <ROW> elements anywhere in the payload with a single XPath pass.
-        var nodeList = ROW_EXPR.evaluate(doc, XPathConstants.NODESET) as NodeList
-        // If not found, the rows might be inside an escaped <RESULT> block → one extra parse.
-        if (nodeList.length == 0) {
-            val resultNodes = doc.getElementsByTagName("RESULT")
-            if (resultNodes.length > 0) {
-                val unescaped = StringEscapeUtils.unescapeXml(resultNodes.item(0).textContent.trim())
-                val innerDoc: Document = parseXml(unescaped)
-                nodeList = ROW_EXPR.evaluate(innerDoc, XPathConstants.NODESET) as NodeList
-            }
-        }
-        logger.debug("Fetched {} rows.", nodeList.length)
-        // Parse rows from the NodeList.
+        val newRowsRaw = parseRows(responseXml, true)
+        logger.debug("Fetched {} rows.", newRowsRaw.size)
+        // Parse rows from streaming maps.
         val newRows = mutableListOf<Map<String, String>>()
-        for (i in 0 until nodeList.length) {
-            val node = nodeList.item(i)
-            if (node.nodeType == Node.ELEMENT_NODE) {
-                val rowMap: MutableMap<String, String> =
-                    if (rowPool.isEmpty()) mutableMapOf() else rowPool.removeFirst().also { it.clear() }
-                val children = node.childNodes
-                for (j in 0 until children.length) {
-                    val child = children.item(j)
-                    if (child.nodeType == Node.ELEMENT_NODE) {
-                        val original = child.nodeName
-                        val lc       = original.lowercase()
-                        orderedCols += lc
-                        originalByLc.putIfAbsent(lc, original)   // preserve first‑seen case
-                        rowMap[lc] = child.textContent.trim()
-                    }
-                }
-                newRows.add(rowMap)
+        for (r in newRowsRaw) {
+            val rowMap: MutableMap<String, String> = if (rowPool.isEmpty()) mutableMapOf() else rowPool.removeFirst().also { it.clear() }
+            for ((lc, v) in r) {
+                orderedCols += lc
+                originalByLc.putIfAbsent(lc, lc) // preserve lowercase as original case when streaming
+                rowMap[lc] = (v ?: "").trim()
             }
+            newRows.add(rowMap)
         }
         // Build metadata if not yet initialized.
         if (cachedMeta == null) {
