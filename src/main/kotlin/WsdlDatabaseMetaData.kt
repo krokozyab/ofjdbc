@@ -72,6 +72,7 @@ object LocalMetadataCache {
                     NUM_PREC_RADIX INTEGER,
                     NULLABLE INTEGER,
                     ORDINAL_POSITION INTEGER,
+                    REMARKS VARCHAR, 
                     PRIMARY KEY (TABLE_SCHEM, TABLE_NAME, COLUMN_NAME)
                 )
                 """.trimIndent()
@@ -724,8 +725,8 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
             localConn.prepareStatement(
                 """
             INSERT OR IGNORE INTO CACHED_TABLES 
-            (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, TABLE_TYPE, REMARKS, TYPE_CAT, TYPE_SCHEM, TYPE_NAME, SELF_REFERENCING_COL_NAME, REF_GENERATION) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, TABLE_TYPE, REMARKS, TYPE_CAT, TYPE_SCHEM, TYPE_NAME, SELF_REFERENCING_COL_NAME, REF_GENERATION, TABLE_ID) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
             ).use { pstmt ->
                 val rowsToCache = if (requestedTypes == null)
@@ -743,6 +744,7 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
                     val typeName   = row["TYPE_NAME"] ?: ""
                     val selfRefCol = row["SELF_REFERENCING_COL_NAME"] ?: ""
                     val refGeneration = row["REF_GENERATION"] ?: ""
+                    val tableId = row["TABLE_ID"] ?: ""
                     pstmt.setString(1, tableCat)
                     pstmt.setString(2, tableSchem)
                     pstmt.setString(3, tableName)
@@ -753,6 +755,7 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
                     pstmt.setString(8, typeName)
                     pstmt.setString(9, selfRefCol)
                     pstmt.setString(10, refGeneration)
+                    pstmt.setString(11, tableId)
                     pstmt.addBatch()
                 }
                 pstmt.executeBatch()
@@ -809,9 +812,10 @@ override fun getColumns(
     val localQuery = """
         SELECT DISTINCT
             TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, 
-            COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION 
+            COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION, REMARKS 
         FROM CACHED_COLUMNS
-        WHERE 1=1 $schemaCondLocal $tableCondLocal $columnCondLocal
+        --WHERE 1=1 $schemaCondLocal $tableCondLocal $columnCondLocal
+        WHERE TABLE_NAME = '$tableNamePattern'
         ORDER BY TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION
     """.trimIndent()
 
@@ -833,6 +837,7 @@ override fun getColumns(
                     row["num_prec_radix"] = rs.getString("NUM_PREC_RADIX") ?: "0"
                     row["nullable"] = rs.getString("NULLABLE") ?: ""
                     row["ordinal_position"] = rs.getString("ORDINAL_POSITION") ?: ""
+                    row["remarks"] = rs.getString("REMARKS") ?: ""
                     localRows.add(row)
                 }
                 if (localRows.isNotEmpty()) {
@@ -846,26 +851,57 @@ override fun getColumns(
     }
 
     // If local cache is empty, query the remote service.
-    val schemaCondRemote  = " AND owner = '$defSchema'"
-    val tableCondRemote = if (!tableNamePattern.isNullOrBlank()) " AND table_name LIKE '${tableNamePattern.uppercase()}'" else ""
-    val columnCondRemote = if (!columnNamePattern.isNullOrBlank()) " AND column_name LIKE '${columnNamePattern.uppercase()}'" else ""
+    // We don't filter by t.owner / t.table_name remotely because FND_COLUMNS exposes table via TABLE_ID.
+    // Instead, if caller supplied a tableNamePattern we resolve matching TABLE_IDs from the local
+    // CACHED_TABLES cache and restrict the remote query by c.table_id IN (...).
+    val columnCondRemote = if (!columnNamePattern.isNullOrBlank()) " AND c.column_name LIKE '${columnNamePattern.uppercase()}'" else ""
+
+    var tableIdCondRemote = ""
+    try {
+            val ids = mutableListOf<String>()
+            val likePattern = tableNamePattern?.uppercase()
+            val schemaFilterLocal = if (!schemaPattern.isNullOrBlank()) " AND TABLE_SCHEM = '${schemaPattern.uppercase()}'" else ""
+            localConn.createStatement().use { stmt ->
+                stmt.executeQuery(
+                    """
+                    SELECT TABLE_ID FROM CACHED_TABLES
+                    WHERE UPPER(TABLE_NAME) LIKE '$likePattern' $schemaFilterLocal
+                    """.trimIndent()
+                ).use { rs ->
+                    while (rs.next()) {
+                        val id = rs.getString(1)
+                        if (!id.isNullOrBlank()) ids.add(id)
+                    }
+                }
+            }
+            if (ids.isNotEmpty()) {
+                // Use numeric list without quotes - TABLE_IDs are stored as strings but represent numbers
+                tableIdCondRemote = " AND c.table_id IN (${ids.joinToString(separator = ",")})"
+            } else {
+                logger.info("No TABLE_IDs found in CACHED_TABLES for pattern '$likePattern'; remote query will not be restricted by TABLE_ID.")
+            }
+    } catch (ex: Exception) {
+        logger.error("Error resolving TABLE_IDs from CACHED_TABLES: ${ex.message}")
+    }
 
     val sql = """
-        SELECT 
+        SELECT
             NULL AS TABLE_CAT,
-            owner AS TABLE_SCHEM,
-            table_name AS TABLE_NAME,
-            column_name AS COLUMN_NAME,
+            'FUSION' AS TABLE_SCHEM,
+            '$tableNamePattern' AS TABLE_NAME,
+            c.user_column_name AS COLUMN_NAME,
             ${java.sql.Types.VARCHAR} AS DATA_TYPE,
-            data_type AS TYPE_NAME,
-            data_length AS COLUMN_SIZE,
-            data_precision AS DECIMAL_DIGITS,
-            data_scale AS NUM_PREC_RADIX,
-            CASE WHEN nullable = 'Y' THEN 1 ELSE 0 END AS NULLABLE,
-            column_id AS ORDINAL_POSITION
-        FROM all_tab_columns
-        WHERE 1=1 $schemaCondRemote $tableCondRemote $columnCondRemote
-        ORDER BY owner, table_name, column_id
+            COALESCE(c.column_type, c.domain_code) AS TYPE_NAME,
+            c.width AS COLUMN_SIZE,
+            c."SCALE" AS DECIMAL_DIGITS,
+            CASE WHEN c."PRECISION" IS NOT NULL THEN 10 ELSE NULL END AS NUM_PREC_RADIX,
+            CASE WHEN c.null_allowed_flag = 'Y' THEN 1 ELSE 0 END AS NULLABLE,
+            COALESCE(c.column_sequence, c.column_id) AS ORDINAL_POSITION,
+            c.description AS REMARKS
+        FROM FND_COLUMNS c
+        WHERE 1=1 $tableIdCondRemote 
+        --$columnCondRemote
+        ORDER BY  COALESCE(c.column_sequence, c.column_id)
     """.trimIndent()
 
     val responseXml = sendSqlViaWsdl(
@@ -896,8 +932,8 @@ override fun getColumns(
         localConn.prepareStatement(
             """
             INSERT OR IGNORE INTO CACHED_COLUMNS 
-            (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION, REMARKS)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         ).use { pstmt ->
             for (row in uniqueRows) {
@@ -912,6 +948,7 @@ override fun getColumns(
                 pstmt.setObject(9, row["num_prec_radix"]?.takeIf { it.isNotBlank() }?.toIntOrNull())
                 pstmt.setString(10, row["nullable"] ?: "")
                 pstmt.setString(11, row["ordinal_position"] ?: "")
+                pstmt.setString(12, row["remarks"] ?: "")
                 pstmt.addBatch()
             }
             pstmt.executeBatch()
@@ -2021,4 +2058,3 @@ override fun getColumns(
     override fun isWrapperFor(iface: Class<*>?): Boolean = false
 
 }
-
