@@ -798,6 +798,14 @@ override fun getColumns(
     tableNamePattern: String?,
     columnNamePattern: String?
 ): ResultSet {
+    // If caller requests columns for tables ending with _V (materialized view
+    // or similar), return an empty result set to avoid exposing these
+    // objects. This check is case-insensitive.
+    if (!tableNamePattern.isNullOrBlank() && (tableNamePattern.trim().uppercase().endsWith("_V") || tableNamePattern.trim().uppercase().endsWith("_VL"))) {
+        logger.info("getColumns: tableNamePattern '$tableNamePattern' ends with _V; returning empty result set.")
+        return createEmptyResultSet()
+    }
+
     val localConn = LocalMetadataCache.connection
     // The only schema we need
     val defSchema = "FUSION"
