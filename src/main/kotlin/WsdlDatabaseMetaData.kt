@@ -792,32 +792,24 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         return XmlResultSet(typesList)
     }
 
-override fun getColumns(
-    catalog: String?,
-    schemaPattern: String?,
-    tableNamePattern: String?,
-    columnNamePattern: String?
-): ResultSet {
-    // If caller requests columns for tables ending with _V (materialized view
-    // or similar), return an empty result set to avoid exposing these
-    // objects. This check is case-insensitive.
-    if (!tableNamePattern.isNullOrBlank() && (tableNamePattern.trim().uppercase().endsWith("_V") || tableNamePattern.trim().uppercase().endsWith("_VL"))) {
-        logger.info("getColumns: tableNamePattern '$tableNamePattern' ends with _V; returning empty result set.")
-        return createEmptyResultSet()
-    }
+    override fun getColumns(
+        catalog: String?,
+        schemaPattern: String?,
+        tableNamePattern: String?,
+        columnNamePattern: String?
+    ): ResultSet {
+        val localConn = LocalMetadataCache.connection
+        // The only schema we need
+        val defSchema = "FUSION"
 
-    val localConn = LocalMetadataCache.connection
-    // The only schema we need
-    val defSchema = "FUSION"
-
-    // Always limit metadata to the single supported schema (FUSION).
-    // This avoids duplicate‑object warnings when DBeaver requests columns
-    // without specifying a schema, because Oracle otherwise returns
-    // every accessible schema.
-    val schemaCondLocal  = " AND TABLE_SCHEM = '$defSchema'"
-    val tableCondLocal = if (!tableNamePattern.isNullOrBlank()) " AND TABLE_NAME LIKE '${tableNamePattern.uppercase()}'" else ""
-    val columnCondLocal = if (!columnNamePattern.isNullOrBlank()) " AND COLUMN_NAME LIKE '${columnNamePattern.uppercase()}'" else ""
-    val localQuery = """
+        // Always limit metadata to the single supported schema (FUSION).
+        // This avoids duplicate‑object warnings when DBeaver requests columns
+        // without specifying a schema, because Oracle otherwise returns
+        // every accessible schema.
+        val schemaCondLocal  = " AND TABLE_SCHEM = '$defSchema'"
+        val tableCondLocal = if (!tableNamePattern.isNullOrBlank()) " AND TABLE_NAME LIKE '${tableNamePattern.uppercase()}'" else ""
+        val columnCondLocal = if (!columnNamePattern.isNullOrBlank()) " AND COLUMN_NAME LIKE '${columnNamePattern.uppercase()}'" else ""
+        val localQuery = """
         SELECT DISTINCT
             TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, 
             COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION, REMARKS 
@@ -827,45 +819,45 @@ override fun getColumns(
         ORDER BY TABLE_SCHEM, TABLE_NAME, ORDINAL_POSITION
     """.trimIndent()
 
-    // Try reading from the local cache.
-    try {
-        localConn.createStatement().use { stmt ->
-            stmt.executeQuery(localQuery).use { rs ->
-                val localRows = mutableListOf<Map<String, String?>>()
-                while (rs.next()) {
-                    val row = mutableMapOf<String, String?>()
-                    row["table_cat"] = rs.getString("TABLE_CAT") ?: ""
-                    row["table_schem"] = rs.getString("TABLE_SCHEM") ?: ""
-                    row["table_name"] = rs.getString("TABLE_NAME") ?: ""
-                    row["column_name"] = rs.getString("COLUMN_NAME") ?: ""
-                    row["data_type"] = rs.getString("DATA_TYPE") ?: ""
-                    row["type_name"] = rs.getString("TYPE_NAME") ?: ""
-                    row["column_size"] = rs.getString("COLUMN_SIZE") ?: ""
-                    row["decimal_digits"] = rs.getString("DECIMAL_DIGITS") ?: "0"
-                    row["num_prec_radix"] = rs.getString("NUM_PREC_RADIX") ?: "0"
-                    row["nullable"] = rs.getString("NULLABLE") ?: ""
-                    row["ordinal_position"] = rs.getString("ORDINAL_POSITION") ?: ""
-                    row["remarks"] = rs.getString("REMARKS") ?: ""
-                    localRows.add(row)
-                }
-                if (localRows.isNotEmpty()) {
-                    logger.info("Returning columns from local cache with ${localRows.size} rows.")
-                    return XmlResultSet(localRows)
+        // Try reading from the local cache.
+        try {
+            localConn.createStatement().use { stmt ->
+                stmt.executeQuery(localQuery).use { rs ->
+                    val localRows = mutableListOf<Map<String, String?>>()
+                    while (rs.next()) {
+                        val row = mutableMapOf<String, String?>()
+                        row["table_cat"] = rs.getString("TABLE_CAT") ?: ""
+                        row["table_schem"] = rs.getString("TABLE_SCHEM") ?: ""
+                        row["table_name"] = rs.getString("TABLE_NAME") ?: ""
+                        row["column_name"] = rs.getString("COLUMN_NAME") ?: ""
+                        row["data_type"] = rs.getString("DATA_TYPE") ?: ""
+                        row["type_name"] = rs.getString("TYPE_NAME") ?: ""
+                        row["column_size"] = rs.getString("COLUMN_SIZE") ?: ""
+                        row["decimal_digits"] = rs.getString("DECIMAL_DIGITS") ?: "0"
+                        row["num_prec_radix"] = rs.getString("NUM_PREC_RADIX") ?: "0"
+                        row["nullable"] = rs.getString("NULLABLE") ?: ""
+                        row["ordinal_position"] = rs.getString("ORDINAL_POSITION") ?: ""
+                        row["remarks"] = rs.getString("REMARKS") ?: ""
+                        localRows.add(row)
+                    }
+                    if (localRows.isNotEmpty()) {
+                        logger.info("Returning columns from local cache with ${localRows.size} rows.")
+                        return XmlResultSet(localRows)
+                    }
                 }
             }
+        } catch (ex: Exception) {
+            logger.error("Error reading columns from local metadata cache: ${ex.message}")
         }
-    } catch (ex: Exception) {
-        logger.error("Error reading columns from local metadata cache: ${ex.message}")
-    }
 
-    // If local cache is empty, query the remote service.
-    // We don't filter by t.owner / t.table_name remotely because FND_COLUMNS exposes table via TABLE_ID.
-    // Instead, if caller supplied a tableNamePattern we resolve matching TABLE_IDs from the local
-    // CACHED_TABLES cache and restrict the remote query by c.table_id IN (...).
-    val columnCondRemote = if (!columnNamePattern.isNullOrBlank()) " AND c.column_name LIKE '${columnNamePattern.uppercase()}'" else ""
+        // If local cache is empty, query the remote service.
+        // We don't filter by t.owner / t.table_name remotely because FND_COLUMNS exposes table via TABLE_ID.
+        // Instead, if caller supplied a tableNamePattern we resolve matching TABLE_IDs from the local
+        // CACHED_TABLES cache and restrict the remote query by c.table_id IN (...).
+        val columnCondRemote = if (!columnNamePattern.isNullOrBlank()) " AND c.column_name LIKE '${columnNamePattern.uppercase()}'" else ""
 
-    var tableIdCondRemote = ""
-    try {
+        var tableIdCondRemote = ""
+        try {
             val ids = mutableListOf<String>()
             val likePattern = tableNamePattern?.uppercase()
             val schemaFilterLocal = if (!schemaPattern.isNullOrBlank()) " AND TABLE_SCHEM = '${schemaPattern.uppercase()}'" else ""
@@ -888,85 +880,115 @@ override fun getColumns(
             } else {
                 logger.info("No TABLE_IDs found in CACHED_TABLES for pattern '$likePattern'; remote query will not be restricted by TABLE_ID.")
             }
-    } catch (ex: Exception) {
-        logger.error("Error resolving TABLE_IDs from CACHED_TABLES: ${ex.message}")
-    }
+        } catch (ex: Exception) {
+            logger.error("Error resolving TABLE_IDs from CACHED_TABLES: ${ex.message}")
+        }
 
-    val sql = """
-        SELECT
-            NULL AS TABLE_CAT,
-            'FUSION' AS TABLE_SCHEM,
-            '$tableNamePattern' AS TABLE_NAME,
-            c.user_column_name AS COLUMN_NAME,
-            ${java.sql.Types.VARCHAR} AS DATA_TYPE,
-            COALESCE(c.column_type, c.domain_code) AS TYPE_NAME,
-            c.width AS COLUMN_SIZE,
-            c."SCALE" AS DECIMAL_DIGITS,
-            CASE WHEN c."PRECISION" IS NOT NULL THEN 10 ELSE NULL END AS NUM_PREC_RADIX,
-            CASE WHEN c.null_allowed_flag = 'Y' THEN 1 ELSE 0 END AS NULLABLE,
-            COALESCE(c.column_sequence, c.column_id) AS ORDINAL_POSITION,
-            c.description AS REMARKS
-        FROM FND_COLUMNS c
-        WHERE 1=1 $tableIdCondRemote 
-        --$columnCondRemote
-        ORDER BY  COALESCE(c.column_sequence, c.column_id)
-    """.trimIndent()
+        var sql =""
+        if (!tableNamePattern.isNullOrBlank() && (tableNamePattern.trim().uppercase().endsWith("_V") || tableNamePattern.trim().uppercase().endsWith("_VL"))) {
+            // views branch
+            val tableCondRemote = if (!tableNamePattern.isNullOrBlank()) " AND table_name LIKE '${tableNamePattern.uppercase()}'" else ""
+            val schemaCondRemote  = " AND owner = '$defSchema'"
 
-    val responseXml = sendSqlViaWsdl(
-        connection.wsdlEndpoint,
-        sql,
-        connection.username,
-        connection.password,
-        connection.reportPath
-    )
-    val remoteRows = parseRows(responseXml, true)
+            sql = """
+                SELECT 
+                    NULL AS TABLE_CAT,
+                    owner AS TABLE_SCHEM,
+                    table_name AS TABLE_NAME,
+                    column_name AS COLUMN_NAME,
+                    ${java.sql.Types.VARCHAR} AS DATA_TYPE,
+                    data_type AS TYPE_NAME,
+                    data_length AS COLUMN_SIZE,
+                    data_precision AS DECIMAL_DIGITS,
+                    data_scale AS NUM_PREC_RADIX,
+                    CASE WHEN nullable = 'Y' THEN 1 ELSE 0 END AS NULLABLE,
+                    column_id AS ORDINAL_POSITION
+                FROM all_tab_columns
+                WHERE 1=1 $schemaCondRemote $tableCondRemote 
+                ORDER BY owner, table_name, column_id
+            """.trimIndent()
+        } else
+        {
+            // tables branch
+            sql = """
+                SELECT
+                    NULL AS TABLE_CAT,
+                    'FUSION' AS TABLE_SCHEM,
+                    '$tableNamePattern' AS TABLE_NAME,
+                    c.user_column_name AS COLUMN_NAME,
+                    ${java.sql.Types.VARCHAR} AS DATA_TYPE,
+                    COALESCE(c.column_type, c.domain_code) AS TYPE_NAME,
+                    c.width AS COLUMN_SIZE,
+                    c."SCALE" AS DECIMAL_DIGITS,
+                    CASE WHEN c."PRECISION" IS NOT NULL THEN 10 ELSE NULL END AS NUM_PREC_RADIX,
+                    CASE WHEN c.null_allowed_flag = 'Y' THEN 1 ELSE 0 END AS NULLABLE,
+                    COALESCE(c.column_sequence, c.column_id) AS ORDINAL_POSITION,
+                    c.description AS REMARKS
+                FROM FND_COLUMNS c
+                WHERE 1=1 $tableIdCondRemote 
+                --$columnCondRemote
+                ORDER BY  COALESCE(c.column_sequence, c.column_id)
+            """.trimIndent()
+        }
 
 
-    // --- Deduplicate rows across quoted / un‑quoted column names -------------
-    // Some columns are returned twice: once as plain UPPERCASE and once quoted
-    // (e.g. LANGUAGE  vs  "LANGUAGE").  We collapse those variants here.
-    val uniqueRows: List<Map<String, String>> =
-        remoteRows
-            .groupBy {
-                val schem = it["table_schem"]?.uppercase() ?: ""
-                val tbl   = it["table_name"]?.uppercase() ?: ""
-                val col   = it["column_name"]?.replace("\"", "")?.uppercase() ?: ""
-                "$schem|$tbl|$col"
-            }
-            .map { (_, dupes) -> dupes.first() }
 
-    // Save the remote metadata into the local cache.
-    try {
-        localConn.prepareStatement(
-            """
+
+        val responseXml = sendSqlViaWsdl(
+            connection.wsdlEndpoint,
+            sql,
+            connection.username,
+            connection.password,
+            connection.reportPath
+        )
+        val remoteRows = parseRows(responseXml, true)
+
+
+        // --- Deduplicate rows across quoted / un‑quoted column names -------------
+        // Some columns are returned twice: once as plain UPPERCASE and once quoted
+        // (e.g. LANGUAGE  vs  "LANGUAGE").  We collapse those variants here.
+        val uniqueRows: List<Map<String, String>> =
+            remoteRows
+                .groupBy {
+                    val schem = it["table_schem"]?.uppercase() ?: ""
+                    val tbl   = it["table_name"]?.uppercase() ?: ""
+                    val col   = it["column_name"]?.replace("\"", "")?.uppercase() ?: ""
+                    "$schem|$tbl|$col"
+                }
+                .map { (_, dupes) -> dupes.first() }
+
+        // Save the remote metadata into the local cache.
+        try {
+            localConn.prepareStatement(
+                """
             INSERT OR IGNORE INTO CACHED_COLUMNS 
             (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION, REMARKS)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
-        ).use { pstmt ->
-            for (row in uniqueRows) {
-                pstmt.setString(1, row["table_cat"] ?: "")
-                pstmt.setString(2, row["table_schem"] ?: "")
-                pstmt.setString(3, row["table_name"] ?: "")
-                pstmt.setString(4, row["column_name"] ?: "")
-                pstmt.setString(5, row["data_type"] ?: "")
-                pstmt.setString(6, row["type_name"] ?: "")
-                pstmt.setString(7, row["column_size"] ?: "")
-                pstmt.setObject(8, row["decimal_digits"]?.takeIf { it.isNotBlank() }?.toIntOrNull())
-                pstmt.setObject(9, row["num_prec_radix"]?.takeIf { it.isNotBlank() }?.toIntOrNull())
-                pstmt.setString(10, row["nullable"] ?: "")
-                pstmt.setString(11, row["ordinal_position"] ?: "")
-                pstmt.setString(12, row["remarks"] ?: "")
-                pstmt.addBatch()
+            ).use { pstmt ->
+                for (row in uniqueRows) {
+                    pstmt.setString(1, row["table_cat"] ?: "")
+                    pstmt.setString(2, row["table_schem"] ?: "")
+                    pstmt.setString(3, row["table_name"] ?: "")
+                    pstmt.setString(4, row["column_name"] ?: "")
+                    pstmt.setString(5, row["data_type"] ?: "")
+                    pstmt.setString(6, row["type_name"] ?: "")
+                    pstmt.setString(7, row["column_size"] ?: "")
+                    pstmt.setObject(8, row["decimal_digits"]?.takeIf { it.isNotBlank() }?.toIntOrNull())
+                    pstmt.setObject(9, row["num_prec_radix"]?.takeIf { it.isNotBlank() }?.toIntOrNull())
+                    pstmt.setString(10, row["nullable"] ?: "")
+                    pstmt.setString(11, row["ordinal_position"] ?: "")
+                    pstmt.setString(12, row["remarks"] ?: "")
+                    pstmt.addBatch()
+                }
+                pstmt.executeBatch()
+                logger.info("Saved remote columns into local cache (${uniqueRows.size} rows).")
             }
-            pstmt.executeBatch()
-            logger.info("Saved remote columns into local cache (${uniqueRows.size} rows).")
+        } catch (ex: Exception) {
+            logger.error("Error saving remote metadata to local cache: ${ex.message}")
         }
-    } catch (ex: Exception) {
-        logger.error("Error saving remote metadata to local cache: ${ex.message}")
+        return XmlResultSet(uniqueRows)
     }
-    return XmlResultSet(uniqueRows)
-}
 
     // No column-level privileges available via WSDL; return an empty result set.
     override fun getColumnPrivileges(
