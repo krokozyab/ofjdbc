@@ -25,6 +25,8 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 
 ---
 
+> 🔔 **New!** Check out my recent project [OFJDBC Claude MCP Server](https://github.com/krokozyab/ofjdbc_claudie_mcp) – it can truly make magic with your SQL experience.
+
 ## 🚀 Features
 - **Your Credentials, Your Control:** Unlike many closed‑source solutions, this driver keeps your credentials under your control, ensuring peace of mind and security.
 - **Enhanced Syntax Highlighting:** As complete metadata is available, DBeaver uses that information to provide advanced SQL syntax highlighting. This not only enhances the visual presentation of your SQL code but also improves auto‑completion by accurately recognizing table and column names.
