@@ -26,6 +26,8 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 ---
 
 > 🔔 **New!** Check out my recent project [OFJDBC Claude MCP Server](https://github.com/krokozyab/ofjdbc_claudie_mcp) – it can truly make magic with your SQL experience.
+> 🔔 **New!** Simplified to Claude, OpenAI GPT [Oracle Fusion Technical Consultant](https://chatgpt.com/g/g-68cbf632f2288191a3b97833626b792e-oracle-fusion-technical-consultant)
+
 
 ## 🚀 Features
 - **Your Credentials, Your Control:** Unlike many closed‑source solutions, this driver keeps your credentials under your control, ensuring peace of mind and security.
