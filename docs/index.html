@@ -363,89 +363,26 @@
     </table>
 
     <div class="highlight-box">
-      <h3>📊 Read the Full Analysis</h3>
-      <p>
-        For an in-depth comparison of SQL query tools for Oracle Fusion Cloud, including OFJDBC, SQLConnect, DataFusing CloudSQL, and others, check out this comprehensive analysis: 
-        <a href="https://www.linkedin.com/pulse/analysis-ad-hoc-sql-query-tools-oracle-fusion-cloud-sergey-rudenko-igaif/" target="_blank" rel="noopener"><strong>Analysis of Ad-Hoc SQL Query Tools for Oracle Fusion Cloud</strong></a>
-      </p>
+      <h3>📊 Learn More - Tutorials & Articles</h3>
+      
+      <p><strong>OFJDBC & DBeaver:</strong></p>
+      <ul style="margin-left: 1.5rem; margin-bottom: 1rem;">
+        <li><a href="https://www.linkedin.com/pulse/analysis-ad-hoc-sql-query-tools-oracle-fusion-cloud-sergey-rudenko-igaif/" target="_blank" rel="noopener">Analysis of Ad-Hoc SQL Query Tools for Oracle Fusion Cloud</a></li>
+        <li><a href="https://www.linkedin.com/pulse/bridging-gap-using-open-source-jdbc-driver-oracle-fusion-rudenko-i6cwf/" target="_blank" rel="noopener">Building Oracle Fusion → AWS S3 → Athena → QuickSight Data Pipelines</a></li>
+      </ul>
+      
+      <p><strong>OFArrow (Arrow Flight SQL):</strong></p>
+      <ul style="margin-left: 1.5rem; margin-bottom: 1rem;">
+        <li><a href="https://medium.com/@rudenko.s/simplifying-oracle-fusion-data-access-with-ofarrow-a78f59a18b12" target="_blank" rel="noopener">Simplifying Oracle Fusion Data Access with OFArrow</a></li>
+        <li><a href="https://www.linkedin.com/pulse/query-oracle-fusion-arrow-flight-sql-visualize-apache-sergey-rudenko-7rwlf/" target="_blank" rel="noopener">Query Oracle Fusion & Visualize in Apache Superset</a></li>
+        <li><a href="https://www.linkedin.com/pulse/export-oracle-fusion-data-google-sheets-minutes-sergey-rudenko-izj4f/" target="_blank" rel="noopener">Export Oracle Fusion Data to Google Sheets in Minutes</a></li>
+      </ul>
+      
+      <p><strong>AI Companions:</strong></p>
+      <ul style="margin-left: 1.5rem;">
+        <li><a href="https://medium.com/@rudenko.s/oracle-fusion-metadata-mcp-server-545c7080b7a7" target="_blank" rel="noopener">Oracle Fusion Metadata MCP Server Guide</a></li>
+      </ul>
     </div>
-  </section>
-
-  <!-- DBeaver Integration -->
-  <section class="section" id="dbeaver">
-    <h2>Why DBeaver, Not SQL Developer?</h2>
-    <p>
-      Many users familiar with Oracle E-Business Suite naturally ask about <strong>SQL Developer compatibility</strong>. However, SQL Developer is tightly coupled to Oracle databases and doesn't support OFJDBC. More importantly, <strong>DBeaver offers capabilities that SQL Developer can't match</strong> for Oracle Fusion workflows:
-    </p>
-
-    <h3 style="margin-top: 2rem;">DBeaver's Unique Advantages</h3>
-    <ul style="margin-left: 2rem; margin-bottom: 2rem;">
-      <li><strong>Database-Agnostic:</strong> Connect to Oracle Fusion, AWS services (Athena, Redshift), Google Cloud (BigQuery), Azure (Synapse), OCI (Autonomous Database, Data Lake), and traditional databases—all from one workspace</li>
-      <li><strong>Local Metadata Caching:</strong> DBeaver caches Oracle Fusion schema information locally for instant autocomplete. SQL Developer fetches metadata over the network every time, causing delays</li>
-      <li><strong>Intelligent Error Detection:</strong> Real-time syntax highlighting catches typos in table names and column references before you run the query</li>
-      <li><strong>Visual Data Transfer:</strong> Export query results directly to cloud storage, other databases, or any format (Parquet, CSV, JSON) without writing code</li>
-      <li><strong>Cross-Database Queries:</strong> Compare Oracle Fusion data with data in other systems using DBeaver's multi-connection queries</li>
-      <li><strong>Task Automation:</strong> Save queries and data transfers as reusable tasks; schedule them with DBeaver's paid version</li>
-    </ul>
-
-    <div class="highlight-box">
-      <h3>💡 Key Insight</h3>
-      <p>
-        While OFJDBC technically uses BIP/OTBI under the hood (translating SQL to report invocations), <strong>DBeaver transforms this into a professional development experience</strong>. You get the power of direct SQL access combined with modern IDE features, cloud integrations, and data pipeline capabilities—far beyond what OTBI or SQL Developer can offer.
-      </p>
-    </div>
-
-    <h3 style="margin-top: 2rem;">Complete Data Integration Platform</h3>
-    <p>
-      With DBeaver + OFJDBC, you can:
-    </p>
-    <ul style="margin-left: 2rem;">
-      <li>Query Oracle Fusion with intelligent autocomplete and error detection</li>
-      <li>Export results to AWS S3, Google Cloud Storage, Azure Blob Storage, or OCI Object Storage</li>
-      <li>Load data into DuckDB for local analytics or transformation</li>
-      <li>Connect BI tools (QuickSight, Power BI, Tableau, Oracle Analytics Cloud) to your cloud data</li>
-      <li>Build data lakes with partitioned Parquet files</li>
-      <li>Create cross-platform analytics workflows across all major clouds</li>
-      <li>All through DBeaver's visual interface—no custom code required</li>
-    </ul>
-  </section>
-
-  <!-- Real-World Example -->
-  <section class="section" id="real-world-example">
-    <h2>Real-World Example: Oracle Fusion to AWS Analytics Pipeline</h2>
-    <p>
-      Here's how OFJDBC + DBeaver enables complete data workflows <strong>without writing code</strong> beyond SQL:
-    </p>
-    
-    <div class="highlight-box">
-      <h3>📈 Build a Cloud Data Lake & BI Dashboard</h3>
-      <ol style="margin-left: 2rem; line-height: 1.8;">
-        <li><strong>Connect DBeaver</strong> to both Oracle Fusion (via OFJDBC) and DuckDB</li>
-        <li><strong>Write a SELECT query</strong> in DBeaver against Oracle Fusion tables (e.g., GL_JE_LINES for journal entries)</li>
-        <li><strong>Right-click → Export From Query</strong> and select DuckDB as the target</li>
-        <li><strong>In DuckDB</strong>, use built-in functions to export data to AWS S3 in partitioned Parquet format</li>
-        <li><strong>Query the data</strong> directly from S3 using AWS Athena (serverless SQL)</li>
-        <li><strong>Create visualizations</strong> in AWS QuickSight connected to your Athena tables</li>
-      </ol>
-      <p style="margin-top: 1.5rem;">
-        <strong>Result:</strong> A complete analytics platform with Oracle Fusion data in a cloud data lake, queryable via SQL, and visualized in BI dashboards—all achieved through DBeaver's interface without custom code or ETL tools.
-      </p>
-      <p style="margin-top: 1rem;">
-        <a href="https://www.linkedin.com/pulse/bridging-gap-using-open-source-jdbc-driver-oracle-fusion-rudenko-i6cwf/" target="_blank" rel="noopener"><strong>→ Read the full step-by-step walkthrough</strong></a>
-      </p>
-    </div>
-
-    <h3 style="margin-top: 2rem;">Why This Matters</h3>
-    <p>
-      Traditional approaches require expensive ETL tools (Informatica, Talend), custom scripts, or middleware. With OFJDBC + DBeaver:
-    </p>
-    <ul style="margin-left: 2rem; margin-top: 1rem;">
-      <li><strong>Zero ETL license costs</strong> - Use free, open-source tools</li>
-      <li><strong>No custom code</strong> - Visual data transfer with DBeaver</li>
-      <li><strong>Multi-cloud ready</strong> - Works with AWS, Google Cloud, Azure, and on-premises</li>
-      <li><strong>Faster development</strong> - Build pipelines in minutes, not weeks</li>
-      <li><strong>BI tool agnostic</strong> - Connect QuickSight, Power BI, Tableau, Looker, or any SQL-based tool</li>
-    </ul>
   </section>
 
   <!-- Use Cases -->
@@ -518,9 +455,13 @@
         </ul>
         <p><strong>Export Formats:</strong> CSV, JSON, Excel, Parquet, Hive-partitioned (for data lakes)</p>
         <p style="margin-top: 1rem;">
-          <a href="https://github.com/krokozyab/ofarrow" target="_blank" rel="noopener"><strong>→ View on GitHub</strong></a> | 
-          <a href="https://medium.com/@rudenko.s/simplifying-oracle-fusion-data-access-with-ofarrow-a78f59a18b12" target="_blank" rel="noopener"><strong>Read Article</strong></a>
+          <a href="https://github.com/krokozyab/ofarrow" target="_blank" rel="noopener"><strong>→ View on GitHub</strong></a>
         </p>
+        <p style="margin-top: 0.5rem;"><strong>Tutorials:</strong></p>
+        <ul style="margin-left: 1.5rem; font-size: 0.95rem;">
+          <li><a href="https://www.linkedin.com/pulse/query-oracle-fusion-arrow-flight-sql-visualize-apache-sergey-rudenko-7rwlf/" target="_blank" rel="noopener">Query Oracle Fusion with Arrow Flight SQL & Visualize in Apache Superset</a></li>
+          <li><a href="https://www.linkedin.com/pulse/export-oracle-fusion-data-google-sheets-minutes-sergey-rudenko-izj4f/" target="_blank" rel="noopener">Export Oracle Fusion Data to Google Sheets in Minutes</a></li>
+        </ul>
       </div>
 
       <div class="feature">
@@ -539,6 +480,7 @@
         <p style="margin-top: 1rem;">
           <a href="https://github.com/krokozyab/ofjdbc_claudie_mcp" target="_blank" rel="noopener"><strong>→ View on GitHub</strong></a>
         </p>
+        <p style="margin-top: 0.5rem;"><strong>Tutorial:</strong> <a href="https://medium.com/@rudenko.s/oracle-fusion-metadata-mcp-server-545c7080b7a7" target="_blank" rel="noopener">Oracle Fusion Metadata MCP Server Guide</a></p>
       </div>
 
       <div class="feature">
