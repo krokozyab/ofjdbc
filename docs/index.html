@@ -291,18 +291,6 @@
         <h3>Export to Any Format</h3>
         <p>Export query results to Parquet (partitioned), CSV, JSON, Excel, or load directly into DuckDB, PostgreSQL, MySQL, or cloud databases. Build data lakes without custom scripts.</p>
       </div>
-      <div class="feature">
-        <h3>OFJDBC: 100% Open Source</h3>
-        <p>OFJDBC is completely open source with transparent code on GitHub. No licensing costs, no hidden fees. Companion tools (OFArrow, AI assistants) are free to download and use but closed source.</p>
-      </div>
-      <div class="feature">
-        <h3>Visual Data Transfer</h3>
-        <p>Use DBeaver's "Export From Query" feature to transfer data between Oracle Fusion and any destination. Map columns visually, save as reusable tasks, and automate with scheduling (paid DBeaver).</p>
-      </div>
-      <div class="feature">
-        <h3>Multi-Platform Support</h3>
-        <p>Connect to Oracle Fusion, AWS services, Google Cloud, Azure, and traditional databases—all from one DBeaver workspace. Write cross-database queries and compare data across platforms.</p>
-      </div>
     </div>
   </section>
 
@@ -402,34 +390,9 @@
         <p>Connect QuickSight, Power BI, Tableau, or Looker to Oracle Fusion data via cloud data warehouses (Athena, BigQuery, Synapse) populated by OFJDBC.</p>
       </div>
       <div class="feature">
-        <h3>Data Validation & Audits</h3>
-        <p>Verify data integrity, audit changes, and validate business rules with precise SQL queries. Export results for reconciliation reports.</p>
-      </div>
-      <div class="feature">
-        <h3>Cross-System Analysis</h3>
-        <p>Compare Oracle Fusion data with data from other systems using DBeaver's multi-database workspace. Join data across platforms in a single query.</p>
-      </div>
-      <div class="feature">
         <h3>Data Migration</h3>
         <p>Extract data from Oracle Fusion and load into target systems during migrations or integrations. Use DBeaver's visual mapping for complex transformations.</p>
       </div>
-    </div>
-  </section>
-
-  <!-- Getting Started -->
-  <section class="section" id="getting-started">
-    <h2>Getting Started with OFJDBC</h2>
-    <div class="highlight-box">
-      <h3>Quick Setup (5 minutes)</h3>
-      <ol style="margin-left: 2rem;">
-        <li>Download OFJDBC JDBC driver from <a href="https://github.com/krokozyab/ofjdbc" target="_blank" rel="noopener">GitHub</a></li>
-        <li>Install DBeaver (free) from <a href="https://dbeaver.io" target="_blank" rel="noopener">dbeaver.io</a></li>
-        <li>Configure OFJDBC connection with your Oracle Fusion Cloud credentials</li>
-        <li>Start running SQL queries against Oracle Fusion!</li>
-      </ol>
-      <p style="margin-top: 1rem;">
-        <strong>Full setup instructions, troubleshooting tips, and example queries available on GitHub.</strong>
-      </p>
     </div>
   </section>
 
@@ -536,17 +499,11 @@
   <section class="section" id="faq">
     <h2>Frequently Asked Questions</h2>
     
-    <h3>Is OFJDBC really free?</h3>
-    <p>Yes! OFJDBC is completely free and open-source. There are no licensing fees, subscriptions, or hidden costs.</p>
-    
     <h3>What SQL query tools work with OFJDBC?</h3>
     <p>OFJDBC works with any JDBC-compatible database tool. <strong>DBeaver is the recommended choice</strong> and provides the best experience—it's free, full-featured, and works perfectly with OFJDBC. Other JDBC clients like IntelliJ IDEA Database Tools, Eclipse Data Tools, and JetBrains DataGrip also work.</p>
     
     <h3>How does OFJDBC compare to commercial SQL query tools for Oracle Fusion?</h3>
     <p>OFJDBC provides similar functionality to commercial tools but is free and open-source. It's perfect for consultants, small teams, or anyone who prefers using standard database tools like DBeaver.</p>
-    
-    <h3>Can I use OFJDBC instead of OTBI?</h3>
-    <p>OFJDBC is ideal for ad-hoc SQL queries and data exploration. While OTBI has its place for creating formal reports, OFJDBC excels at quick troubleshooting and analysis tasks.</p>
     
     <h3>Can I use OFJDBC programmatically, or do I need OFArrow?</h3>
     <p><strong>OFJDBC is a standard JDBC driver</strong>, so it works programmatically in any JVM-based platform (Java, Scala, Kotlin, Groovy). This includes ETL tools like <strong>Apache Airflow</strong> (using JDBC operators), Talend, Pentaho, Apache NiFi, and any Java application. <strong>OFArrow is only needed for non-JVM languages</strong> (Python, R, JavaScript, Go, Rust) or when you prefer Arrow Flight SQL protocol over JDBC. If you're using Java/JVM, use OFJDBC directly via standard JDBC API.</p>
