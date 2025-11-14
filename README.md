@@ -160,6 +160,7 @@ Check back on the GitHub repository for updates and improvements as the project 
 
 ## 🔗 Other
 - **Further reading:** (https://oraclefusionsql.com/)
+- If OFJDBC saved you time or frustration, a ⭐ is appreciated and helps others in the Oracle Fusion community find it.
 
 ## 📫 Contact
 If you have questions, feel free to reach out via GitHub Issues or [email@sergey.rudenko.ba@gmail.com].
