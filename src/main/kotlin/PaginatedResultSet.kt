@@ -158,39 +158,18 @@ class PaginatedResultSet(
         val effectiveSql = rewriteQueryForPagination(originalSql, currentOffset, fetchSize)
         logger.debug("Fetching page: SQL='{}'", effectiveSql)
         val responseXml = fetchPageXml(effectiveSql)
-        val doc: Document = parseXml(responseXml)
-        // Grab all <ROW> elements anywhere in the payload with a single XPath pass.
-        var nodeList = ROW_EXPR.evaluate(doc, XPathConstants.NODESET) as NodeList
-        // If not found, the rows might be inside an escaped <RESULT> block → one extra parse.
-        if (nodeList.length == 0) {
-            val resultNodes = doc.getElementsByTagName("RESULT")
-            if (resultNodes.length > 0) {
-                val unescaped = StringEscapeUtils.unescapeXml(resultNodes.item(0).textContent.trim())
-                val innerDoc: Document = parseXml(unescaped)
-                nodeList = ROW_EXPR.evaluate(innerDoc, XPathConstants.NODESET) as NodeList
-            }
-        }
-        logger.debug("Fetched {} rows.", nodeList.length)
-        // Parse rows from the NodeList.
+        val newRowsRaw = parseRows(responseXml, true)
+        logger.debug("Fetched {} rows.", newRowsRaw.size)
+        // Parse rows from streaming maps.
         val newRows = mutableListOf<Map<String, String>>()
-        for (i in 0 until nodeList.length) {
-            val node = nodeList.item(i)
-            if (node.nodeType == Node.ELEMENT_NODE) {
-                val rowMap: MutableMap<String, String> =
-                    if (rowPool.isEmpty()) mutableMapOf() else rowPool.removeFirst().also { it.clear() }
-                val children = node.childNodes
-                for (j in 0 until children.length) {
-                    val child = children.item(j)
-                    if (child.nodeType == Node.ELEMENT_NODE) {
-                        val original = child.nodeName
-                        val lc       = original.lowercase()
-                        orderedCols += lc
-                        originalByLc.putIfAbsent(lc, original)   // preserve first‑seen case
-                        rowMap[lc] = child.textContent.trim()
-                    }
-                }
-                newRows.add(rowMap)
+        for (r in newRowsRaw) {
+            val rowMap: MutableMap<String, String> = if (rowPool.isEmpty()) mutableMapOf() else rowPool.removeFirst().also { it.clear() }
+            for ((lc, v) in r) {
+                orderedCols += lc
+                originalByLc.putIfAbsent(lc, lc) // preserve lowercase as original case when streaming
+                rowMap[lc] = (v ?: "").trim()
             }
+            newRows.add(rowMap)
         }
         // Build metadata if not yet initialized.
         if (cachedMeta == null) {
@@ -209,6 +188,7 @@ class PaginatedResultSet(
     /**
      * Call Utils.sendSqlViaWsdl with a simple exponential‑backoff retry.
      * Throws SQLTimeoutException after [maxRetries] unsuccessful attempts.
+     * Oracle SQL errors (ORA-XXXXX) are not retried as they are permanent errors.
      */
     private fun fetchPageXml(sql: String): String {
         var attempt = 0
@@ -219,6 +199,18 @@ class PaginatedResultSet(
                 return sendSqlViaWsdl(wsdlEndpoint, sql, username, password, reportPath)
             } catch (ex: Exception) {
                 attempt++
+
+                // Check if this is an Oracle SQL error - these should never be retried
+                val isOracleError = ex.message?.let { msg ->
+                    msg.contains("Oracle SQL error") || msg.contains(Regex("""ORA-\d{5}"""))
+                } == true
+
+                if (isOracleError) {
+                    // Oracle errors are permanent - don't retry, just rethrow
+                    logger.error("Oracle SQL error encountered, not retrying: {}", ex.message)
+                    throw ex
+                }
+
                 if (attempt >= maxRetries) {
                     throw SQLTimeoutException(
                         "Failed to fetch page after $attempt attempts: ${ex.message}",
