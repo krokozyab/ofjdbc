@@ -188,6 +188,7 @@ class PaginatedResultSet(
     /**
      * Call Utils.sendSqlViaWsdl with a simple exponential‑backoff retry.
      * Throws SQLTimeoutException after [maxRetries] unsuccessful attempts.
+     * Oracle SQL errors (ORA-XXXXX) are not retried as they are permanent errors.
      */
     private fun fetchPageXml(sql: String): String {
         var attempt = 0
@@ -198,6 +199,18 @@ class PaginatedResultSet(
                 return sendSqlViaWsdl(wsdlEndpoint, sql, username, password, reportPath)
             } catch (ex: Exception) {
                 attempt++
+
+                // Check if this is an Oracle SQL error - these should never be retried
+                val isOracleError = ex.message?.let { msg ->
+                    msg.contains("Oracle SQL error") || msg.contains(Regex("""ORA-\d{5}"""))
+                } == true
+
+                if (isOracleError) {
+                    // Oracle errors are permanent - don't retry, just rethrow
+                    logger.error("Oracle SQL error encountered, not retrying: {}", ex.message)
+                    throw ex
+                }
+
                 if (attempt >= maxRetries) {
                     throw SQLTimeoutException(
                         "Failed to fetch page after $attempt attempts: ${ex.message}",

@@ -30,6 +30,8 @@ import org.xml.sax.InputSource as SaxInputSource
 import my.jdbc.wsdl_driver.SecuredViewMappings
 import org.apache.commons.text.StringEscapeUtils
 import javax.xml.stream.XMLStreamConstants
+import java.io.ByteArrayInputStream
+import java.util.zip.GZIPInputStream
 
 
 /**
@@ -208,6 +210,158 @@ fun extractSoapFaultReason(body: String): String {
     } catch (e: Exception) {
         "Error parsing SOAP fault: ${e.message}"
     }
+}
+
+/**
+ * Decompress HTTP response bytes if gzip-compressed, otherwise decode as UTF-8 string.
+ */
+fun decompressResponseIfNeeded(bytes: ByteArray): String {
+    // Check for gzip magic number (0x1f 0x8b)
+    if (bytes.size >= 2 && bytes[0] == 0x1f.toByte() && bytes[1] == 0x8b.toByte()) {
+        logger.debug("Response is gzip-compressed, decompressing...")
+        return try {
+            ByteArrayInputStream(bytes).use { bais ->
+                GZIPInputStream(bais).use { gzis ->
+                    gzis.readBytes().toString(Charsets.UTF_8)
+                }
+            }
+        } catch (e: Exception) {
+            logger.warn("Failed to decompress gzip response: ${e.message}")
+            // Fall back to treating as UTF-8 string
+            bytes.toString(Charsets.UTF_8)
+        }
+    }
+
+    // Not gzip, decode as UTF-8 string
+    return bytes.toString(Charsets.UTF_8)
+}
+
+/**
+ * Safely decode an HTTP error response body, handling HTML content, SOAP faults, and binary data.
+ * Returns a human-readable error message. Note: gzip decompression should be handled before calling this.
+ */
+fun decodeErrorResponse(body: String, statusCode: Int, maxLength: Int = 2000): String {
+    if (body.isBlank()) {
+        return "Empty response"
+    }
+
+    val trimmed = body.trim()
+
+    // Check if it's HTML
+    if (trimmed.startsWith("<html", ignoreCase = true) ||
+        trimmed.startsWith("<!DOCTYPE html", ignoreCase = true)) {
+        // Try to extract title or meaningful text from HTML
+        val titleMatch = Regex("<title>([^<]+)</title>", RegexOption.IGNORE_CASE).find(body)
+        val title = titleMatch?.groupValues?.get(1)?.trim() ?: "HTML Error Page"
+
+        // Try to extract error message from common Oracle error patterns
+        val h1Match = Regex("<h1>([^<]+)</h1>", RegexOption.IGNORE_CASE).find(body)
+        val h1Text = h1Match?.groupValues?.get(1)?.trim()
+
+        val message = when {
+            h1Text != null && h1Text.isNotBlank() -> h1Text
+            title != "HTML Error Page" -> title
+            else -> "Received HTML error page"
+        }
+
+        return "HTTP $statusCode: $message"
+    }
+
+    // Check if it's a SOAP fault
+    if (trimmed.contains("Fault", ignoreCase = true) &&
+        (trimmed.contains("soap", ignoreCase = true) || trimmed.contains("envelope", ignoreCase = true))) {
+        return try {
+            // First try to extract the fault reason using the proper SOAP namespace
+            val faultReason = extractSoapFaultReason(body)
+            if (faultReason != "No fault reason found" && !faultReason.startsWith("Error parsing")) {
+                // Try to extract just Oracle errors from the fault reason
+                val oracleErrors = extractOracleErrors(faultReason)
+                if (oracleErrors != null) {
+                    return oracleErrors
+                }
+                return faultReason
+            }
+
+            // If that didn't work, try the generic SOAP error extractor
+            val soapError = extractSoapError(body)
+            if (soapError != "Unknown SOAP Fault") {
+                // Try to extract just Oracle errors
+                val oracleErrors = extractOracleErrors(soapError)
+                if (oracleErrors != null) {
+                    return oracleErrors
+                }
+                return soapError
+            }
+
+            // Last resort: extract text content from env:Text or faultstring elements using regex
+            // Use DOTALL to capture multi-line content
+            val textMatch = Regex("""<env:Text[^>]*>(.*?)</env:Text>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(body)
+                ?: Regex("""<faultstring>(.*?)</faultstring>""", setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)).find(body)
+
+            if (textMatch != null) {
+                val errorText = textMatch.groupValues[1].trim()
+                // Clean up any XML entities
+                val decodedText = errorText.replace("&lt;", "<")
+                    .replace("&gt;", ">")
+                    .replace("&amp;", "&")
+                    .replace("&quot;", "\"")
+                    .replace("&apos;", "'")
+
+                // Try to extract just Oracle errors
+                val oracleErrors = extractOracleErrors(decodedText)
+                if (oracleErrors != null) {
+                    return oracleErrors
+                }
+                return decodedText
+            } else {
+                // If all parsing fails, just return the body (don't truncate SOAP faults as they contain important error info)
+                return body
+            }
+        } catch (e: Exception) {
+            logger.warn("Failed to parse SOAP fault: ${e.message}")
+            body
+        }
+    }
+
+    // Check for Oracle errors in plain text responses
+    val oracleErrors = extractOracleErrors(trimmed)
+    if (oracleErrors != null) {
+        return oracleErrors
+    }
+
+    // Plain text or unknown format - truncate if too long
+    return truncate(trimmed, maxLength)
+}
+
+/**
+ * Extract Oracle error codes and messages from a verbose error message,
+ * removing Java exception chain noise.
+ */
+fun extractOracleErrors(message: String): String? {
+    // Look for ORA-XXXXX error codes in the message
+    val oraPattern = Regex("""(ORA-\d{5}:.*?)(?=ORA-\d{5}:|$)""", setOf(RegexOption.DOT_MATCHES_ALL))
+    val matches = oraPattern.findAll(message).toList()
+
+    if (matches.isEmpty()) {
+        return null
+    }
+
+    // Clean up each ORA error line
+    val cleanErrors = matches.map { match ->
+        val error = match.groupValues[1].trim()
+        // Remove any trailing URL or other noise after the error message
+        error.replace(Regex("""https?://[^\s]+"""), "").trim()
+    }
+
+    return cleanErrors.joinToString("\n")
+}
+
+/**
+ * Truncate a string to a maximum length, adding ellipsis if truncated
+ */
+private fun truncate(text: String, maxLength: Int): String {
+    if (text.length <= maxLength) return text
+    return text.take(maxLength) + "... (truncated)"
 }
 
 fun parseXml(xml: String): Document {
@@ -485,17 +639,26 @@ fun <T> executeWithRetry(
             lastException = e
             context.recordAttempt(e)
             
-            val isRetryable = isRetryableException(e) || 
+            // Check if this is an Oracle SQL error - these should never be retried
+            val isOracleError = e.message?.let { msg ->
+                msg.contains("Oracle SQL error") || msg.contains(Regex("""ORA-\d{5}"""))
+            } == true
+
+            val isRetryable = !isOracleError && (
+                isRetryableException(e) ||
                 (e is SQLException && e.message?.let { msg ->
                     val lowerMsg = msg.lowercase()
-                    lowerMsg.contains("http") && (
+                    // Check for "retryable error" messages or HTTP status codes
+                    lowerMsg.contains("retryable error") ||
+                    (lowerMsg.contains("http") && (
                         lowerMsg.contains("500") || lowerMsg.contains("502") ||
                         lowerMsg.contains("503") || lowerMsg.contains("504")
-                    )
+                    ))
                 } == true)
-            
+            )
+
             if (!isRetryable || attemptIndex == retryConfig.maxAttempts - 1) {
-                logger.error("Operation '{}' failed after {} attempts in {}ms. Last error: {}", 
+                logger.error("Operation '{}' failed after {} attempts in {}ms. Last error: {}",
                     operation, context.attempt, context.totalElapsedMs(), e.message)
                 throw e
             }
@@ -555,28 +718,33 @@ private fun sendSqlViaWsdlInternal(
         .POST(HttpRequest.BodyPublishers.ofString(soapEnvelope))
         .build()
     
-    val response = HttpClientManager.httpClient.send(request, HttpResponse.BodyHandlers.ofString())
+    // Receive response as bytes to preserve binary data (in case of gzip)
+    val response = HttpClientManager.httpClient.send(request, HttpResponse.BodyHandlers.ofByteArray())
     val status = response.statusCode()
-    val body = response.body()
-    
-    // Check for retryable HTTP status codes
-    if (isRetryableHttpStatus(status)) {
-        throw SQLException("WSDL service returned retryable error ($status): $body")
-    }
-    
-    // Check if the response is an HTML error page
-    if (body.trim().startsWith("<html", ignoreCase = true) ||
-        body.trim().startsWith("<!DOCTYPE html", ignoreCase = true)) {
-        logger.error("Received an HTML error response (HTTP {}): {}", status, body)
-        throw SQLException("WSDL service error ($status): Received an HTML error response. Details: $body")
-    }
-    
-    if (body.isBlank()) {
+    val bodyBytes = response.body()
+
+    if (bodyBytes.isEmpty()) {
         throw SQLException("Empty SOAP response from WSDL service. HTTP Status: $status")
     }
-    
-    val doc = parseXml(body)
+
+    // Decompress if gzip-compressed, otherwise decode as UTF-8 string
+    val body = decompressResponseIfNeeded(bodyBytes)
+
+    // Check for retryable HTTP status codes
+    if (isRetryableHttpStatus(status)) {
+        val readableError = decodeErrorResponse(body, status)
+
+        // Check if this is an Oracle SQL error (ORA-XXXXX) - these are not retryable
+        if (readableError.contains(Regex("""ORA-\d{5}"""))) {
+            throw SQLException("Oracle SQL error ($status): $readableError")
+        }
+
+        throw SQLException("WSDL service returned retryable error ($status): $readableError")
+    }
+
+    // For successful responses, parse and extract reportBytes
     if (status == 200) {
+        val doc = parseXml(body)
         val reportNode = findNodeEndingWith(doc.documentElement, "reportBytes")
         if (reportNode != null) {
             val base64Str = reportNode.textContent.trim()
@@ -585,8 +753,15 @@ private fun sendSqlViaWsdlInternal(
             throw SQLException("Invalid response format: No reportBytes found")
         }
     } else {
-        val errorMessage = extractSoapFaultReason(body)
-        throw SQLException("WSDL service error ($status): $errorMessage")
+        // For error responses, decode the error message properly
+        val readableError = decodeErrorResponse(body, status)
+
+        // Check if this is an Oracle SQL error - these are not retryable
+        if (readableError.contains(Regex("""ORA-\d{5}"""))) {
+            throw SQLException("Oracle SQL error ($status): $readableError")
+        }
+
+        throw SQLException("WSDL service error ($status): $readableError")
     }
 }
 
