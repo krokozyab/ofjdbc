@@ -4,7 +4,7 @@
 [![Ko-Fi](https://img.shields.io/static/v1?style=for-the-badge&message=Support%20the%20Project&color=success&logo=ko-fi&label=$$)](https://ko-fi.com/sergeyrudenko)
 
 A read‑only JDBC driver that lets you run SQL queries against Oracle Fusion.
-This minimal viable implementation works seamlessly in mature IDE's - DBeaver, DbVisualizer and IntelliJ. 
+This minimal viable implementation works seamlessly in mature IDE's - DBeaver, DbVisualizer and IntelliJ.
 And it isn’t just for Java - it can be used from any JVM‑hosted language to build custom data pipelines.
 
 ---
@@ -25,6 +25,11 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 
 ---
 
+> 🔔 **New!** Check out my recent project [OFJDBC Claude MCP Server](https://github.com/krokozyab/ofjdbc_claudie_mcp) – it can truly make magic with your SQL experience.
+
+> 🔔 **New!** Simplified to Claude, OpenAI GPT [Oracle Fusion Technical Consultant](https://chatgpt.com/g/g-68cbf632f2288191a3b97833626b792e-oracle-fusion-technical-consultant)
+
+
 ## 🚀 Features
 - **Your Credentials, Your Control:** Unlike many closed‑source solutions, this driver keeps your credentials under your control, ensuring peace of mind and security.
 - **Enhanced Syntax Highlighting:** As complete metadata is available, DBeaver uses that information to provide advanced SQL syntax highlighting. This not only enhances the visual presentation of your SQL code but also improves auto‑completion by accurately recognizing table and column names.
@@ -36,7 +41,7 @@ And it isn’t just for Java - it can be used from any JVM‑hosted language to 
 - **Incremental Introspection**: Enjoy real‑time code completions as you type! The driver leverages a local metadata cache that incrementally introspects and stores schema information, dramatically speeding up completion suggestions in DBeaver. (maybe slow only at 1-st run, wait a minute)
 - **Minimalist Design:** A read‑only, no‑frills JDBC driver for Oracle Fusion exploring/reporting via WSDL.
 - **IDE Integration:** Run SQL queries directly from your favorite IDE - DBeaver, DbVisualizer, IntelliJ, etc. without the extra overhead.
-_**DBeaver**_
+  _**DBeaver**_
 <!-- ![dbeaver](pics/dbeaver.jpg) -->
 <!-- ![dbeaver](pics/dbv1.png) -->
 <!-- [dbeaver](pics/dbv2.png) -->
@@ -44,7 +49,7 @@ _**DBeaver**_
 - **JVM-Hosted Flexibility:** Use this driver not only from Java but from any JVM‑hosted language for building custom data pipelines.
 - **Easy to Configure:** Simple setup by providing your connection URL and credentials.
 
-[![Watch the demo](https://img.shields.io/badge/▶️%20Watch%20Demo-red?logo=youtube&logoColor=white)](https://youtu.be/7HQwmzQriRM)
+[![Watch the demo](https://img.shields.io/badge/▶️%20Watch%20Demo-red?logo=youtube&logoColor=white)](https://youtu.be/7HQwmzQriRM?si=Xk1Pm1RJDEQlRjm3)
 
 ---
 
@@ -63,8 +68,8 @@ Before using this driver, ensure you have the following:
 1. **Download the Driver:**
 
    Download the latest version of the driver from the releases of this repository linked below (orfujdbc-1.0-SNAPSHOT.zip
-file):
-   
+   file):
+
    [![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)
 
 3. **Alternatively, clone the repository and build the driver from source.**
@@ -72,7 +77,7 @@ file):
 4. **Create report in OTBI**
 
    In you fusion instance un-archive _DM_ARB.xdm.catalog_ and _RP_ARB.xdo.catalog_ from **otbireport** catalog of this repository
-into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you will). 
+   into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you will).
 
 
 
@@ -91,7 +96,7 @@ into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you wil
 
 5. **Enter the Connection String (JDBC URL): jdbc:wsdl://you-server.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo**
 6. **Enter Your Credentials: Provide the username and password for basic authentication.**
-<font color="orange">
+   <font color="orange">
 
 <img src="pics/setup_4.png" alt="dbeaver" width="600"/>
 
@@ -99,12 +104,12 @@ into _/Shared Foldrs/Custom/Financials_ folder (that can be different if you wil
 
 <img src="pics/setup_6.png" alt="dbeaver" width="600"/>
 
-7. **On Windows enable view indexes on driver settings** 
+7. **On Windows enable view indexes on driver settings**
 
 <img src="pics/indexes_meta.png" alt="dbeaver" width="600"/>
 
 0. **After February 27, 2025, the incremental cache algorithm has been updated. In addition to installing the new release JAR file, please refresh your local cache by deleting the metadata.db and metadata.db.wal files from your user folder.**
-</font>
+   </font>
 
 ## ❗ Limitations
 
@@ -133,30 +138,29 @@ Before using this driver in your organization, please ensure that you consult wi
 This project is a minimal viable implementation, and there are several areas for future enhancement:
 
 - **Additional JDBC Features:**
-   - Support for advanced JDBC methods (scrollable ResultSets, etc.).
+    - Support for advanced JDBC methods (scrollable ResultSets, etc.).
 
 - **Error Handling:**
-   - Improve the integration with IDE-specific features (e.g., better error messages).
+    - Improve the integration with IDE-specific features (e.g., better error messages).
 
 - **Performance & Scalability:**
-   ~~- Optimize query pagination and fetch size management.~~
-   ~~- Currently, if you enter 'select * from xyz', the driver automatically converts it to 'select * from xyz FETCH FIRST 50 ROWS ONLY'. However, if you enter a query that already includes pagination (e.g., 'select * from xyz FETCH FIRST 1000 ROWS ONLY'), it remains unchanged. Pagination is currently your responsibility.~~
-   - Done
+  ~~- Optimize query pagination and fetch size management.~~
+  ~~- Currently, if you enter 'select * from xyz', the driver automatically converts it to 'select * from xyz FETCH FIRST 50 ROWS ONLY'. However, if you enter a query that already includes pagination (e.g., 'select * from xyz FETCH FIRST 1000 ROWS ONLY'), it remains unchanged. Pagination is currently your responsibility.~~
+    - Done
 
 - **Extended Metadata:**
-   - Implement additional DatabaseMetaData methods to provide richer metadata support.
-   Im happy whih as it is now, if you want to improve Oracle internals recognition then
-  fix in getNumericFunctions, getStringFunctions, getSystemFunctions, getTimeDateFunctions funcions of this repo.
+    - Implement additional DatabaseMetaData methods to provide richer metadata support.
+      Im happy whih as it is now, if you want to improve Oracle internals recognition then
+      fix in getNumericFunctions, getStringFunctions, getSystemFunctions, getTimeDateFunctions funcions of this repo.
 
 - **Customizability:**
-   - Explore supporting additional authentication mechanisms beyond Basic Auth.
+    - Explore supporting additional authentication mechanisms beyond Basic Auth.
 
 Check back on the GitHub repository for updates and improvements as the project evolves.
 
 ## 🔗 Other
-[Arrow Flight SQL server for Oracle Fusion](https://github.com/krokozyab/ofarrow)
-- **Further reading:** Check out this article on LinkedIn:  
-  [Bridging the Gap: Using an Open-Source JDBC Driver for Oracle Fusion SaaS](https://www.linkedin.com/pulse/bridging-gap-using-open-source-jdbc-driver-oracle-fusion-rudenko-i6cwf/?trackingId=5Mp2LNwgRpG1k9cZ1QWPzQ%3D%3D)
+- **Further reading:** (https://oraclefusionsql.com/)
+- If OFJDBC saved you time or frustration, a ⭐ is appreciated and helps others in the Oracle Fusion community find it.
 
 ## 📫 Contact
 If you have questions, feel free to reach out via GitHub Issues or [email@sergey.rudenko.ba@gmail.com].
