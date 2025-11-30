@@ -29,6 +29,16 @@ object LocalMetadataCache {
     private fun createConnection(): Connection {
         java.io.File(ofjdbcDir).mkdirs()
         logger.info("Using DuckDB file: $duckDbFilePath")
+
+        // Explicitly load DuckDB driver for environments with isolated classloaders (e.g., DataGrip/IntelliJ)
+        try {
+            Class.forName("org.duckdb.DuckDBDriver")
+            logger.debug("DuckDB driver loaded successfully")
+        } catch (e: ClassNotFoundException) {
+            logger.error("DuckDB driver not found in classpath. Metadata caching will not work.", e)
+            throw SQLException("DuckDB driver not available for metadata caching", e)
+        }
+
         val conn = DriverManager.getConnection("jdbc:duckdb:$duckDbFilePath")
         conn.autoCommit = true
         conn.createStatement().use { stmt ->
