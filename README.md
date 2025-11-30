@@ -4,7 +4,7 @@
 [![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)
 [![Ko-Fi](https://img.shields.io/static/v1?style=for-the-badge&message=Support%20the%20Project&color=success&logo=ko-fi&label=$$)](https://ko-fi.com/sergeyrudenko)
 
-A lightweight, read‑only JDBC driver that translates SQL queries into SOAP requests for Oracle Fusion. Works seamlessly with DBeaver, IntelliJ, and other JDBC-compliant tools, giving you full SQL capabilities over your Fusion data.
+A lightweight, read‑only JDBC driver that translates SQL queries into SOAP requests for Oracle Fusion. While compatible with standard JDBC tools (IntelliJ, DataGrip, etc.), it is **highly recommended for use with DBeaver** to unlock full metadata support, advanced syntax highlighting, and auto-completion.
 
 > 🔔 **New!** Check out the [OFJDBC Claude MCP Server](https://github.com/krokozyab/ofjdbc_claudie_mcp) or the [Oracle Fusion Technical Consultant GPT](https://chatgpt.com/g/g-68cbf632f2288191a3b97833626b792e-oracle-fusion-technical-consultant).
 
