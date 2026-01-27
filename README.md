@@ -6,7 +6,7 @@
 
 A lightweight, read‑only JDBC driver that translates SQL queries into SOAP requests for Oracle Fusion. Works seamlessly with DBeaver, IntelliJ, and other JDBC-compliant tools, giving you full SQL capabilities over your Fusion data.
 
-> 🔔 **New!** Check out the [OFJDBC Claude MCP Server](https://github.com/krokozyab/ofjdbc_claudie_mcp) or the [Oracle Fusion Technical Consultant GPT](https://chatgpt.com/g/g-68cbf632f2288191a3b97833626b792e-oracle-fusion-technical-consultant).
+> 🔔 **New!** Check out the - [Agentic SQL & RAG engine for Oracle Fusion. Features local schema caching, semantic search, and real-time SQL execution for AI agents](https://github.com/krokozyab/ofrag).
 
 ---
 
