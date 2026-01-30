@@ -1,8 +1,8 @@
 # JDBC Driver and SQL Query Tool for Oracle Fusion
 
 [![License](https://img.shields.io/badge/License-Mit-blue.svg?style=for-the-badge&logo=mit)](LICENSE.md)
-[![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)
-[![Ko-Fi](https://img.shields.io/static/v1?style=for-the-badge&message=Support%20the%20Project&color=success&logo=ko-fi&label=$$)](https://ko-fi.com/sergeyrudenko)
+<!--[![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)-->
+<!--[![Ko-Fi](https://img.shields.io/static/v1?style=for-the-badge&message=Support%20the%20Project&color=success&logo=ko-fi&label=$$)](https://ko-fi.com/sergeyrudenko)-->
 
 A lightweight, read‑only JDBC driver that translates SQL queries into SOAP requests for Oracle Fusion. Works seamlessly with DBeaver, IntelliJ, and other JDBC-compliant tools, giving you full SQL capabilities over your Fusion data.
 
