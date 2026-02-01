@@ -1,645 +1,628 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta name="google-site-verification" content="VtGCjCoW26_KUiO3g4_zVTh8WLQ80SmR6Hoj1zxFLx0" />
-  <meta name="msvalidate.01" content="B2AE7C4F1D2FFB53AA3A99D9D5F6EFB5" />
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <meta name="google-site-verification" content="VtGCjCoW26_KUiO3g4_zVTh8WLQ80SmR6Hoj1zxFLx0" />
+    <meta name="msvalidate.01" content="B2AE7C4F1D2FFB53AA3A99D9D5F6EFB5" />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-  <title>OFJDBC - Free Open-Source SQL Tool & Data Integration Platform for Oracle Fusion Cloud</title>
-  <meta name="description" content="Free open-source JDBC driver for Oracle Fusion Cloud. Build data pipelines to AWS, Google Cloud, Azure, and OCI with DBeaver. Extract, transform, load data without ETL tools. SQL queries, BI integration, Airflow support, cloud data lakes." />
-  <meta name="keywords" content="Oracle Fusion SQL query tool, Oracle Fusion Cloud, JDBC driver, DBeaver, SQL tool, Oracle ERP, OTBI alternative, data integration, ETL, AWS S3, BigQuery, Azure, OCI Object Storage, Oracle Cloud Infrastructure, data pipeline, cloud data lake, QuickSight, Power BI, Oracle Analytics Cloud, Parquet, DuckDB, data warehouse, Arrow Flight SQL, Python Oracle Fusion, REST API, Airflow, Airflow JDBC, Prefect, JVM, Java, Scala" />
-  <meta name="robots" content="index, follow" />
-  <link rel="canonical" href="https://krokozyab.github.io/ofjdbc" />
-  <meta name="theme-color" content="#0066CC" />
-  <link rel="icon" type="image/svg+xml" href="favicon.svg">
-  
-  <meta property="og:title" content="OFJDBC - Free SQL Query Tool for Oracle Fusion Cloud" />
-  <meta property="og:description" content="Open-source JDBC driver for running SQL queries directly against Oracle Fusion Cloud. Free alternative to commercial query tools with DBeaver support." />
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="https://krokozyab.github.io/ofjdbc" />
+    <title>OFJDBC - Free Open-Source SQL Tool & Data Integration Platform for Oracle Fusion Cloud</title>
+    <meta name="description" content="Free open-source JDBC driver for Oracle Fusion Cloud. Build data pipelines to AWS, Google Cloud, Azure, and OCI with DBeaver. Extract, transform, load data without ETL tools. SQL queries, BI integration, Airflow support, cloud data lakes." />
+    <meta name="keywords" content="Oracle Fusion SQL query tool, Oracle Fusion Cloud, JDBC driver, DBeaver, SQL tool, Oracle ERP, OTBI alternative, data integration, ETL, AWS S3, BigQuery, Azure, OCI Object Storage, Oracle Cloud Infrastructure, data pipeline, cloud data lake, QuickSight, Power BI, Oracle Analytics Cloud, Parquet, DuckDB, data warehouse, Arrow Flight SQL, Python Oracle Fusion, REST API, Airflow, Airflow JDBC, Prefect, JVM, Java, Scala" />
+    <meta name="robots" content="index, follow" />
+    <link rel="canonical" href="https://krokozyab.github.io/ofjdbc" />
+    <meta name="theme-color" content="#0066CC" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
-  <meta name="twitter:card" content="summary_large_image" />
-  <meta name="twitter:title" content="OFJDBC - Free SQL Query Tool for Oracle Fusion Cloud" />
-  <meta name="twitter:description" content="Open-source SQL query tool for Oracle Fusion. Run queries with DBeaver, no OTBI required." />
+    <meta property="og:title" content="OFJDBC - Free SQL Query Tool for Oracle Fusion Cloud" />
+    <meta property="og:description" content="Open-source JDBC driver for running SQL queries directly against Oracle Fusion Cloud. Free alternative to commercial query tools with DBeaver support." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://krokozyab.github.io/ofjdbc" />
 
-  <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "OFJDBC",
-      "alternateName": "Oracle Friendly JDBC",
-      "operatingSystem": "Windows, MacOS, Linux",
-      "applicationCategory": "DatabaseApplication",
-      "description": "Free open-source SQL query tool for Oracle Fusion Cloud. JDBC driver enabling direct database access for ad-hoc queries using DBeaver and other standard SQL clients.",
-      "url": "https://krokozyab.github.io/ofjdbc",
-      "softwareVersion": "1.0",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
-      "codeRepository": "https://github.com/krokozyab/ofjdbc",
-      "keywords": "Oracle Fusion, SQL query tool, JDBC, DBeaver, Oracle Cloud, OTBI alternative"
-    }
-  </script>
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="OFJDBC - Free SQL Query Tool for Oracle Fusion Cloud" />
+    <meta name="twitter:description" content="Open-source SQL query tool for Oracle Fusion. Run queries with DBeaver, no OTBI required." />
 
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+    <script type="application/ld+json">
+        {
+            "@context": "https://schema.org",
+            "@type": "SoftwareApplication",
+            "name": "OFJDBC",
+            "alternateName": "Oracle Friendly JDBC",
+            "operatingSystem": "Windows, MacOS, Linux",
+            "applicationCategory": "DatabaseApplication",
+            "description": "Free open-source SQL query tool for Oracle Fusion Cloud. JDBC driver enabling direct database access for ad-hoc queries using DBeaver and other standard SQL clients.",
+            "url": "https://krokozyab.github.io/ofjdbc",
+            "softwareVersion": "1.0",
+            "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD"
+            },
+            "codeRepository": "https://github.com/krokozyab/ofjdbc",
+            "keywords": "Oracle Fusion, SQL query tool, JDBC, DBeaver, Oracle Cloud, OTBI alternative"
+        }
+    </script>
 
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-    :root {
-      --primary: #0066CC;
-      --primary-dark: #004C99;
-      --secondary: #00D9FF;
-      --accent: #FFB800;
-      --success: #00CC88;
-      --text-dark: #1a1a1a;
-      --text-light: #666;
-      --bg-light: #F8FAFC;
-      --bg-white: #FFFFFF;
-      --border: #E2E8F0;
-      --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
-      --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
-      --shadow-lg: 0 10px 40px rgba(0,102,204,0.15);
-      --gradient: linear-gradient(135deg, #0066CC 0%, #0099FF 100%);
-      --gradient-accent: linear-gradient(135deg, #FFB800 0%, #FF8800 100%);
-    }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
 
-    body {
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      line-height: 1.7;
-      color: var(--text-dark);
-      background: var(--bg-light);
-      overflow-x: hidden;
-    }
+        :root {
+            --primary: #0066CC;
+            --primary-dark: #004C99;
+            --secondary: #00D9FF;
+            --accent: #FFB800;
+            --success: #00CC88;
+            --text-dark: #1a1a1a;
+            --text-light: #666;
+            --bg-light: #F8FAFC;
+            --bg-white: #FFFFFF;
+            --border: #E2E8F0;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 12px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 40px rgba(0,102,204,0.15);
+            --gradient: linear-gradient(135deg, #0066CC 0%, #0099FF 100%);
+            --gradient-accent: linear-gradient(135deg, #FFB800 0%, #FF8800 100%);
+        }
 
-    /* Hero Section */
-    .hero {
-      background: var(--gradient);
-      color: white;
-      padding: 5rem 2rem;
-      text-align: center;
-      position: relative;
-      overflow: hidden;
-    }
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            line-height: 1.7;
+            color: var(--text-dark);
+            background: var(--bg-light);
+            overflow-x: hidden;
+        }
 
-    .hero::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: radial-gradient(circle at 20% 50%, rgba(0, 217, 255, 0.2) 0%, transparent 50%),
-                  radial-gradient(circle at 80% 80%, rgba(255, 184, 0, 0.2) 0%, transparent 50%);
-      pointer-events: none;
-    }
+        /* Hero Section */
+        .hero {
+            background: var(--gradient);
+            color: white;
+            padding: 5rem 2rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
 
-    .hero-content {
-      max-width: 900px;
-      margin: 0 auto;
-      position: relative;
-      z-index: 1;
-    }
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: radial-gradient(circle at 20% 50%, rgba(0, 217, 255, 0.2) 0%, transparent 50%),
+            radial-gradient(circle at 80% 80%, rgba(255, 184, 0, 0.2) 0%, transparent 50%);
+            pointer-events: none;
+        }
 
-    .hero-badge {
-      display: inline-block;
-      background: rgba(255,255,255,0.2);
-      backdrop-filter: blur(10px);
-      padding: 0.5rem 1.2rem;
-      border-radius: 50px;
-      font-size: 0.9rem;
-      font-weight: 600;
-      margin-bottom: 1.5rem;
-      border: 1px solid rgba(255,255,255,0.3);
-    }
+        .hero-content {
+            max-width: 900px;
+            margin: 0 auto;
+            position: relative;
+            z-index: 1;
+        }
 
-    .hero h1 {
-      font-size: 3.5rem;
-      font-weight: 800;
-      line-height: 1.2;
-      margin-bottom: 1.5rem;
-      letter-spacing: -0.02em;
-    }
+        .hero-badge {
+            display: inline-block;
+            background: rgba(255,255,255,0.2);
+            backdrop-filter: blur(10px);
+            padding: 0.5rem 1.2rem;
+            border-radius: 50px;
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            border: 1px solid rgba(255,255,255,0.3);
+        }
 
-    .hero .subtitle {
-      font-size: 1.4rem;
-      opacity: 0.95;
-      margin-bottom: 2.5rem;
-      font-weight: 500;
-    }
+        .hero h1 {
+            font-size: 3.5rem;
+            font-weight: 800;
+            line-height: 1.2;
+            margin-bottom: 1.5rem;
+            letter-spacing: -0.02em;
+        }
 
-    .hero-buttons {
-      display: flex;
-      gap: 1rem;
-      justify-content: center;
-      flex-wrap: wrap;
-      margin-top: 2rem;
-    }
+        .hero .subtitle {
+            font-size: 1.4rem;
+            opacity: 0.95;
+            margin-bottom: 2.5rem;
+            font-weight: 500;
+        }
 
-    .btn {
-      display: inline-flex;
-      align-items: center;
-      gap: 0.5rem;
-      padding: 1rem 2rem;
-      border-radius: 8px;
-      font-weight: 600;
-      font-size: 1.05rem;
-      text-decoration: none;
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-      border: none;
-      cursor: pointer;
-    }
+        .hero-buttons {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin-top: 2rem;
+        }
 
-    .btn-primary {
-      background: white;
-      color: var(--primary);
-      box-shadow: var(--shadow-md);
-    }
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 1.05rem;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: none;
+            cursor: pointer;
+        }
 
-    .btn-primary:hover {
-      transform: translateY(-2px);
-      box-shadow: var(--shadow-lg);
-    }
+        .btn-primary {
+            background: white;
+            color: var(--primary);
+            box-shadow: var(--shadow-md);
+        }
 
-    .btn-secondary {
-      background: rgba(255,255,255,0.15);
-      color: white;
-      border: 2px solid rgba(255,255,255,0.3);
-      backdrop-filter: blur(10px);
-    }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-lg);
+        }
 
-    .btn-secondary:hover {
-      background: rgba(255,255,255,0.25);
-      border-color: rgba(255,255,255,0.5);
-    }
+        .btn-secondary {
+            background: rgba(255,255,255,0.15);
+            color: white;
+            border: 2px solid rgba(255,255,255,0.3);
+            backdrop-filter: blur(10px);
+        }
 
-    /* Container */
-    .container {
-      max-width: 1200px;
-      margin: 0 auto;
-      padding: 0 2rem;
-    }
+        .btn-secondary:hover {
+            background: rgba(255,255,255,0.25);
+            border-color: rgba(255,255,255,0.5);
+        }
 
-    /* Section */
-    section {
-      padding: 5rem 2rem;
-    }
+        /* Container */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
 
-    section h2 {
-      font-size: 2.5rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      text-align: center;
-      color: var(--text-dark);
-      letter-spacing: -0.01em;
-    }
+        /* Section */
+        section {
+            padding: 5rem 2rem;
+        }
 
-    section > p {
-      text-align: center;
-      font-size: 1.15rem;
-      color: var(--text-light);
-      max-width: 700px;
-      margin: 0 auto 3rem;
-    }
+        section h2 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-align: center;
+            color: var(--text-dark);
+            letter-spacing: -0.01em;
+        }
 
-    /* Cards Grid */
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 2rem;
-      margin-top: 3rem;
-    }
+        section > p {
+            text-align: center;
+            font-size: 1.15rem;
+            color: var(--text-light);
+            max-width: 700px;
+            margin: 0 auto 3rem;
+        }
 
-    .card {
-      background: var(--bg-white);
-      border-radius: 16px;
-      padding: 2rem;
-      box-shadow: var(--shadow-sm);
-      border: 1px solid var(--border);
-      transition: all 0.3s ease;
-      position: relative;
-      overflow: hidden;
-    }
+        /* Cards Grid */
+        .cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2rem;
+            margin-top: 3rem;
+        }
 
-    .card::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      height: 4px;
-      background: var(--gradient);
-      transform: scaleX(0);
-      transition: transform 0.3s ease;
-      transform-origin: left;
-    }
+        .card {
+            background: var(--bg-white);
+            border-radius: 16px;
+            padding: 2rem;
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
 
-    .card:hover {
-      transform: translateY(-4px);
-      box-shadow: var(--shadow-lg);
-      border-color: var(--primary);
-    }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+            background: var(--gradient);
+            transform: scaleX(0);
+            transition: transform 0.3s ease;
+            transform-origin: left;
+        }
 
-    .card:hover::before {
-      transform: scaleX(1);
-    }
+        .card:hover {
+            transform: translateY(-4px);
+            box-shadow: var(--shadow-lg);
+            border-color: var(--primary);
+        }
 
-    .card h3 {
-      font-size: 1.4rem;
-      font-weight: 700;
-      margin-bottom: 1rem;
-      color: var(--text-dark);
-    }
+        .card:hover::before {
+            transform: scaleX(1);
+        }
 
-    .card p {
-      color: var(--text-light);
-      line-height: 1.7;
-    }
+        .card h3 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            color: var(--text-dark);
+        }
 
-    /* Highlight Box */
-    .highlight {
-      background: linear-gradient(135deg, rgba(0,102,204,0.05) 0%, rgba(0,217,255,0.05) 100%);
-      border: 2px solid var(--primary);
-      border-radius: 16px;
-      padding: 2.5rem;
-      margin: 3rem 0;
-    }
+        .card p {
+            color: var(--text-light);
+            line-height: 1.7;
+        }
 
-    .highlight h3 {
-      color: var(--primary);
-      font-size: 1.6rem;
-      margin-bottom: 1.5rem;
-    }
+        /* Highlight Box */
+        .highlight {
+            background: linear-gradient(135deg, rgba(0,102,204,0.05) 0%, rgba(0,217,255,0.05) 100%);
+            border: 2px solid var(--primary);
+            border-radius: 16px;
+            padding: 2.5rem;
+            margin: 3rem 0;
+        }
 
-    .highlight ul {
-      list-style: none;
-    }
+        .highlight h3 {
+            color: var(--primary);
+            font-size: 1.6rem;
+            margin-bottom: 1.5rem;
+        }
 
-    .highlight li {
-      padding-left: 1.8rem;
-      margin-bottom: 0.8rem;
-      position: relative;
-      color: var(--text-light);
-    }
+        .highlight ul {
+            list-style: none;
+        }
 
-    .highlight li::before {
-      content: '→';
-      position: absolute;
-      left: 0;
-      color: var(--primary);
-      font-weight: bold;
-    }
+        .highlight li {
+            padding-left: 1.8rem;
+            margin-bottom: 0.8rem;
+            position: relative;
+            color: var(--text-light);
+        }
 
-    .highlight a {
-      color: var(--primary);
-      text-decoration: none;
-      font-weight: 500;
-      transition: color 0.2s;
-    }
+        .highlight li::before {
+            content: '→';
+            position: absolute;
+            left: 0;
+            color: var(--primary);
+            font-weight: bold;
+        }
 
-    .highlight a:hover {
-      color: var(--primary-dark);
-      text-decoration: underline;
-    }
+        .highlight a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.2s;
+        }
 
-    /* Comparison Table */
-    table {
-      width: 100%;
-      border-collapse: separate;
-      border-spacing: 0;
-      margin: 2rem 0;
-      background: var(--bg-white);
-      border-radius: 12px;
-      overflow: hidden;
-      box-shadow: var(--shadow-md);
-    }
+        .highlight a:hover {
+            color: var(--primary-dark);
+            text-decoration: underline;
+        }
 
-    thead {
-      background: var(--gradient);
-      color: white;
-    }
+        /* Comparison Table */
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            margin: 2rem 0;
+            background: var(--bg-white);
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--shadow-md);
+        }
 
-    th {
-      padding: 1.2rem;
-      font-weight: 600;
-      text-align: left;
-      font-size: 1.05rem;
-    }
+        thead {
+            background: var(--gradient);
+            color: white;
+        }
 
-    td {
-      padding: 1.2rem;
-      border-bottom: 1px solid var(--border);
-    }
+        th {
+            padding: 1.2rem;
+            font-weight: 600;
+            text-align: left;
+            font-size: 1.05rem;
+        }
 
-    tbody tr:last-child td {
-      border-bottom: none;
-    }
+        td {
+            padding: 1.2rem;
+            border-bottom: 1px solid var(--border);
+        }
 
-    tbody tr:hover {
-      background: rgba(0,102,204,0.03);
-    }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
 
-    td strong {
-      color: var(--text-dark);
-      font-weight: 600;
-    }
+        tbody tr:hover {
+            background: rgba(0,102,204,0.03);
+        }
 
-    /* FAQ */
-    .faq-item {
-      background: var(--bg-white);
-      border-radius: 12px;
-      padding: 2rem;
-      margin-bottom: 1.5rem;
-      border: 1px solid var(--border);
-      transition: all 0.3s ease;
-    }
+        td strong {
+            color: var(--text-dark);
+            font-weight: 600;
+        }
 
-    .faq-item:hover {
-      box-shadow: var(--shadow-md);
-      border-color: var(--primary);
-    }
+        /* FAQ */
+        .faq-item {
+            background: var(--bg-white);
+            border-radius: 12px;
+            padding: 2rem;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            transition: all 0.3s ease;
+        }
 
-    .faq-item h3 {
-      font-size: 1.3rem;
-      color: var(--text-dark);
-      margin-bottom: 0.8rem;
-      font-weight: 600;
-    }
+        .faq-item:hover {
+            box-shadow: var(--shadow-md);
+            border-color: var(--primary);
+        }
 
-    .faq-item p {
-      color: var(--text-light);
-      line-height: 1.8;
-    }
+        .faq-item h3 {
+            font-size: 1.3rem;
+            color: var(--text-dark);
+            margin-bottom: 0.8rem;
+            font-weight: 600;
+        }
 
-    .faq-item strong {
-      color: var(--primary);
-      font-weight: 600;
-    }
+        .faq-item p {
+            color: var(--text-light);
+            line-height: 1.8;
+        }
 
-    /* Footer */
-    footer {
-      background: var(--text-dark);
-      color: #999;
-      padding: 3rem 2rem;
-      text-align: center;
-      margin-top: 4rem;
-    }
+        .faq-item strong {
+            color: var(--primary);
+            font-weight: 600;
+        }
 
-    footer a {
-      color: #ccc;
-      text-decoration: none;
-      transition: color 0.2s;
-    }
+        /* Footer */
+        footer {
+            background: var(--text-dark);
+            color: #999;
+            padding: 3rem 2rem;
+            text-align: center;
+            margin-top: 4rem;
+        }
 
-    footer a:hover {
-      color: var(--secondary);
-    }
+        footer a {
+            color: #ccc;
+            text-decoration: none;
+            transition: color 0.2s;
+        }
 
-    footer p {
-      margin: 0.5rem 0;
-    }
+        footer a:hover {
+            color: var(--secondary);
+        }
 
-    /* Responsive */
-    @media (max-width: 768px) {
-      .hero h1 {
-        font-size: 2.5rem;
-      }
+        footer p {
+            margin: 0.5rem 0;
+        }
 
-      .hero .subtitle {
-        font-size: 1.15rem;
-      }
+        /* Responsive */
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.5rem;
+            }
 
-      section h2 {
-        font-size: 2rem;
-      }
+            .hero .subtitle {
+                font-size: 1.15rem;
+            }
 
-      .cards {
-        grid-template-columns: 1fr;
-      }
+            section h2 {
+                font-size: 2rem;
+            }
 
-      .hero-buttons {
-        flex-direction: column;
-      }
+            .cards {
+                grid-template-columns: 1fr;
+            }
 
-      .btn {
-        width: 100%;
-        justify-content: center;
-      }
-    }
+            .hero-buttons {
+                flex-direction: column;
+            }
 
-    /* Smooth scrolling */
-    html {
-      scroll-behavior: smooth;
-    }
+            .btn {
+                width: 100%;
+                justify-content: center;
+            }
+        }
 
-    /* Selection color */
-    ::selection {
-      background: var(--primary);
-      color: white;
-    }
-  </style>
-  <meta name="google-site-verification" content="2AXpuBNn_TdA-xG6K1qj7sNcaWK_pim0yH5Pj4jW5yQ" />
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
+
+        /* Selection color */
+        ::selection {
+            background: var(--primary);
+            color: white;
+        }
+    </style>
+    <meta name="google-site-verification" content="2AXpuBNn_TdA-xG6K1qj7sNcaWK_pim0yH5Pj4jW5yQ" />
 </head>
 <body>
 
 <!-- Hero Section -->
 <section class="hero">
-  <div class="hero-content">
-    <div class="hero-badge">100% Free & Open Source</div>
-    <h1>OFJDBC</h1>
-    <p class="subtitle">Modern SQL Tool & Data Integration Platform for Oracle Fusion Cloud</p>
-    <p>Free JDBC driver for Oracle Fusion. Build data pipelines to AWS, Google Cloud, Azure, OCI using DBeaver—no ETL tool required.</p>
-    
-    <div class="hero-buttons">
-      <a href="https://github.com/krokozyab/ofjdbc" class="btn btn-primary" target="_blank" rel="noopener">
-        <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
-        View on GitHub
-      </a>
-      <a href="https://www.linkedin.com/pulse/analysis-ad-hoc-sql-query-tools-oracle-fusion-cloud-sergey-rudenko-igaif/" class="btn btn-secondary" target="_blank" rel="noopener">Read Comparison</a>
+    <div class="hero-content">
+        <div class="hero-badge">100% Free & Open Source</div>
+        <h1>OFJDBC</h1>
+        <p class="subtitle">Modern SQL Tool & Data Integration Platform for Oracle Fusion Cloud</p>
+        <p>Free JDBC driver for Oracle Fusion. Build data pipelines to AWS, Google Cloud, Azure, OCI using DBeaver—no ETL tool required.</p>
+
+        <div class="hero-buttons">
+            <a href="https://github.com/krokozyab/ofjdbc" class="btn btn-primary" target="_blank" rel="noopener">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+                View on GitHub
+            </a>
+            <a href="https://www.linkedin.com/pulse/analysis-ad-hoc-sql-query-tools-oracle-fusion-cloud-sergey-rudenko-igaif/" class="btn btn-secondary" target="_blank" rel="noopener">Read Comparison</a>
+        </div>
     </div>
-  </div>
 </section>
 
 <!-- Overview -->
 <section>
-  <div class="container">
-    <h2>The Free SQL Query Tool & Data Integration Platform for Oracle Fusion Cloud</h2>
-    <p>
-      OFJDBC is a free, open-source JDBC driver that transforms Oracle Fusion Cloud into a fully accessible data source. Unlike commercial query tools or OTBI's web interface, OFJDBC provides standard JDBC connectivity, enabling seamless integration with modern data platforms, BI tools, and cloud services.
-    </p>
-    <p style="margin-top: 1rem;">
-      When combined with DBeaver—the premier database-agnostic IDE—OFJDBC becomes a complete data integration platform. Extract data from Oracle Fusion, load it into AWS S3, Google Cloud Storage, Azure Blob Storage, or OCI Object Storage, query it with Athena, BigQuery, or OCI Data Lake, and visualize it in QuickSight, Looker, Power BI, or Oracle Analytics Cloud.
-    </p>
+    <div class="container">
+        <h2>The Free SQL Query Tool & Data Integration Platform for Oracle Fusion Cloud</h2>
+        <p>
+            OFJDBC is a free, open-source JDBC driver that transforms Oracle Fusion Cloud into a fully accessible data source. Unlike commercial query tools or OTBI's web interface, OFJDBC provides standard JDBC connectivity, enabling seamless integration with modern data platforms, BI tools, and cloud services.
+        </p>
+        <p style="margin-top: 1rem;">
+            When combined with DBeaver—the premier database-agnostic IDE—OFJDBC becomes a complete data integration platform. Extract data from Oracle Fusion, load it into AWS S3, Google Cloud Storage, Azure Blob Storage, or OCI Object Storage, query it with Athena, BigQuery, or OCI Data Lake, and visualize it in QuickSight, Looker, Power BI, or Oracle Analytics Cloud.
+        </p>
 
-    <div class="highlight" style="margin-top: 3rem;">
-      <h3>Learn More - Tutorials & Articles</h3>
-      
-      <p><strong>OFJDBC & DBeaver:</strong></p>
-      <ul style="margin-left: 0; margin-bottom: 1.5rem;">
-        <li><a href="https://www.linkedin.com/pulse/analysis-ad-hoc-sql-query-tools-oracle-fusion-cloud-sergey-rudenko-igaif/" target="_blank">Analysis of Ad-Hoc SQL Query Tools for Oracle Fusion Cloud</a></li>
-        <li><a href="https://www.linkedin.com/pulse/bridging-gap-using-open-source-jdbc-driver-oracle-fusion-rudenko-i6cwf/" target="_blank">Building Oracle Fusion → AWS S3 → Athena → QuickSight Data Pipelines</a></li>
-      </ul>
-      
-      <p><strong>OFArrow (Arrow Flight SQL):</strong></p>
-      <ul style="margin-left: 0; margin-bottom: 1.5rem;">
-        <li><a href="https://medium.com/@rudenko.s/simplifying-oracle-fusion-data-access-with-ofarrow-a78f59a18b12" target="_blank">Simplifying Oracle Fusion Data Access with OFArrow</a></li>
-        <li><a href="https://www.linkedin.com/pulse/query-oracle-fusion-arrow-flight-sql-visualize-apache-sergey-rudenko-7rwlf/" target="_blank">Query Oracle Fusion & Visualize in Apache Superset</a></li>
-        <li><a href="https://www.linkedin.com/pulse/export-oracle-fusion-data-google-sheets-minutes-sergey-rudenko-izj4f/" target="_blank">Export Oracle Fusion Data to Google Sheets in Minutes</a></li>
-      </ul>
-      
-      <p><strong>AI Companions:</strong></p>
-      <ul style="margin-left: 0;">
-        <li><a href="https://medium.com/@rudenko.s/oracle-fusion-metadata-mcp-server-545c7080b7a7" target="_blank">Oracle Fusion Metadata MCP Server Guide</a></li>
-      </ul>
+        <div class="highlight" style="margin-top: 3rem;">
+            <h3>Learn More - Tutorials & Articles</h3>
+
+            <p><strong>OFJDBC & DBeaver:</strong></p>
+            <ul style="margin-left: 0; margin-bottom: 1.5rem;">
+                <li><a href="https://www.linkedin.com/pulse/analysis-ad-hoc-sql-query-tools-oracle-fusion-cloud-sergey-rudenko-igaif/" target="_blank">Analysis of Ad-Hoc SQL Query Tools for Oracle Fusion Cloud</a></li>
+                <li><a href="https://www.linkedin.com/pulse/bridging-gap-using-open-source-jdbc-driver-oracle-fusion-rudenko-i6cwf/" target="_blank">Building Oracle Fusion → AWS S3 → Athena → QuickSight Data Pipelines</a></li>
+            </ul>
+
+            <p><strong>OFArrow (Arrow Flight SQL):</strong></p>
+            <ul style="margin-left: 0; margin-bottom: 1.5rem;">
+                <li><a href="https://medium.com/@rudenko.s/simplifying-oracle-fusion-data-access-with-ofarrow-a78f59a18b12" target="_blank">Simplifying Oracle Fusion Data Access with OFArrow</a></li>
+                <li><a href="https://www.linkedin.com/pulse/query-oracle-fusion-arrow-flight-sql-visualize-apache-sergey-rudenko-7rwlf/" target="_blank">Query Oracle Fusion & Visualize in Apache Superset</a></li>
+                <li><a href="https://www.linkedin.com/pulse/export-oracle-fusion-data-google-sheets-minutes-sergey-rudenko-izj4f/" target="_blank">Export Oracle Fusion Data to Google Sheets in Minutes</a></li>
+            </ul>
+
+            <p><strong>AI Companions:</strong></p>
+            <ul style="margin-left: 0;">
+                <li><a href="https://github.com/krokozyab/ofrag" target="_blank">Oracle Fusion RAG Engine (ofrag)</a></li>
+            </ul>
+        </div>
     </div>
-  </div>
 </section>
 
 <!-- Benefits -->
 <section style="background: var(--bg-white);">
-  <div class="container">
-    <h2>Beyond Ad-Hoc Queries: Full Data Integration Platform</h2>
-    
-    <div class="cards">
-      <div class="card">
-        <h3>Direct SQL Query Access</h3>
-        <p>Execute SQL queries directly against Oracle Fusion Cloud without creating OTBI reports. Get instant results for troubleshooting, analysis, and data exploration with DBeaver's intelligent autocomplete.</p>
-      </div>
-      
-      <div class="card">
-        <h3>Multi-Cloud Data Integration</h3>
-        <p>Build complete ETL pipelines from Oracle Fusion to AWS (S3, Athena, QuickSight), Google Cloud (BigQuery, Cloud Storage), Azure (Synapse, Blob Storage, Power BI), or OCI (Object Storage, Data Lake, Analytics Cloud).</p>
-      </div>
-      
-      <div class="card">
-        <h3>BI & Analytics Platforms</h3>
-        <p>Connect QuickSight, Power BI, Tableau, or Looker to Oracle Fusion data via cloud data warehouses (Athena, BigQuery, Synapse) populated by OFJDBC.</p>
-      </div>
-      
-      <div class="card">
-        <h3>Works with DBeaver</h3>
-        <p>Seamlessly integrates with DBeaver, the premier free database IDE. Use professional-grade SQL tooling without any compatibility issues or limitations.</p>
-      </div>
-      
-      <div class="card">
-        <h3>Smart Developer Experience</h3>
-        <p>DBeaver caches Oracle Fusion metadata locally for instant autocomplete, unlike SQL Developer. Get real-time error detection, syntax highlighting, and intelligent table/column suggestions as you type.</p>
-      </div>
-      
-      <div class="card">
-        <h3>Export to Any Format</h3>
-        <p>Export query results to Parquet (partitioned), CSV, JSON, Excel, or load directly into DuckDB, PostgreSQL, MySQL, or cloud databases. Build data lakes without custom scripts.</p>
-      </div>
+    <div class="container">
+        <h2>Beyond Ad-Hoc Queries: Full Data Integration Platform</h2>
+
+        <div class="cards">
+            <div class="card">
+                <h3>Direct SQL Query Access</h3>
+                <p>Execute SQL queries directly against Oracle Fusion Cloud without creating OTBI reports. Get instant results for troubleshooting, analysis, and data exploration with DBeaver's intelligent autocomplete.</p>
+            </div>
+
+            <div class="card">
+                <h3>Multi-Cloud Data Integration</h3>
+                <p>Build complete ETL pipelines from Oracle Fusion to AWS (S3, Athena, QuickSight), Google Cloud (BigQuery, Cloud Storage), Azure (Synapse, Blob Storage, Power BI), or OCI (Object Storage, Data Lake, Analytics Cloud).</p>
+            </div>
+
+            <div class="card">
+                <h3>BI & Analytics Platforms</h3>
+                <p>Connect QuickSight, Power BI, Tableau, or Looker to Oracle Fusion data via cloud data warehouses (Athena, BigQuery, Synapse) populated by OFJDBC.</p>
+            </div>
+
+            <div class="card">
+                <h3>Works with DBeaver</h3>
+                <p>Seamlessly integrates with DBeaver, the premier free database IDE. Use professional-grade SQL tooling without any compatibility issues or limitations.</p>
+            </div>
+
+            <div class="card">
+                <h3>Smart Developer Experience</h3>
+                <p>DBeaver caches Oracle Fusion metadata locally for instant autocomplete, unlike SQL Developer. Get real-time error detection, syntax highlighting, and intelligent table/column suggestions as you type.</p>
+            </div>
+
+            <div class="card">
+                <h3>Export to Any Format</h3>
+                <p>Export query results to Parquet (partitioned), CSV, JSON, Excel, or load directly into DuckDB, PostgreSQL, MySQL, or cloud databases. Build data lakes without custom scripts.</p>
+            </div>
+        </div>
     </div>
-  </div>
 </section>
 
 <!-- Companion Tools -->
 <section>
-  <div class="container">
-    <h2>Complete Oracle Fusion Data Ecosystem</h2>
-    <p>OFJDBC is the open-source foundation—supporting both interactive use (DBeaver) and programmatic access (any JVM platform via standard JDBC). These free companion tools extend the ecosystem further:</p>
-    
-    <div class="cards">
-      <div class="card">
-        <h3>OFArrow - Arrow Flight SQL Server</h3>
-        <p><strong>Zero-infrastructure data access for non-JVM languages</strong>. Single JAR file that exposes Oracle Fusion via Arrow Flight SQL protocol and HTTP REST API—perfect when you can't use JDBC directly.</p>
-        <p style="margin-top: 1rem;"><strong>Perfect for:</strong> Python/R Data Scientists, JavaScript/Go/Rust developers, DevOps shell scripts, non-JVM ETL tools</p>
-        <p style="margin-top: 1rem;"><strong>Export Formats:</strong> CSV, JSON, Excel, Parquet, Hive-partitioned</p>
-        <p style="margin-top: 1rem;">
-          <a href="https://github.com/krokozyab/ofarrow" target="_blank" style="color: var(--primary); font-weight: 600;">→ View on GitHub</a> | 
-          <a href="https://www.linkedin.com/pulse/query-oracle-fusion-arrow-flight-sql-visualize-apache-sergey-rudenko-7rwlf/" target="_blank" style="color: var(--primary); font-weight: 600;">Tutorial</a>
-        </p>
-      </div>
+    <div class="container">
+        <h2>Complete Oracle Fusion Data Ecosystem</h2>
+        <p>OFJDBC is the open-source foundation—supporting both interactive use (DBeaver) and programmatic access (any JVM platform via standard JDBC). These free companion tools extend the ecosystem further:</p>
 
-      <div class="card">
-        <h3>OFJDBC Claude MCP Server</h3>
-        <p><strong>AI-powered SQL development for Oracle Fusion</strong>. Model Context Protocol (MCP) server that integrates with Claude AI for intelligent query assistance.</p>
-        <p style="margin-top: 1rem;"><strong>More advanced than ChatGPT assistant</strong> since it uses Claude's reasoning models, while OpenAI restricts advanced reasoning models for custom GPTs.</p>
-        <p style="margin-top: 1rem;">
-          <a href="https://github.com/krokozyab/ofjdbc_claudie_mcp" target="_blank" style="color: var(--primary); font-weight: 600;">→ View on GitHub</a> | 
-          <a href="https://medium.com/@rudenko.s/oracle-fusion-metadata-mcp-server-545c7080b7a7" target="_blank" style="color: var(--primary); font-weight: 600;">Tutorial</a>
-        </p>
-      </div>
+        <div class="cards">
 
-      <div class="card">
-        <h3>Oracle Fusion Technical Consultant GPT</h3>
-        <p><strong>Instant metadata assistance via ChatGPT</strong>. Custom GPT trained as an Oracle Fusion Metadata Companion (OFMCP).</p>
-        <p style="margin-top: 1rem;">Note: OpenAI currently restricts custom GPTs from using advanced reasoning models, so the Claude MCP Server provides more sophisticated analysis.</p>
-        <p style="margin-top: 1rem;">
-          <a href="https://chatgpt.com/g/g-68cbf632f2288191a3b97833626b792e-oracle-fusion-technical-consultant" target="_blank" style="color: var(--primary); font-weight: 600;">→ Try on ChatGPT</a>
-        </p>
-      </div>
+
+            <div class="card">
+                <h3>Oracle Fusion RAG Engine (ofrag)</h3>
+                <p><strong>Start chatting with your ERP.</strong> A specialized Retrieval-Augmented Generation (RAG) engine designed for LLMs (like Claude, Gemini, etc.).</p>
+                <p style="margin-top: 1rem;">It empowers your AI agent to retrieve schema context locally, validate intent via semantic parsing, and fetch live business data directly from Oracle Fusion Cloud.</p>
+                <p style="margin-top: 1rem;">
+                    <a href="https://github.com/krokozyab/ofrag" target="_blank" style="color: var(--primary); font-weight: 600;">→ View on GitHub</a> |
+                    <a href="https://github.com/krokozyab/ofrag/blob/master/docs/README.md" target="_blank" style="color: var(--primary); font-weight: 600;">Documentation</a>
+                </p>
+            </div>
+
+
+        </div>
     </div>
-  </div>
 </section>
 
 <!-- FAQ -->
 <section>
-  <div class="container">
-    <h2>Frequently Asked Questions</h2>
-    
-    <div class="faq-item">
-      <h3>What SQL query tools work with OFJDBC?</h3>
-      <p>OFJDBC works with any JDBC-compatible database tool. <strong>DBeaver is the recommended choice</strong> and provides the best experience—it's free, full-featured, and works perfectly with OFJDBC. Other JDBC clients like IntelliJ IDEA Database Tools, Eclipse Data Tools, and JetBrains DataGrip also work.</p>
-    </div>
+    <div class="container">
+        <h2>Frequently Asked Questions</h2>
 
-    <div class="faq-item">
-      <h3>How does OFJDBC compare to commercial SQL query tools for Oracle Fusion?</h3>
-      <p>OFJDBC provides similar functionality to commercial tools but is free and open-source. It's perfect for consultants, small teams, or anyone who prefers using standard database tools like DBeaver.</p>
-    </div>
+        <div class="faq-item">
+            <h3>What SQL query tools work with OFJDBC?</h3>
+            <p>OFJDBC works with any JDBC-compatible database tool. <strong>DBeaver is the recommended choice</strong> and provides the best experience—it's free, full-featured, and works perfectly with OFJDBC. Other JDBC clients like IntelliJ IDEA Database Tools, Eclipse Data Tools, and JetBrains DataGrip also work.</p>
+        </div>
 
-    <div class="faq-item">
-      <h3>Can I use OFJDBC programmatically, or do I need OFArrow?</h3>
-      <p><strong>OFJDBC is a standard JDBC driver</strong>, so it works programmatically in any JVM-based platform (Java, Scala, Kotlin, Groovy). This includes ETL tools like <strong>Apache Airflow</strong> (using JDBC operators), Talend, Pentaho, Apache NiFi, and any Java application. <strong>OFArrow is only needed for non-JVM languages</strong> (Python, R, JavaScript, Go, Rust) or when you prefer Arrow Flight SQL protocol over JDBC.</p>
-    </div>
+        <div class="faq-item">
+            <h3>How does OFJDBC compare to commercial SQL query tools for Oracle Fusion?</h3>
+            <p>OFJDBC provides similar functionality to commercial tools but is free and open-source. It's perfect for consultants, small teams, or anyone who prefers using standard database tools like DBeaver.</p>
+        </div>
 
-    <div class="faq-item">
-      <h3>What's the difference between OFJDBC and OFArrow?</h3>
-      <p><strong>OFJDBC</strong> is a JDBC driver—works in DBeaver (interactive) and any JVM platform (programmatic). <strong>OFArrow</strong> is an Arrow Flight SQL server that wraps OFJDBC—needed for non-JVM languages or when you want REST API access. Both access the same Oracle Fusion data.</p>
-    </div>
+        <div class="faq-item">
+            <h3>Can I use OFJDBC programmatically, or do I need OFArrow?</h3>
+            <p><strong>OFJDBC is a standard JDBC driver</strong>, so it works programmatically in any JVM-based platform (Java, Scala, Kotlin, Groovy). This includes ETL tools like <strong>Apache Airflow</strong> (using JDBC operators), Talend, Pentaho, Apache NiFi, and any Java application. <strong>OFArrow is only needed for non-JVM languages</strong> (Python, R, JavaScript, Go, Rust) or when you prefer Arrow Flight SQL protocol over JDBC.</p>
+        </div>
 
-    <div class="faq-item">
-      <h3>Does OFJDBC work with Apache Airflow?</h3>
-      <p>Yes! Apache Airflow has built-in JDBC support through operators like JdbcOperator and JdbcHook. You can use OFJDBC with Airflow to build ETL pipelines that extract data from Oracle Fusion. Alternatively, if you prefer Python-native code, use OFArrow with Airflow's PythonOperator and Arrow Flight SQL clients.</p>
-    </div>
+        <div class="faq-item">
+            <h3>What's the difference between OFJDBC and OFArrow?</h3>
+            <p><strong>OFJDBC</strong> is a JDBC driver—works in DBeaver (interactive) and any JVM platform (programmatic). <strong>OFArrow</strong> is an Arrow Flight SQL server that wraps OFJDBC—needed for non-JVM languages or when you want REST API access. Both access the same Oracle Fusion data.</p>
+        </div>
 
-    <div class="faq-item">
-      <h3>What are the AI-powered companion tools?</h3>
-      <p>OFJDBC has two AI companions: (1) <strong>Claude MCP Server</strong> - integrates with Claude AI for metadata-aware SQL development with advanced reasoning capabilities, and (2) <strong>ChatGPT Assistant</strong> - a custom GPT for exploring Oracle Fusion metadata and getting query templates. The Claude MCP Server is more advanced because it uses Claude's reasoning models. Both are free but closed source.</p>
-    </div>
+        <div class="faq-item">
+            <h3>Does OFJDBC work with Apache Airflow?</h3>
+            <p>Yes! Apache Airflow has built-in JDBC support through operators like JdbcOperator and JdbcHook. You can use OFJDBC with Airflow to build ETL pipelines that extract data from Oracle Fusion. Alternatively, if you prefer Python-native code, use OFArrow with Airflow's PythonOperator and Arrow Flight SQL clients.</p>
+        </div>
 
-    <div class="faq-item">
-      <h3>Is OFJDBC secure?</h3>
-      <p>Yes. OFJDBC connects directly from your machine to Oracle Fusion Cloud using your credentials. No data passes through third-party servers, and the code is fully transparent on GitHub.</p>
+        <div class="faq-item">
+            <h3>What are the AI-powered companion tools?</h3>
+            <p>OFJDBC has an AI companion: <strong>Oracle Fusion RAG Engine (ofrag)</strong> - a specialized RAG engine that enables LLMs (like Claude, Gemini, etc.) to intelligently query and analyze Oracle Fusion data by providing local schema context and live execution capabilities. The RAG Engine performs semantic parsing and allows your AI agent to "chat" with your ERP data. It is free but closed source.</p>
+        </div>
+
+        <div class="faq-item">
+            <h3>Is OFJDBC secure?</h3>
+            <p>Yes. OFJDBC connects directly from your machine to Oracle Fusion Cloud using your credentials. No data passes through third-party servers, and the code is fully transparent on GitHub.</p>
+        </div>
     </div>
-  </div>
 </section>
 
 <!-- Footer -->
 <footer>
-  <div class="container">
-    <p style="color: #ccc; font-size: 1.1rem; margin-bottom: 1rem;">Open-Source SQL Tool & Data Integration Platform for Oracle Fusion Cloud</p>
-    <p>© <span id="year"></span> OFJDBC Project | Developed by <a href="https://github.com/krokozyab" target="_blank">krokozyab</a></p>
-    <p style="margin-top: 1.5rem;">
-      <a href="https://github.com/krokozyab/ofjdbc" target="_blank">OFJDBC Core</a> | 
-      <a href="https://github.com/krokozyab/ofarrow" target="_blank">OFArrow</a> | 
-      <a href="https://github.com/krokozyab/ofjdbc_claudie_mcp" target="_blank">Claude MCP</a> | 
-      <a href="https://chatgpt.com/g/g-68cbf632f2288191a3b97833626b792e-oracle-fusion-technical-consultant" target="_blank">ChatGPT GPT</a> | 
-      <a href="https://www.linkedin.com/pulse/analysis-ad-hoc-sql-query-tools-oracle-fusion-cloud-sergey-rudenko-igaif/" target="_blank">Tool Comparison</a>
-    </p>
-  </div>
+    <div class="container">
+        <p style="color: #ccc; font-size: 1.1rem; margin-bottom: 1rem;">Open-Source SQL Tool & Data Integration Platform for Oracle Fusion Cloud</p>
+        <p>© <span id="year"></span> OFJDBC Project | Developed by <a href="https://github.com/krokozyab" target="_blank">krokozyab</a></p>
+        <p style="margin-top: 1.5rem;">
+            <a href="https://github.com/krokozyab/ofjdbc" target="_blank">OFJDBC Core</a> |
+            <a href="https://github.com/krokozyab/ofarrow" target="_blank">OFArrow</a> |
+            <a href="https://github.com/krokozyab/ofrag" target="_blank">RAG Engine (ofrag)</a> |
+            <a href="https://www.linkedin.com/pulse/analysis-ad-hoc-sql-query-tools-oracle-fusion-cloud-sergey-rudenko-igaif/" target="_blank">Tool Comparison</a>
+        </p>
+    </div>
 </footer>
 
 <script>
-  document.getElementById('year').textContent = new Date().getFullYear();
+    document.getElementById('year').textContent = new Date().getFullYear();
 </script>
 
 </body>
