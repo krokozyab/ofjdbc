@@ -1,0 +1,769 @@
+# OFJDBC — Oracle Fusion JDBC Driver via SOAP
+
+> A read-only JDBC driver that translates SQL queries into SOAP requests to Oracle Fusion's
+> BI Publisher reporting service, parsing XML/JSON responses into standard JDBC ResultSets.
+> Compatible with DBeaver, IntelliJ DataGrip, and any JDBC-compliant tool.
+
+Package: my.jdbc.wsdl_driver
+Driver class: my.jdbc.wsdl_driver.WsdlDriver
+JDBC URL: jdbc:wsdl://<host>/xmlpserver/services/ExternalReportWSSService?WSDL:/<report-path>
+License: MIT
+Stack: Kotlin 2.2.20-Beta2, JVM 11, Gradle 8.10
+
+---
+
+## TABLE OF CONTENTS
+
+1. How the SOAP Bypass Works
+2. Architecture and Source Layout
+3. Data Flow (SQL → SOAP → ResultSet)
+4. Authentication
+5. Pagination Mechanism
+6. Metadata Caching (DuckDB)
+7. XML/JSON Parsing
+8. Secured View Mappings
+9. SQL Validation Engine
+10. Error Handling and Retry
+11. Configuration Reference
+12. Current Performance Bottlenecks
+13. Streaming Pipeline Feasibility
+14. Build, Test, Deploy
+
+---
+
+## 1. HOW THE SOAP BYPASS WORKS
+
+Oracle Fusion does not expose a direct JDBC/ODBC interface to its database. The only
+programmatic SQL access is through BI Publisher's SOAP web service. OFJDBC exploits this
+by wrapping arbitrary SQL inside a SOAP envelope sent to the ExternalReportWSSService
+endpoint, which executes the SQL against the Fusion database and returns results as a
+Base64-encoded XML (or JSON) payload.
+
+### The Mechanism
+
+A pre-deployed .xdo report template on BI Publisher accepts a parameter `p_sql` containing
+raw SQL. When the SOAP service executes `runReport`, it:
+
+1. Runs the SQL in `p_sql` against the Fusion database
+2. Formats results as XML or JSON (controlled by `attributeFormat`)
+3. Base64-encodes the result
+4. Wraps it in a SOAP response under `<reportBytes>`
+
+The driver intercepts standard JDBC calls (executeQuery, getTables, getColumns, etc.)
+and translates each one into this SOAP flow, making Oracle Fusion appear as a regular
+JDBC-accessible database to any tool.
+
+### SOAP Envelope Structure
+
+    <?xml version="1.0" encoding="UTF-8"?>
+    <soap:Envelope xmlns:soap="http://www.w3.org/2003/05/soap-envelope"
+                   xmlns:pub="http://xmlns.oracle.com/oxp/service/PublicReportService">
+      <soap:Body>
+        <pub:runReport>
+          <pub:reportRequest>
+            <pub:attributeFormat>xml</pub:attributeFormat>
+            <pub:byPassCache>true</pub:byPassCache>
+            <pub:reportAbsolutePath>/Custom/Financials/RP_ARB.xdo</pub:reportAbsolutePath>
+            <pub:sizeOfDataChunkDownload>-1</pub:sizeOfDataChunkDownload>
+            <pub:parameterNameValues>
+              <pub:item>
+                <pub:name>p_sql</pub:name>
+                <pub:values>
+                  <pub:item><![CDATA[SELECT * FROM GL_JE_HEADERS FETCH FIRST 500 ROWS ONLY]]></pub:item>
+                </pub:values>
+              </pub:item>
+            </pub:parameterNameValues>
+          </pub:reportRequest>
+        </pub:runReport>
+      </soap:Body>
+    </soap:Envelope>
+
+### Why This Works
+
+- BI Publisher has native SQL execution capability via report parameters
+- The ExternalReportWSSService WSDL is a standard Oracle-provided SOAP endpoint
+- The .xdo report template is a lightweight passthrough — it only forwards the p_sql parameter
+- Oracle Fusion's security model (row-level, role-based) is enforced server-side
+- The driver only needs valid credentials (Basic auth, Bearer JWT, or browser SSO)
+
+### What This Enables
+
+- Full SELECT access to Oracle Fusion tables (GL, AP, AR, FA, HR, etc.)
+- Standard JDBC metadata (getTables, getColumns, getIndexes, getPrimaryKeys)
+- Integration with any JDBC tool (DBeaver, IntelliJ, Tableau, custom apps)
+- Parameterized queries via PreparedStatement
+- No Oracle client installation required — pure HTTP/SOAP
+
+### Limitations
+
+- Read-only: INSERT/UPDATE/DELETE/DDL are blocked (no-op or exception)
+- Performance bound by BI Publisher's SOAP overhead and single-threaded execution
+- Large result sets must be paginated (server-side OFFSET/FETCH)
+- Oracle Fusion may throttle or limit concurrent BI Publisher sessions
+
+---
+
+## 2. ARCHITECTURE AND SOURCE LAYOUT
+
+    src/main/kotlin/                           package: my.jdbc.wsdl_driver
+    ├── WsdlDriver.kt                          JDBC Driver entry point, URL parsing, driver registration
+    ├── Driver.kt                              ServiceLoader registration
+    ├── core/
+    │   ├── WsdlConnection.kt                  Connection (read-only, creates statements + metadata)
+    │   ├── WsdlStatement.kt                   Statement (SQL→SOAP, auto-pagination, cancel, timeout)
+    │   ├── WsdlPreparedStatement.kt           PreparedStatement (parameter binding, validation)
+    │   ├── WsdlDatabaseMetaData.kt            DatabaseMetaData (delegates to metadata/ for caching)
+    │   ├── XmlResultSet.kt                    ResultSet (in-memory, case-insensitive column lookup)
+    │   └── PaginatedResultSet.kt              Transparent pagination across multiple SOAP pages
+    ├── auth/
+    │   ├── AuthType.kt                        Enum: BASIC, BEARER, BROWSER
+    │   ├── BrowserAuthenticator.kt            Chrome CDP-based SSO (opens browser, extracts JWT)
+    │   ├── TokenCache.kt                      In-memory JWT cache (per-host, expiry-aware)
+    │   ├── TokenRefresher.kt                  Proactive refresh at 80% token lifetime
+    │   ├── JwtParser.kt                       JWT decode (no signature validation — trusted source)
+    │   └── AuthenticationResult.kt            Auth state holder
+    ├── http/
+    │   ├── HttpClient.kt                      SOAP request/response, Base64 decode, gzip handling
+    │   ├── CircuitBreaker.kt                  CLOSED→OPEN→HALF_OPEN state machine
+    │   ├── RetryConfig.kt                     Exponential backoff with jitter
+    │   └── ErrorDecoder.kt                    SOAP fault / HTML / Oracle error extraction
+    ├── xml/
+    │   └── XmlParser.kt                       TagSoup lenient parser, XML sanitization, XXE protection
+    ├── json/
+    │   └── JsonParser.kt                      JSON response parsing (array/object formats)
+    ├── metadata/
+    │   ├── MetadataCache.kt                   DuckDB singleton at ~/.ofjdbc/metadata.db (ref-counted)
+    │   ├── MetadataQueries.kt                 SQL queries for Oracle data dictionary views
+    │   ├── RemoteMetadataFetcher.kt           Fetches metadata from Fusion via SOAP
+    │   ├── CacheQueryHelper.kt                Reads cached metadata from local DuckDB
+    │   ├── PrefetchManager.kt                 Background prefetch (batched, configurable)
+    │   ├── PrefetchCoordinator.kt             Coordinates prefetch across connections
+    │   ├── MetadataPrefetchConfig.kt          Auto-detect IDE vs programmatic usage
+    │   ├── SecuredViewMappings.kt             HR table → secured view substitution
+    │   ├── SqlConditionBuilder.kt             WHERE clause builder for cache queries
+    │   └── DatabaseCapabilities.kt            Driver capability flags
+    ├── validator/                             49 SQL validators + Oracle error enhancer
+    └── util/
+        ├── Logging.kt                         SLF4J logger extension
+        └── Utils.kt                           createEmptyResultSet()
+
+---
+
+## 3. DATA FLOW (SQL → SOAP → ResultSet)
+
+    User SQL: SELECT * FROM AP_INVOICES_ALL WHERE vendor_id = 123
+        │
+        ▼
+    WsdlStatement.executeQuery(sql)
+        │
+        ├── SecuredViewMappings.apply(sql)          // HR tables → secured views
+        ├── Inject pagination: OFFSET 0 ROWS FETCH NEXT 500 ROWS ONLY
+        │
+        ▼
+    HttpClient.sendSqlViaWsdl()
+        │
+        ├── createSoapEnvelope(sql, reportPath, dataModel)
+        ├── CircuitBreaker.execute { ... }
+        ├── requestLimiter.acquire()                // Semaphore(1) — one request at a time
+        ├── Proactive token refresh (if BROWSER auth, >80% lifetime)
+        │
+        ▼
+    HTTP POST to WSDL endpoint
+        │
+        ├── java.net.http.HttpClient (HTTP/1.1, cookies, gzip)
+        ├── Auth header: "Basic ..." or "Bearer ..."
+        ├── Connect timeout: 30s, Read timeout: 120s
+        │
+        ▼
+    HTTP 200 Response (SOAP envelope)
+        │
+        ├── BodyHandlers.ofByteArray()              // ← FULL BUFFERING (bottleneck #1)
+        ├── Gzip decompress if needed               // ← copies again (bottleneck #2)
+        ├── UTF-8 decode to String                  // ← copies again (bottleneck #3)
+        ├── DOM parse entire SOAP envelope          // ← DOM tree in memory (bottleneck #4)
+        ├── Extract reportNode.textContent           // ← Base64 string copy (bottleneck #5)
+        ├── Base64.decode() → String                // ← decoded copy (bottleneck #6)
+        │
+        ▼
+    XmlParser.parseRows(decodedXml)
+        │
+        ├── sanitizeXmlGeneral()                    // Fix malformed XML (stray &, unclosed tags)
+        ├── TagSoup parser (lenient, handles Oracle's broken XML)
+        ├── Extract <G_1> row elements → List<Map<String, String?>>
+        │
+        ▼
+    PaginatedResultSet
+        │
+        ├── Stores rows in MutableList<Map<String, String>>
+        ├── Row pool recycling (reuse MutableMap between pages)
+        ├── Memory eviction (clear processed rows when > 75% fetchSize)
+        ├── Async prefetch at 75% through current page
+        ├── Type inference from first 20 rows (INTEGER/DECIMAL/DATE/VARCHAR)
+        │
+        ▼
+    JDBC ResultSet API → DBeaver / IntelliJ / custom app
+
+---
+
+## 4. AUTHENTICATION
+
+### BASIC (username/password)
+    Connection properties: user=<username>, password=<password>
+    Header: "Basic " + Base64(username:password)
+    401 → non-retryable (invalid credentials)
+
+### BEARER (JWT token)
+    Connection properties: password=<jwt_token>, authType=BEARER
+    Header: "Bearer <jwt_token>"
+    JWT decoded without signature validation (trusted from Fusion)
+    401 → non-retryable (no refresh mechanism for BEARER)
+
+### BROWSER SSO (Chrome DevTools Protocol)
+    Connection properties: authType=BROWSER
+    Flow:
+      1. Launch Chrome with remote debugging on random port
+      2. User completes SSO login (including MFA) in browser window
+      3. JavaScript injection: fetch /fscmRestApi/anticsrf → extract xsrftoken
+      4. Exchange token: POST /fscmRestApi/tokenrelay → receive JWT
+      5. Cache JWT in TokenCache (per-host, with expiry from JWT exp claim)
+
+    Token lifecycle:
+      - Fallback lifetime: 55 minutes (if exp claim not parseable)
+      - Expiry buffer: 5 minutes before actual expiry
+      - Proactive refresh: triggered at 80% of token lifetime
+      - Reactive refresh: on 401, re-launch browser for re-authentication
+
+    401 handling:
+      1. Invalidate cached token
+      2. Launch browser again for re-auth
+      3. Update connection with new token
+      4. Retry failed request
+
+---
+
+## 5. PAGINATION MECHANISM
+
+OFJDBC implements client-side pagination since Oracle Fusion returns full result sets
+without server-side cursors.
+
+### How It Works
+
+1. Original query: SELECT * FROM GL_JE_HEADERS WHERE status = 'P'
+
+2. First page: append "OFFSET 0 ROWS FETCH NEXT 500 ROWS ONLY"
+   → SOAP request → parse → store 500 rows
+
+3. next() iterates through buffered rows
+   At 75% (row 375): start async prefetch of page 2
+   At row 500: if lastPageFull=true, trigger fetchNextPage()
+
+4. Next page: "OFFSET 500 ROWS FETCH NEXT 500 ROWS ONLY"
+   → SOAP request → parse → append/replace rows
+
+5. Stop condition: page returns fewer than fetchSize rows → lastPageFull=false
+
+### SQL Rewriting Rules
+
+- Only applied to SELECT statements
+- Skipped if OFFSET, FETCH, or ROWNUM already present
+- Comments stripped before analysis (-- and /* */)
+- Whitespace normalized
+- Original SQL casing preserved
+
+### Fetch Size
+
+- Default: 500 rows per page
+- Range: 1 – 10,000
+- Configuration: OFJDBC_DEFAULT_FETCH_SIZE env var, -Dofjdbc.fetchSize, Statement.setFetchSize()
+- Out-of-range values are capped with warning log
+
+### Memory Management
+
+- Row eviction: after processing > EVICT_THRESHOLD rows, oldest rows cleared
+- Row pool: MutableMap<String, String> objects recycled between pages (ArrayDeque)
+- Column limit: max 1,000 columns per result set
+- Eviction uses removeAt(0) on ArrayList — O(N) per row (known bottleneck)
+
+### Async Prefetch
+
+- Trigger: when current row index >= 75% of page size
+- Executor: newCachedThreadPool with daemon threads
+- CompletableFuture: if ready when needed, used directly; otherwise sync fetch
+- Offset validation: prefetch discarded if offset doesn't match expected
+- CRITICAL LIMITATION: Semaphore(1) in HttpClient means prefetch blocks on the
+  request limiter — it cannot actually run in parallel with the current request
+
+---
+
+## 6. METADATA CACHING (DuckDB)
+
+### Two-Tier Architecture
+
+    Tier 1: Local DuckDB (~/.ofjdbc/metadata.db)
+      - Persists across sessions
+      - Tables: SCHEMAS_CACHE, CACHED_TABLES, CACHED_COLUMNS, CACHED_INDEXES, CACHED_FOREIGN_KEYS
+      - Ref-counted singleton (acquire/release per connection)
+      - Closes DuckDB when last connection releases
+
+    Tier 2: Remote Oracle Fusion (via SOAP)
+      - Queries data dictionary views: ALL_TABLES, ALL_TAB_COLUMNS, ALL_INDEXES, etc.
+      - Used on cache miss
+      - Results stored in DuckDB for next access
+
+### Resolution Order
+
+    getTables() / getColumns() / etc.:
+      1. Query DuckDB local cache
+      2. If miss → wait for background prefetch (if running)
+      3. If still miss → fetch from Oracle Fusion via SOAP
+      4. Store result in DuckDB
+      5. Return XmlResultSet
+
+### Background Prefetch
+
+    Disabled by default (to avoid BI Publisher session accumulation — can create 300+ sessions)
+    Enable: -Dofjdbc.metadata.prefetchEnabled=true or ?prefetchMetadata=true in URL
+
+    Auto-detection: inspects stack trace to determine if running inside IDE (enable)
+    or programmatic context like Spark/Flink (disable)
+
+    Batched execution: fetches columns/indexes for groups of tables in parallel
+
+---
+
+## 7. XML/JSON PARSING
+
+### XML Parsing (Primary Path)
+
+Oracle Fusion frequently returns malformed XML. The parser handles this with:
+
+1. Sanitization (regex-based, before parsing):
+   - Escape stray & not part of entities (&amp; &lt; etc.)
+   - Close unclosed start-tags when followed by another tag
+   - Fill bare attributes with dummy values (attr="true")
+   - Truncate trailing garbage after final closing tag
+   - Wrap in <ROWSET> if missing root element
+   - CDATA-wrap content containing raw < or >
+
+2. TagSoup parser (primary — handles 99% of Oracle's broken XML):
+   - Lenient HTML-style parser adapted for XML
+   - Tolerates unclosed tags, missing quotes, nested errors
+   - Fallback: strict DOM parser (DocumentBuilderFactory) with XXE protection
+
+3. XXE Protection:
+   - DOCTYPE declarations disabled
+   - External entities (general + parameter) disabled
+   - External DTD loading disabled
+   - XInclude processing disabled
+   - Entity expansion disabled
+
+4. Row extraction:
+   - Finds <G_1> elements (Oracle BI Publisher row container)
+   - Column names normalized to lowercase
+   - Values extracted as strings (type inference deferred to ResultSetMetaData)
+
+### JSON Parsing (Alternative)
+
+    Activated via dataModel=json URL parameter or connection property.
+
+    Supported formats:
+    - Array of objects: [{col: val}, {col: val}, ...]
+    - Wrapped object: {data: [...]} or {rows: [...]} or {results: [...]} or {ROWSET: [...]}
+    - Single object: {col: val} → single-row result
+
+    Null → "" (empty string), numbers/booleans → string
+
+---
+
+## 8. SECURED VIEW MAPPINGS
+
+Before sending SQL to Oracle Fusion, the driver automatically substitutes certain HR
+base tables with their secured view equivalents. This enforces Oracle's row-level
+security without requiring the user to know view names.
+
+    HR_ALL_ORGANIZATION_UNITS_F  →  PER_DEPARTMENT_SECURED_LIST_V
+    HR_ALL_POSITIONS_F           →  PER_POSITION_SECURED_LIST_V
+    PER_JOBS_F                   →  PER_JOB_SECURED_LIST_V
+    PER_LOCATIONS                →  PER_LOCATION_SECURED_LIST_V
+    PER_GRADES_F                 →  PER_GRADE_SECURED_LIST_V
+    PER_ALL_PEOPLE_F             →  PER_PERSON_SECURED_LIST_V
+    PER_PERSONS                  →  PER_PUB_PERS_SECURED_LIST_V
+    PER_LEGISLATIVE_DATA_GROUPS  →  PER_LDG_SECURED_LIST_V
+    PAY_ALL_PAYROLLS_F           →  PAY_PAYROLL_SECURED_LIST_V
+    CMP_SALARY                   →  CMP_SALARY_SECURED_LIST_V
+    PER_ALL_ASSIGNMENTS_M        →  PER_ASSIGNMENT_SECURED_LIST_V
+
+Applied via word-boundary regex replacement (case-insensitive) in SecuredViewMappings.apply().
+
+---
+
+## 9. SQL VALIDATION ENGINE
+
+49 SQL validators organized in 6 categories, plus an Oracle Error Enhancer.
+
+### Categories
+
+    Critical Errors (13): NullComparison, GroupBy, MissingJoinCondition, AmbiguousColumn,
+      MissingComma, InvalidAggregateUsage, MissingJoinOperator, SubqueryMultipleRows,
+      DistinctOrderByMismatch, InvalidSubqueryPosition, CorrelatedSubqueryError,
+      MismatchedParentheses
+
+    Identifier Issues (8): ReservedWord, DuplicateAlias, SelectAliasUsage,
+      SelectAliasTypo, SelfJoinNoAlias, MissingTableAlias, ColumnTypo, TableTypo
+
+    CTE/Subquery (5): UnusedCTE, CTEDepthWarning, CTEColumnMismatch,
+      RecursiveCTENoTermination, CTENameShadowsTable
+
+    Performance (8): SelectStar, LeadingWildcard, UnionVsUnionAll,
+      NonSargablePredicate, OrderByInSubquery, NotInWithNulls, CartesianProduct,
+      FunctionInJoinCondition
+
+    Oracle-Specific (11): OuterJoinOldSyntax, RownumPagination, InvalidHintSyntax,
+      BindVariableStyleMixing, DateLiteralFormat, HierarchicalQueryError,
+      ConcatenationOperator, NvlVsCoalesce, ImplicitTypeConversion,
+      SequenceInWhere, PartitionKeyMissing
+
+    Driver Restrictions (3): DMLNotSupported, DDLNotSupported, TransactionNotSupported
+
+### Oracle Error Enhancer
+
+When Oracle returns an ORA-XXXXX error, the enhancer:
+1. Parses the error code and position from the Oracle error message
+2. Finds the exact line and column in the user's SQL
+3. Runs all 49 validators for additional suggestions
+4. Formats output with line numbers, carets (^), and actionable suggestions
+
+---
+
+## 10. ERROR HANDLING AND RETRY
+
+### Circuit Breaker (HttpClient.kt, CircuitBreaker.kt)
+
+    States: CLOSED (normal) → OPEN (fast-fail) → HALF_OPEN (probe) → CLOSED
+
+    CLOSED: normal operation; failures increment counter
+    OPEN: all requests immediately fail with CircuitBreakerOpenException
+           transitions to HALF_OPEN after recoveryTimeout (default 60s)
+    HALF_OPEN: allows 1 test request; success → CLOSED, failure → OPEN
+
+    Failure threshold: 5 consecutive failures (default)
+    Metrics: total requests, failures, rejections, success rate
+
+### Retry Strategy (RetryConfig.kt)
+
+    Formula: delay = baseDelay × multiplier^attempt, capped at maxDelay
+    Jitter: ±20% randomization to avoid thundering herd
+
+    Defaults: 3 attempts, 1s base delay, 30s max delay, 2.0 multiplier
+
+    Retryable: HTTP 500, 502, 503, 504, 408 (timeout), 429 (rate limit)
+    Non-retryable: ORA-XXXXX Oracle SQL errors, 401 (Basic auth), 403
+
+### Error Extraction (ErrorDecoder.kt)
+
+    SOAP fault: extracts <faultstring> or <env:Text>
+    HTML error pages: strips tags, extracts readable text
+    Oracle errors: regex ORA-\d{5}:.*? with Java exception noise stripped
+    Output capped at 2000 characters
+
+---
+
+## 11. CONFIGURATION REFERENCE
+
+### Environment Variables / System Properties
+
+    HTTP:
+      OFJDBC_HTTP_CONNECT_TIMEOUT / ofjdbc.http.connectTimeout    default: 30s    range: 1-300s
+      OFJDBC_HTTP_READ_TIMEOUT    / ofjdbc.http.readTimeout        default: 120s   range: 5-1800s
+
+    Pagination:
+      OFJDBC_DEFAULT_FETCH_SIZE   / ofjdbc.fetchSize               default: 500    range: 1-10000
+      OFJDBC_MAX_FETCH_SIZE       / ofjdbc.maxFetchSize            default: 10000  max: 50000
+
+    Retry:
+      OFJDBC_RETRY_MAX_ATTEMPTS   / ofjdbc.retry.maxAttempts       default: 3      range: 1-10
+      OFJDBC_RETRY_BASE_DELAY_MS  / ofjdbc.retry.baseDelayMs       default: 1000   range: 100-30000
+      OFJDBC_RETRY_MAX_DELAY_MS   / ofjdbc.retry.maxDelayMs        default: 30000  range: 1000-300000
+      OFJDBC_RETRY_MULTIPLIER     / ofjdbc.retry.multiplier        default: 2.0    range: 1.1-5.0
+
+    Circuit Breaker:
+      OFJDBC_CIRCUIT_BREAKER_ENABLED      / ofjdbc.circuitBreaker.enabled            default: true
+      OFJDBC_CIRCUIT_BREAKER_THRESHOLD    / ofjdbc.circuitBreaker.failureThreshold   default: 5
+      OFJDBC_CIRCUIT_BREAKER_TIMEOUT_MS   / ofjdbc.circuitBreaker.recoveryTimeoutMs  default: 60000
+
+    Metadata:
+      OFJDBC_METADATA_PREFETCH_ENABLED    / ofjdbc.metadata.prefetchEnabled          default: false
+
+### JDBC URL Parameters
+
+    jdbc:wsdl://<host>/xmlpserver/services/ExternalReportWSSService?WSDL:/<report-path>
+      ?dataModel=xml|json
+      &authType=BASIC|BEARER|BROWSER
+      &ssoTimeout=300
+      &resetCircuitBreaker=false
+      &clearTokenCache=false
+      &prefetchMetadata=false
+
+### Connection Properties (java.util.Properties)
+
+    user, password, authType, dataModel, ssoTimeout,
+    resetCircuitBreaker, clearTokenCache, prefetchMetadata
+
+### Priority (highest to lowest)
+
+    1. JDBC URL parameters
+    2. Connection properties
+    3. System properties (-Dofjdbc.*)
+    4. Environment variables (OFJDBC_*)
+    5. Compiled defaults
+
+---
+
+## 12. CURRENT PERFORMANCE BOTTLENECKS
+
+### Bottleneck #1: Global Semaphore(1) — Request Serialization
+
+    File: HttpClient.kt:35
+    Code: private val requestLimiter = Semaphore(1, true)
+
+    Impact: ALL SOAP requests are serialized globally. Only one HTTP request can
+    execute at a time across all connections, statements, and threads.
+
+    Consequence: The async prefetch in PaginatedResultSet (which uses
+    CompletableFuture.supplyAsync) is effectively dead code — it cannot execute
+    in parallel because the semaphore blocks it until the current request completes.
+
+    Fix: Increase to Semaphore(3-5). BI Publisher can handle multiple concurrent
+    sessions; the current limit of 1 eliminates all parallelism.
+
+### Bottleneck #2: Full Response Buffering (6× Memory Amplification)
+
+    File: HttpClient.kt:404-433
+
+    For a response of size N, the current code creates ~6N copies in memory:
+
+    1. BodyHandlers.ofByteArray()        → N bytes (full HTTP response)
+    2. GZIPInputStream.readBytes()       → N bytes (decompressed)
+    3. .toString(Charsets.UTF_8)          → N chars (UTF-8 string, ~2N bytes)
+    4. parseXml(body) DOM tree           → ~N bytes (DOM nodes + text)
+    5. reportNode.textContent.trim()     → N chars (Base64 string copy)
+    6. Base64.decode() → String()        → ~0.75N bytes (decoded) + String wrapper
+
+    For a 100MB report: ~450-600MB heap consumption.
+
+    Fix: Streaming pipeline (see section 13).
+
+### Bottleneck #3: O(N²) Row Eviction
+
+    File: PaginatedResultSet.kt:346-351
+    Code: repeat(evictCount) { rows.removeAt(0) }
+
+    ArrayList.removeAt(0) shifts all remaining elements. For evictCount=375 and
+    rows.size=500, this is 375 × 500 = 187,500 element copies.
+
+    Fix: Use ArrayDeque instead of MutableList, or replace with index-based cursor.
+
+### Bottleneck #4: Repeated SQL Regex Processing
+
+    File: PaginatedResultSet.kt:159-181
+
+    rewriteQueryForPagination() runs 3 regex replacements + uppercase + normalize
+    on every page fetch. For a 1000-page result: 1000 identical regex operations.
+
+    Fix: Cache normalized SQL template after first page, substitute only offset/limit.
+
+### Bottleneck #5: Unnecessary List Copy in XmlResultSet
+
+    File: XmlResultSet.kt:47
+    Code: private val rows: MutableList<Map<String, String?>> = rows.toMutableList()
+
+    Creates a defensive copy of the entire row list in the constructor.
+
+    Fix: Accept MutableList directly from PaginatedResultSet (trusted caller).
+
+### Bottleneck #6: String Allocation for Repeated Values
+
+    XML parsing creates a new String object for every cell value. For columns with
+    low cardinality (e.g., STATUS = "Active" in 10,000 rows), this means 10,000
+    identical String objects.
+
+    Fix: String.intern() or shared pool for low-cardinality columns.
+
+### Bottleneck #7: HTTP/1.1 Forced
+
+    File: HttpClient.kt (HttpClientManager)
+
+    The driver forces HTTP/1.1. If Oracle Fusion supports HTTP/2, multiplexing
+    would allow multiple SOAP requests over a single TCP connection.
+
+    Fix: Test with HTTP/2 and enable if supported.
+
+### Bottleneck #8: TagSoup Overhead for Well-Formed XML
+
+    TagSoup is used for all XML parsing, including well-formed responses. It's a
+    lenient parser designed for broken HTML, which adds overhead for valid XML.
+
+    Fix: Try StAX/Woodstox first, fall back to TagSoup only on parse errors.
+
+---
+
+## 13. STREAMING PIPELINE FEASIBILITY
+
+### Proposed Architecture
+
+    HTTP InputStream → Gzip Decompress → SOAP Wrapper Filter → Base64 Decode → XML Parse → ResultSet
+
+### Stage-by-Stage Assessment
+
+    Stage 1: HTTP InputStream
+      Change: BodyHandlers.ofByteArray() → BodyHandlers.ofInputStream()
+      Feasibility: TRIVIAL. Java 11 HttpClient supports this natively.
+      Risk: None.
+
+    Stage 2: Gzip Decompression
+      Change: GZIPInputStream already streams; just feed it the raw InputStream.
+      Feasibility: TRIVIAL. Currently works but is fed a ByteArrayInputStream.
+      Risk: None.
+
+    Stage 3: SOAP Wrapper Filter (find <reportBytes>)
+      Change: Read stream byte-by-byte until "reportBytes>" found, then pass
+              remaining bytes to next stage until "</...reportBytes>" found.
+      Feasibility: LOW COMPLEXITY (~30 lines). SOAP wrapper is small (~1-2KB).
+      Risk: Low. Namespace prefix variation handled by suffix matching.
+
+    Stage 4: Base64 Streaming Decode
+      Change: Base64.getDecoder().wrap(inputStream)
+      Feasibility: TRIVIAL. java.util.Base64.Decoder.wrap(InputStream) is native Java 8+.
+      Risk: None.
+
+    Stage 5: Streaming XML Parse (StAX replacing TagSoup)
+      Feasibility: POSSIBLE but HIGH RISK.
+
+      Problem: Oracle Fusion returns malformed XML that TagSoup handles but StAX cannot.
+      Current sanitization (sanitizeXmlGeneral) operates on complete strings with regex.
+
+      Options:
+        A) Sanitizing FilterInputStream before StAX — hard (regex needs lookahead)
+        B) Hybrid: StAX for structure, TagSoup fallback for broken cells
+        C) aalto-xml (async StAX) — more tolerant but not as lenient as TagSoup
+        D) Chunked approach: stream in 8MB blocks, TagSoup each block
+
+      Risk: HIGH. TagSoup covers edge cases discovered over months of production use.
+      Estimated effort: 60-70% of total work.
+
+    Stage 6: Streaming ResultSet
+      PaginatedResultSet already supports incremental pages and row eviction.
+      Change: Instead of List<Map> per page, emit rows as StAX events arrive.
+      Feasibility: MEDIUM. next() would block on stream read instead of array index.
+      Risk: Medium. Changes JDBC threading model.
+
+### Recommended Phased Approach
+
+    Phase 1 (LOW RISK): Stream HTTP + gzip + Base64 decode.
+      Keep TagSoup for XML parsing but feed it decoded chunks.
+      Memory reduction: 6N → ~2N. Effort: 1-2 days.
+
+    Phase 2 (MEDIUM RISK): Chunked TagSoup parsing.
+      Process XML in blocks, emit rows incrementally.
+      Memory reduction: 2N → O(fetchSize). Effort: 3-5 days.
+
+    Phase 3 (HIGH RISK): Full StAX pipeline with error recovery.
+      Replace TagSoup with streaming parser + custom sanitization.
+      Memory reduction: O(fetchSize) → O(1). Effort: 1-2 weeks.
+      Requires extensive testing with real Oracle Fusion responses.
+
+---
+
+## 14. BUILD, TEST, DEPLOY
+
+### Build Commands
+
+    ./gradlew build                            # compile + test + package
+    ./gradlew test                             # run all tests
+    ./gradlew test --tests "*XmlParsingTest"   # run specific test class
+    ./gradlew shadowJar                        # fat JAR with all dependencies
+
+### Output
+
+    build/libs/orfujdbc-1.0-SNAPSHOT.jar       # fat JAR for distribution
+
+### Dependencies
+
+    org.apache.commons:commons-text:1.14.0     # String escaping
+    org.duckdb:duckdb_jdbc:1.3.2.0             # Local metadata cache
+    com.fasterxml.woodstox:woodstox-core:6.5.1 # XML parsing (StAX)
+    org.ccil.cowan.tagsoup:tagsoup:1.2.1       # Lenient XML parser
+    org.json:json:20231013                     # JSON parsing
+    org.junit.jupiter:junit-jupiter-api:5.10.0 # Testing
+
+### Test Suite
+
+    All tests are deterministic (no Oracle Fusion dependency), use mocked XML responses.
+
+    Key test files:
+      XmlParsingTest             — XML response parsing edge cases
+      XmlParsingPerformanceTest  — TagSoup vs DOM benchmarks
+      IssueReproductionTest      — Pattern for issue reproduction with mocks
+      FetchSizeValidationTest    — Pagination boundary testing
+      CircuitBreakerTest         — State transition verification
+      TokenCacheTest             — JWT lifecycle and expiry
+      JdbcComplianceTest         — 15+ JDBC compliance tests
+      AllValidatorsComplianceTest — All 45 validators set line/column
+      OracleErrorEnhancerTest    — Error parsing and position finding
+
+### Deployment
+
+    1. Build fat JAR: ./gradlew shadowJar
+    2. Copy JAR to JDBC tool's driver directory
+    3. Register driver class: my.jdbc.wsdl_driver.WsdlDriver
+    4. Deploy .xdo report template to BI Publisher (one-time setup)
+    5. Create connection with JDBC URL and credentials
+
+---
+
+## APPENDIX: KEY FILE LOCATIONS
+
+    Entry point:          src/main/kotlin/WsdlDriver.kt
+    SOAP construction:    src/main/kotlin/http/HttpClient.kt:155-183
+    Response handling:     src/main/kotlin/http/HttpClient.kt:395-455
+    Base64 decode:        src/main/kotlin/http/HttpClient.kt:146-153
+    XML sanitization:     src/main/kotlin/xml/XmlParser.kt:22-57
+    TagSoup parsing:      src/main/kotlin/xml/XmlParser.kt:116-140
+    Pagination rewrite:   src/main/kotlin/core/PaginatedResultSet.kt:159-181
+    Page fetch + retry:   src/main/kotlin/core/PaginatedResultSet.kt:285-338
+    Async prefetch:       src/main/kotlin/core/PaginatedResultSet.kt:355-382
+    Semaphore bottleneck: src/main/kotlin/http/HttpClient.kt:35
+    Memory buffering:     src/main/kotlin/http/HttpClient.kt:404-433
+    Row eviction:         src/main/kotlin/core/PaginatedResultSet.kt:340-353
+    Secured view mapping: src/main/kotlin/metadata/SecuredViewMappings.kt
+    Circuit breaker:      src/main/kotlin/http/CircuitBreaker.kt
+    Token cache:          src/main/kotlin/auth/TokenCache.kt
+    Browser SSO:          src/main/kotlin/auth/BrowserAuthenticator.kt
+    DuckDB cache:         src/main/kotlin/metadata/MetadataCache.kt
+    Service registration: META-INF/services/java.sql.Driver
+
+---
+
+## RELATED PROJECTS
+
+### ofrag — Oracle Fusion RAG Engine
+    https://github.com/krokozyab/ofrag
+
+    An MCP server that turns LLMs (like Claude) into Oracle Fusion data agents.
+    While OFJDBC provides low-level JDBC access via SOAP, ofrag builds on the same
+    Oracle Fusion connectivity to offer a higher-level agentic interface:
+
+    - Natural language → SQL: user asks a business question, LLM generates and
+      executes SQL against Fusion via the same BI Publisher SOAP mechanism
+    - SQL linting via AST: parses SQL locally against cached Oracle schema,
+      gives the LLM structural feedback (missing columns, wrong tables) before
+      executing — reduces hallucinations and wasted tokens
+    - Local RAG tools: fuzzy search, semantic discovery, module context analyzers
+      that traverse the Oracle schema cache without hitting Fusion
+    - Optional vector search: Gemini embeddings over 25K+ table/view descriptions
+      and 500+ REST API resources for semantic schema discovery
+    - Universal REST client: self-discovering Oracle Fusion REST API agent with
+      full CRUD (GET/POST/PUT/PATCH/DELETE), managed SSO, bulk export with
+      automatic pagination
+    - Shared infrastructure: same SSO browser auth flow, same DuckDB metadata
+      cache (~/.ofjdbc/metadata.db), same Oracle Fusion SOAP endpoint
