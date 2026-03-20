@@ -1,0 +1,55 @@
+# OFJDBC
+
+> A read-only JDBC driver that gives direct SQL access to Oracle Fusion Cloud by tunneling queries through BI Publisher's SOAP web service.
+
+## Problem
+
+Oracle Fusion SaaS does not expose a database port (1521 is closed). There is no JDBC/ODBC endpoint. The only programmatic SQL path is through BI Publisher's `ExternalReportWSSService` SOAP API, which accepts SQL as a report parameter and returns Base64-encoded XML or JSON.
+
+## Solution
+
+OFJDBC wraps this SOAP mechanism in a standard JDBC driver. Any tool that speaks JDBC — DBeaver, DataGrip, Tableau, Python (via JayDeBeApi), custom apps — can query Oracle Fusion as if it were a regular database.
+
+## Key Features
+
+- **Open source** (MIT license)
+- **No Oracle Client needed** — pure HTTP/SOAP, no OCI, no Instant Client
+- **DBeaver & DataGrip compatible** — schema browser, autocomplete, data export all work
+- **Three auth modes** — Basic (user/password), Bearer (JWT), Browser SSO (Chrome CDP with MFA)
+- **Automatic pagination** — injects OFFSET/FETCH, async prefetch of next page
+- **Local metadata cache** — DuckDB at `~/.ofjdbc/metadata.db`, persists across sessions
+- **SQL validation** — 49 validators + Oracle error enhancer with line/column/caret output
+- **Circuit breaker & retry** — exponential backoff with jitter, fast-fail on service outage
+- **HR secured views** — auto-substitutes HR base tables with row-level security views
+- **Dual data model** — XML (default, TagSoup lenient parser) or JSON response format
+
+## How It Works
+
+```
+SQL query → SOAP envelope (p_sql parameter) → HTTP POST to ExternalReportWSSService
+         → Base64-encoded XML/JSON response → decode → parse → JDBC ResultSet
+```
+
+The driver deploys a lightweight `.xdo` report template on BI Publisher that passes through the `p_sql` parameter. All Oracle Fusion security (role-based, row-level) is enforced server-side.
+
+## Technical Specs
+
+- **Stack**: Kotlin 2.2, JVM 11, Gradle 8.10
+- **SOAP endpoint**: `ExternalReportWSSService?WSDL`
+- **Driver class**: `my.jdbc.wsdl_driver.WsdlDriver`
+- **URL format**: `jdbc:wsdl://<host>/xmlpserver/services/ExternalReportWSSService?WSDL:/<report-path>`
+- **Response handling**: HTTP response → gzip decompress → DOM parse SOAP → extract `<reportBytes>` → Base64 decode → TagSoup XML parse
+- **Pagination**: client-side `OFFSET n ROWS FETCH NEXT m ROWS ONLY` injection
+- **Metadata**: two-tier cache (local DuckDB + remote Oracle data dictionary views)
+
+## Links
+
+- **Repository**: https://github.com/krokozyab/ofjdbc
+- **Documentation**: https://github.com/krokozyab/ofjdbc/tree/master/docs
+- **Issues**: https://github.com/krokozyab/ofjdbc/issues
+- **Detailed LLM reference**: see `llms-full.txt` in this repository
+
+## Related Projects
+
+- **ofrag** (https://github.com/krokozyab/ofrag) — MCP server that turns LLMs into Oracle Fusion data agents. RAG engine with SQL linting via AST, semantic schema search, universal REST client. Shares the same SSO auth, DuckDB cache, and SOAP connectivity as OFJDBC.
+
