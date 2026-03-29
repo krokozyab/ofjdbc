@@ -10,39 +10,147 @@
     <meta name="description" content="Free open-source JDBC driver for Oracle Fusion Cloud. Build data pipelines to AWS, Google Cloud, Azure, and OCI with DBeaver. Extract, transform, load data without ETL tools. SQL queries, BI integration, Airflow support, cloud data lakes." />
     <meta name="keywords" content="Oracle Fusion SQL query tool, Oracle Fusion Cloud, JDBC driver, DBeaver, SQL tool, Oracle ERP, OTBI alternative, data integration, ETL, AWS S3, BigQuery, Azure, OCI Object Storage, Oracle Cloud Infrastructure, data pipeline, cloud data lake, QuickSight, Power BI, Oracle Analytics Cloud, Parquet, DuckDB, data warehouse, Arrow Flight SQL, Python Oracle Fusion, REST API, Airflow, Airflow JDBC, Prefect, JVM, Java, Scala" />
     <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://krokozyab.github.io/ofjdbc" />
+    <link rel="canonical" href="https://oraclefusionsql.com/" />
     <meta name="theme-color" content="#0066CC" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
     <meta property="og:title" content="OFJDBC - Free SQL Query Tool for Oracle Fusion Cloud" />
     <meta property="og:description" content="Open-source JDBC driver for running SQL queries directly against Oracle Fusion Cloud. Free alternative to commercial query tools with DBeaver support." />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://krokozyab.github.io/ofjdbc" />
+    <meta property="og:url" content="https://oraclefusionsql.com/" />
 
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="OFJDBC - Free SQL Query Tool for Oracle Fusion Cloud" />
     <meta name="twitter:description" content="Open-source SQL query tool for Oracle Fusion. Run queries with DBeaver, no OTBI required." />
 
     <script type="application/ld+json">
-        {
-            "@context": "https://schema.org",
-            "@type": "SoftwareApplication",
-            "name": "OFJDBC",
-            "alternateName": "Oracle Friendly JDBC",
-            "operatingSystem": "Windows, MacOS, Linux",
-            "applicationCategory": "DatabaseApplication",
-            "description": "Free open-source SQL query tool for Oracle Fusion Cloud. JDBC driver enabling direct database access for ad-hoc queries using DBeaver and other standard SQL clients.",
-            "url": "https://krokozyab.github.io/ofjdbc",
-            "softwareVersion": "1.0",
-            "offers": {
-                "@type": "Offer",
-                "price": "0",
-                "priceCurrency": "USD"
-            },
-            "codeRepository": "https://github.com/krokozyab/ofjdbc",
-            "keywords": "Oracle Fusion, SQL query tool, JDBC, DBeaver, Oracle Cloud, OTBI alternative"
+[
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "OFJDBC",
+    "alternateName": ["Oracle Friendly JDBC", "Oracle Fusion JDBC Driver"],
+    "operatingSystem": "Windows, MacOS, Linux",
+    "applicationCategory": "DeveloperApplication",
+    "applicationSubCategory": "DatabaseApplication",
+    "description": "Free open-source JDBC driver for Oracle Fusion Cloud. Run SQL queries directly against Oracle Fusion without OTBI. Build data pipelines to AWS, Google Cloud, Azure, and OCI using DBeaver. No ETL tool required.",
+    "url": "https://oraclefusionsql.com/",
+    "downloadUrl": "https://github.com/krokozyab/ofjdbc/releases",
+    "installUrl": "https://github.com/krokozyab/ofjdbc",
+    "softwareVersion": "latest",
+    "datePublished": "2024-01-01",
+    "isAccessibleForFree": true,
+    "license": "https://github.com/krokozyab/ofjdbc/blob/master/LICENSE.md",
+    "codeRepository": "https://github.com/krokozyab/ofjdbc",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "availability": "https://schema.org/InStock"
+    },
+    "keywords": "Oracle Fusion, JDBC driver, SQL query tool, DBeaver, OTBI alternative, Oracle Cloud, data integration, ETL, AWS S3, BigQuery, open source",
+    "author": {
+      "@type": "Person",
+      "name": "Sergey Rudenko",
+      "url": "https://github.com/krokozyab"
+    },
+    "publisher": {
+      "@type": "Person",
+      "name": "Sergey Rudenko",
+      "url": "https://github.com/krokozyab"
+    },
+    "featureList": [
+      "Direct SQL query access to Oracle Fusion Cloud",
+      "DBeaver integration with metadata autocomplete",
+      "Multi-cloud data pipelines: AWS S3, Google Cloud, Azure, OCI",
+      "Export to Parquet, CSV, JSON, Excel, DuckDB",
+      "Apache Airflow JDBC support",
+      "JVM programmatic access: Java, Kotlin, Scala, Groovy",
+      "No ETL tool required",
+      "Fully open-source and free"
+    ],
+    "screenshot": "https://oraclefusionsql.com/screenshot.png",
+    "softwareHelp": {
+      "@type": "CreativeWork",
+      "url": "https://github.com/krokozyab/ofjdbc/blob/master/README.md"
+    }
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    "mainEntity": [
+      {
+        "@type": "Question",
+        "name": "How to connect DBeaver to Oracle Fusion Cloud?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Download the OFJDBC JAR from GitHub releases, add it to DBeaver as a custom JDBC driver, and connect using your Oracle Fusion Cloud URL and credentials. DBeaver will automatically cache Oracle Fusion metadata for autocomplete."
         }
-    </script>
+      },
+      {
+        "@type": "Question",
+        "name": "What SQL query tools work with Oracle Fusion Cloud?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "OFJDBC works with any JDBC-compatible tool. DBeaver is the recommended free choice. Other tools like IntelliJ IDEA Database Tools, Eclipse Data Tools, and JetBrains DataGrip also work via JDBC."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is there a free alternative to commercial Oracle Fusion SQL tools?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. OFJDBC is a 100% free, open-source JDBC driver that provides the same direct SQL query access to Oracle Fusion Cloud as commercial tools like SQLConnect or DataFusing, but without licensing fees."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Can I use OFJDBC programmatically in Kotlin, Java, or Scala?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. OFJDBC is a standard JDBC driver and works in any JVM-based platform including Java, Kotlin, Scala, and Groovy. It also supports ETL tools like Apache Airflow (JdbcOperator), Talend, Pentaho, and Apache NiFi."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Does OFJDBC work with Apache Airflow?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. Apache Airflow supports OFJDBC via built-in JDBC operators (JdbcOperator, JdbcHook). You can build ETL pipelines that extract data from Oracle Fusion on a schedule. For Python-native code, use OFArrow with Arrow Flight SQL."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is the difference between OFJDBC and OFArrow?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "OFJDBC is a JDBC driver for JVM platforms and DBeaver. OFArrow is an Arrow Flight SQL server wrapping OFJDBC, needed for non-JVM languages like Python, R, JavaScript, Go, or Rust."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "Is OFJDBC secure?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. OFJDBC connects directly from your machine to Oracle Fusion Cloud. No data passes through third-party servers. The full source code is available on GitHub for review."
+        }
+      }
+    ]
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "OFJDBC - Free SQL Tool for Oracle Fusion Cloud",
+    "url": "https://oraclefusionsql.com/",
+    "description": "Free open-source JDBC driver for Oracle Fusion Cloud SQL queries and data integration.",
+    "author": {
+      "@type": "Person",
+      "name": "Sergey Rudenko",
+      "url": "https://github.com/krokozyab"
+    }
+  }
+]
+</script>
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
