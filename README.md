@@ -1,6 +1,3 @@
-<p align="center">
-  <img src="pics/formatted_sql.png" alt="OFJDBC — SQL queries in DBeaver against Oracle Fusion" width="700"/>
-</p>
 
 <h1 align="center">OFJDBC — JDBC Driver for Oracle Fusion Cloud</h1>
 
@@ -67,12 +64,10 @@ Upload `otbireport/DM_ARB.xdm.catalog` and `RP_ARB.xdo.catalog` to
 | **Authentication** | Fusion Username & Password **or** Browser SSO (`?authType=BROWSER`) |
 
 ### 4. Query
-```sql
-SELECT invoice_num, vendor_name, invoice_amount 
-FROM ap_invoices_all 
-WHERE org_id = 300000001234567 
-FETCH FIRST 100 ROWS ONLY
-```
+<p align="center">
+  <img src="pics/formatted_sql.png" alt="OFJDBC — SQL queries in DBeaver against Oracle Fusion" width="700"/>
+</p>
+
 
 👉 [**Full Setup Guide with Screenshots**](docs/setup_guide.md)  
 🔐 [**SSO Browser Authentication**](docs/sso_authentication.md)
