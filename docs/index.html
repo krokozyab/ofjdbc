@@ -6,22 +6,22 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 
-    <title>Oracle Fusion AI Platform — RAG Engine, SQL Tools & Data Integration | Free & Open Source</title>
-    <meta name="description" content="AI-powered platform for Oracle Fusion Cloud. ofrag RAG Engine lets AI agents query your ERP with natural language. OFJDBC provides free SQL access via DBeaver. Semantic search across 25,000+ tables. MCP Server for Claude, Gemini, and other LLMs." />
-    <meta name="keywords" content="Oracle Fusion RAG, Oracle Fusion AI, Oracle Fusion MCP Server, Oracle ERP AI agent, Oracle Fusion semantic search, Oracle Fusion Cloud LLM, Claude Oracle Fusion, Gemini Oracle Fusion, Oracle Fusion natural language query, Oracle Fusion JDBC driver, DBeaver Oracle Fusion, OTBI alternative, Oracle Fusion data integration, Oracle Fusion SQL tool, Oracle Fusion REST API, Oracle Fusion vector search, agentic AI Oracle, MCP protocol Oracle, Oracle HCM AI, Oracle Fusion Cloud chatbot" />
+    <title>Oracle Fusion Open-Source Ecosystem — RAG Engine, PostgreSQL Proxy, JDBC Driver | Free</title>
+    <meta name="description" content="Three open-source tools for Oracle Fusion Cloud. ofrag RAG Engine for AI agents (Claude, Gemini). ofpgproxy exposes Fusion as a native PostgreSQL endpoint — connect with pgAdmin, DBeaver, Metabase, DuckDB, dbt, psql. OFJDBC for JVM/DBeaver. All free, no BIP." />
+    <meta name="keywords" content="Oracle Fusion RAG, Oracle Fusion AI, Oracle Fusion MCP Server, Oracle Fusion PostgreSQL, Oracle Fusion Postgres proxy, ofpgproxy, pgAdmin Oracle Fusion, DBeaver Oracle Fusion, DuckDB Oracle Fusion, Metabase Oracle Fusion, dbt Oracle Fusion, Oracle Fusion psql, Oracle ERP AI agent, Oracle Fusion semantic search, Oracle Fusion JDBC driver, BIP/OTBI alternative, Oracle Fusion data integration, Oracle Fusion SQL tool, Oracle Fusion REST API, Oracle Fusion vector search, agentic AI Oracle, MCP protocol Oracle, Oracle HCM AI, Oracle Fusion Cloud chatbot, BI Publisher SQL, Postgres wire protocol Oracle" />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href="https://oraclefusionsql.com/" />
     <meta name="theme-color" content="#0066CC" />
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
 
-    <meta property="og:title" content="Oracle Fusion AI Platform — RAG Engine & SQL Tools" />
-    <meta property="og:description" content="AI-powered platform for Oracle Fusion Cloud. Let AI agents query your ERP data with natural language. Free semantic search, SQL tools, and data integration." />
+    <meta property="og:title" content="Oracle Fusion Open-Source Ecosystem — RAG, PostgreSQL Proxy, JDBC" />
+    <meta property="og:description" content="Three free open-source tools for Oracle Fusion Cloud: AI RAG engine, PostgreSQL wire proxy (pgAdmin/DBeaver/Metabase/DuckDB/dbt-ready), and JDBC driver. " />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://oraclefusionsql.com/" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="Oracle Fusion AI Platform — RAG Engine & SQL Tools" />
-    <meta name="twitter:description" content="AI-powered platform for Oracle Fusion Cloud. RAG Engine for LLMs, free SQL tools, semantic search across 25,000+ tables." />
+    <meta name="twitter:title" content="Oracle Fusion Open-Source Ecosystem — RAG, PG Proxy, JDBC" />
+    <meta name="twitter:description" content="Free toolchain for Oracle Fusion: AI agents, native PostgreSQL endpoint, JDBC driver. Connect any PG client to your Fusion tenant." />
 
     <script type="application/ld+json">
 [
@@ -72,12 +72,53 @@
   {
     "@context": "https://schema.org",
     "@type": "SoftwareApplication",
+    "name": "ofpgproxy — Oracle Fusion as a PostgreSQL Endpoint",
+    "alternateName": ["Oracle Fusion Postgres Proxy", "ofpgproxy", "Oracle Fusion PostgreSQL Wire"],
+    "operatingSystem": "Windows, MacOS, Linux",
+    "applicationCategory": "DeveloperApplication",
+    "applicationSubCategory": "DatabaseApplication",
+    "description": "Read-only PostgreSQL wire-protocol proxy for Oracle Fusion Cloud. Connect any PostgreSQL client — pgAdmin, DBeaver, DataGrip, Metabase, Superset, Grafana, DuckDB, dbt, psql, pgx, asyncpg, SQLAlchemy, pandas, postgres_fdw — directly to your Oracle Fusion tenant. SQL is translated on the fly to BI Publisher and the original PostgreSQL semantics (LIMIT, ILIKE, regex, date_trunc, EXCEPT, recursive CTEs, COPY TO STDOUT, cursors) are preserved. Free.",
+    "url": "https://oraclefusionsql.com/",
+    "downloadUrl": "https://github.com/krokozyab/ofpgproxy/releases",
+    "installUrl": "https://github.com/krokozyab/ofpgproxy",
+    "softwareVersion": "0.1.2",
+    "datePublished": "2026-04-25",
+    "isAccessibleForFree": true,
+    "license": "https://github.com/krokozyab/ofpgproxy/blob/master/LICENSE",
+    "codeRepository": "https://github.com/krokozyab/ofpgproxy",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD",
+      "availability": "https://schema.org/InStock"
+    },
+    "keywords": "Oracle Fusion PostgreSQL, ofpgproxy, pgAdmin Oracle Fusion, DBeaver Oracle Fusion, Metabase Oracle Fusion, DuckDB Oracle Fusion, dbt Oracle Fusion, Postgres wire protocol, BI Publisher proxy, Oracle Cloud Postgres, BIP/OTBI alternative",
+    "author": {
+      "@type": "Person",
+      "name": "Sergey Rudenko",
+      "url": "https://github.com/krokozyab"
+    },
+    "featureList": [
+      "Native PostgreSQL wire protocol — any PG client works out of the box",
+      "Tested with pgAdmin, DBeaver, DataGrip, Metabase, Superset, Grafana, DuckDB, dbt, psql, pgx, asyncpg, SQLAlchemy, pandas",
+      "18+ SQL translation passes: LIMIT/OFFSET, ILIKE, ~/!~ regex, date_trunc, EXCEPT, WITH RECURSIVE, boolean Y/N flags",
+      "pg_catalog and information_schema emulation backed by an embedded DuckDB metadata cache",
+      "Streaming XML SOAP parser — constant memory regardless of result size",
+      "Cursor protocol DECLARE / FETCH / CLOSE for postgres_fdw and dblink",
+      "COPY (...) TO STDOUT text format for DuckDB postgres_scanner and pg_dump",
+      "PostgreSQL CancelRequest support — Stop button in IDEs actually cancels",
+      "SSO authentication via Chrome with auto-reopen on token expiry"
+    ]
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
     "name": "OFJDBC",
     "alternateName": ["Oracle Friendly JDBC", "Oracle Fusion JDBC Driver"],
     "operatingSystem": "Windows, MacOS, Linux",
     "applicationCategory": "DeveloperApplication",
     "applicationSubCategory": "DatabaseApplication",
-    "description": "Free open-source JDBC driver for Oracle Fusion Cloud. Run SQL queries directly against Oracle Fusion without OTBI. Build data pipelines to AWS, Google Cloud, Azure, and OCI using DBeaver. No ETL tool required.",
+    "description": "Free open-source JDBC driver for Oracle Fusion Cloud. Run SQL queries directly against Oracle Fusion without BIP. Build data pipelines to AWS, Google Cloud, Azure, and OCI using DBeaver. No ETL tool required.",
     "url": "https://oraclefusionsql.com/",
     "downloadUrl": "https://github.com/krokozyab/ofjdbc/releases",
     "installUrl": "https://github.com/krokozyab/ofjdbc",
@@ -92,7 +133,7 @@
       "priceCurrency": "USD",
       "availability": "https://schema.org/InStock"
     },
-    "keywords": "Oracle Fusion, JDBC driver, SQL query tool, DBeaver, OTBI alternative, Oracle Cloud, data integration, ETL, AWS S3, BigQuery, open source",
+    "keywords": "Oracle Fusion, JDBC driver, SQL query tool, DBeaver, Oracle Cloud, data integration, ETL, AWS S3, BigQuery, open source",
     "author": {
       "@type": "Person",
       "name": "Sergey Rudenko",
@@ -121,6 +162,38 @@
       },
       {
         "@type": "Question",
+        "name": "Can I connect pgAdmin or DBeaver to Oracle Fusion Cloud as a PostgreSQL database?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "Yes. ofpgproxy exposes Oracle Fusion as a native PostgreSQL endpoint over the PG wire protocol. Point pgAdmin, DBeaver, DataGrip, or any other PG client at the proxy's local port (default 5433) and use it like any Postgres database. SQL is translated on the fly into BI Publisher calls — no BIP report creation required."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How do I query Oracle Fusion from DuckDB, dbt, or Metabase?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "ofpgproxy makes Oracle Fusion look like Postgres. DuckDB connects via ATTACH (TYPE POSTGRES). dbt uses the postgres adapter (dbt-postgres). Metabase, Superset, and Grafana add a PostgreSQL data source pointing at the proxy. All standard SQL works — JOINs, WHERE, GROUP BY, aggregates, ILIKE, regex, date_trunc, EXCEPT, recursive CTEs — translated transparently to Oracle SQL."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "What is ofpgproxy and how is it different from OFJDBC?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "ofpgproxy is a read-only PostgreSQL wire-protocol proxy — any tool that speaks Postgres connects to it. OFJDBC is a JDBC driver — only JVM-based tools (DBeaver, Apache Airflow, Java/Kotlin/Scala apps) can use it. They share the same BI Publisher backend mechanism, so you can pick the surface that matches your toolchain: PG wire for the broadest compatibility (psql, pgAdmin, Metabase, DuckDB, Python asyncpg/SQLAlchemy/pandas, Go pgx, dbt, postgres_fdw, dblink); JDBC for JVM-native data pipelines."
+        }
+      },
+      {
+        "@type": "Question",
+        "name": "How does ofpgproxy translate PostgreSQL SQL into Oracle SQL?",
+        "acceptedAnswer": {
+          "@type": "Answer",
+          "text": "ofpgproxy ships with 18+ translator passes that rewrite Postgres idioms into Oracle equivalents on the fly: LIMIT n becomes FETCH FIRST n ROWS ONLY, ILIKE becomes UPPER() LIKE UPPER(), the regex operators ~/!~/~*/!~* become REGEXP_LIKE, date_trunc becomes TRUNC, EXCEPT becomes MINUS, WITH RECURSIVE keeps recursive semantics, boolean TRUE/FALSE flips to 1/0 or Y/N depending on the column type. The pg_catalog and information_schema layer is emulated against an embedded DuckDB metadata cache so client schema-introspection queries never touch Oracle."
+        }
+      },
+      {
+        "@type": "Question",
         "name": "How does semantic search work for Oracle Fusion?",
         "acceptedAnswer": {
           "@type": "Answer",
@@ -145,10 +218,10 @@
       },
       {
         "@type": "Question",
-        "name": "How do I run SQL queries against Oracle Fusion Cloud without OTBI?",
+        "name": "How do I run SQL queries against Oracle Fusion Cloud without BIP?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "OFJDBC is a free, open-source JDBC driver that lets you run SQL queries directly against Oracle Fusion Cloud using DBeaver or any JDBC-compatible tool. No OTBI reports needed. For AI-powered access, use ofrag — it lets AI agents write, validate, and execute SQL queries through natural language."
+          "text": "Three free open-source paths, depending on your toolchain. ofpgproxy makes Oracle Fusion look like Postgres — use any PG client (pgAdmin, DBeaver, psql, Metabase, DuckDB, dbt, etc.). OFJDBC is a JDBC driver for DBeaver and JVM tools. ofrag is the AI-powered surface: it lets agents like Claude and Gemini write, validate, and execute SQL through natural language. All three share the same BI Publisher backend mechanism."
         }
       },
       {
@@ -156,7 +229,7 @@
         "name": "How to connect DBeaver to Oracle Fusion Cloud?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Download the OFJDBC JAR from GitHub releases, add it to DBeaver as a custom JDBC driver, and connect using your Oracle Fusion Cloud URL and credentials. DBeaver will automatically cache Oracle Fusion metadata for autocomplete."
+          "text": "Two ways. With ofpgproxy: start the proxy locally (port 5433 by default), then add a standard PostgreSQL connection in DBeaver pointing at 127.0.0.1:5433. With OFJDBC: download the JDBC JAR from GitHub releases, add it to DBeaver as a custom JDBC driver, and connect using your Oracle Fusion Cloud URL and credentials. ofpgproxy needs no driver install — DBeaver's built-in Postgres driver works."
         }
       },
       {
@@ -164,7 +237,7 @@
         "name": "Is there a free alternative to commercial Oracle Fusion SQL tools?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. OFJDBC is a 100% free, open-source JDBC driver that provides the same direct SQL query access to Oracle Fusion Cloud as commercial tools like SQLConnect or DataFusing, but without licensing fees. Combined with ofrag, you also get AI-powered querying — something no commercial tool offers."
+          "text": "Yes — three of them, all open source: ofpgproxy (PostgreSQL wire proxy), OFJDBC (JDBC driver), and ofrag (AI/RAG). Together they cover every modern data-tool surface and provide direct SQL query access to Oracle Fusion Cloud, matching commercial tools like SQLConnect or DataFusing without licensing fees. Combined with ofrag, you also get AI-powered querying — something no commercial tool offers."
         }
       },
       {
@@ -180,7 +253,7 @@
         "name": "How does ofrag protect production databases?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "ofrag uses local intelligence — it caches Oracle Fusion metadata locally and performs all exploration (schema search, SQL validation, semantic parsing) without touching the production database. Only final, validated queries reach the live system, preventing exploratory load on production."
+          "text": "ofrag uses local intelligence — it caches Oracle Fusion metadata locally and performs all exploration (schema search, SQL validation, semantic parsing) without touching the production database. Only final, validated queries reach the live system, preventing exploratory load on production. ofpgproxy applies the same principle on the SQL side: pg_catalog and information_schema queries are answered from a local DuckDB cache and never reach Oracle."
         }
       },
       {
@@ -188,7 +261,7 @@
         "name": "Can I use OFJDBC programmatically in Kotlin, Java, or Scala?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. OFJDBC is a standard JDBC driver and works in any JVM-based platform including Java, Kotlin, Scala, and Groovy. It also supports ETL tools like Apache Airflow (JdbcOperator), Talend, Pentaho, and Apache NiFi."
+          "text": "Yes. OFJDBC is a standard JDBC driver and works in any JVM-based platform including Java, Kotlin, Scala, and Groovy. It also supports ETL tools like Apache Airflow (JdbcOperator), Talend, Pentaho, and Apache NiFi. For non-JVM languages, ofpgproxy offers PG wire which natively binds to Python (psycopg, asyncpg, SQLAlchemy, pandas), Go (pgx), Rust (tokio-postgres), and every other Postgres client driver."
         }
       },
       {
@@ -196,7 +269,7 @@
         "name": "Does OFJDBC work with Apache Airflow?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. Apache Airflow supports OFJDBC via built-in JDBC operators (JdbcOperator, JdbcHook). You can build ETL pipelines that extract data from Oracle Fusion on a schedule. For Python-native code, use OFArrow with Arrow Flight SQL."
+          "text": "Yes. Apache Airflow supports OFJDBC via built-in JDBC operators (JdbcOperator, JdbcHook). You can build ETL pipelines that extract data from Oracle Fusion on a schedule. For Python-native code, use OFArrow with Arrow Flight SQL, or ofpgproxy with the Postgres operator (PostgresOperator)."
         }
       },
       {
@@ -204,7 +277,7 @@
         "name": "Is the platform secure?",
         "acceptedAnswer": {
           "@type": "Answer",
-          "text": "Yes. Both ofrag and OFJDBC connect directly from your machine to Oracle Fusion Cloud. No data passes through third-party servers. ofrag processes all metadata exploration locally, and only validated queries reach production. The OFJDBC source code is fully available on GitHub for review."
+          "text": "Yes. ofrag, ofpgproxy, and OFJDBC all connect directly from your machine to Oracle Fusion Cloud. No data passes through third-party servers. ofrag processes all metadata exploration locally; ofpgproxy answers pg_catalog probes from a local DuckDB cache without touching Oracle; OFJDBC source code is fully available on GitHub for review. ofpgproxy is read-only by design — DML paths simply don't exist."
         }
       }
     ]
@@ -212,9 +285,9 @@
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    "name": "Oracle Fusion AI Platform — RAG Engine & SQL Tools",
+    "name": "Oracle Fusion Open-Source Ecosystem — RAG, PostgreSQL Proxy, JDBC",
     "url": "https://oraclefusionsql.com/",
-    "description": "AI-powered platform for Oracle Fusion Cloud. RAG Engine for LLMs, free SQL tools, semantic search, and data integration.",
+    "description": "Three free open-source tools for Oracle Fusion Cloud: AI RAG engine, PostgreSQL wire proxy, and JDBC driver.",
     "author": {
       "@type": "Person",
       "name": "Sergey Rudenko",
@@ -241,6 +314,8 @@
             --success: #00CC88;
             --ai-purple: #7C3AED;
             --ai-purple-light: #A78BFA;
+            --pg-blue: #336791;
+            --pg-blue-light: #4A90C9;
             --text-dark: #1a1a1a;
             --text-light: #666;
             --bg-light: #F8FAFC;
@@ -251,6 +326,7 @@
             --shadow-lg: 0 10px 40px rgba(0,102,204,0.15);
             --gradient: linear-gradient(135deg, #0066CC 0%, #0099FF 100%);
             --gradient-ai: linear-gradient(135deg, #7C3AED 0%, #0066CC 50%, #00D9FF 100%);
+            --gradient-pg: linear-gradient(135deg, #336791 0%, #4A90C9 100%);
             --gradient-accent: linear-gradient(135deg, #FFB800 0%, #FF8800 100%);
         }
 
@@ -262,7 +338,6 @@
             overflow-x: hidden;
         }
 
-        /* Hero Section */
         .hero {
             background: var(--gradient-ai);
             color: white;
@@ -285,7 +360,7 @@
         }
 
         .hero-content {
-            max-width: 900px;
+            max-width: 980px;
             margin: 0 auto;
             position: relative;
             z-index: 1;
@@ -312,11 +387,11 @@
         }
 
         .hero .hero-product-name {
-            font-size: 1.6rem;
+            font-size: 1.5rem;
             opacity: 0.85;
             margin-bottom: 1.5rem;
             font-weight: 400;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.04em;
         }
 
         .hero .subtitle {
@@ -377,14 +452,12 @@
             border-color: rgba(255,255,255,0.5);
         }
 
-        /* Container */
         .container {
             max-width: 1200px;
             margin: 0 auto;
             padding: 0 2rem;
         }
 
-        /* Section */
         section {
             padding: 5rem 2rem;
         }
@@ -402,11 +475,63 @@
             text-align: center;
             font-size: 1.15rem;
             color: var(--text-light);
-            max-width: 700px;
+            max-width: 720px;
             margin: 0 auto 3rem;
         }
 
-        /* Cards Grid */
+        /* Ecosystem trio header strip */
+        .ecosystem-trio {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            max-width: 1100px;
+            margin: 3rem auto 0;
+        }
+
+        .trio-card {
+            background: var(--bg-white);
+            border-radius: 14px;
+            padding: 1.6rem 1.4rem;
+            border: 1px solid var(--border);
+            box-shadow: var(--shadow-sm);
+            transition: all 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .trio-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .trio-card .trio-tag {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            font-weight: 700;
+            display: inline-block;
+            padding: 0.2rem 0.6rem;
+            border-radius: 4px;
+            margin-bottom: 0.7rem;
+        }
+
+        .trio-card.ai .trio-tag { background: rgba(124,58,237,0.12); color: var(--ai-purple); }
+        .trio-card.pg .trio-tag { background: rgba(51,103,145,0.12); color: var(--pg-blue); }
+        .trio-card.jdbc .trio-tag { background: rgba(255,184,0,0.15); color: #B8860B; }
+
+        .trio-card h4 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+            color: var(--text-dark);
+        }
+
+        .trio-card p {
+            font-size: 0.92rem;
+            color: var(--text-light);
+            line-height: 1.55;
+        }
+
         .cards {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -444,9 +569,7 @@
             border-color: var(--ai-purple);
         }
 
-        .card:hover::before {
-            transform: scaleX(1);
-        }
+        .card:hover::before { transform: scaleX(1); }
 
         .card h3 {
             font-size: 1.4rem;
@@ -465,7 +588,15 @@
             transform: scaleX(1);
         }
 
-        /* How it works */
+        .card-pg::before {
+            background: var(--gradient-pg);
+            transform: scaleX(1);
+        }
+
+        .card-pg:hover {
+            border-color: var(--pg-blue);
+        }
+
         .how-it-works {
             background: linear-gradient(135deg, rgba(124,58,237,0.03) 0%, rgba(0,102,204,0.03) 100%);
         }
@@ -514,7 +645,8 @@
             font-size: 0.95rem;
         }
 
-        /* Highlight Box */
+        .pg-steps .step::before { background: var(--gradient-pg); }
+
         .highlight {
             background: linear-gradient(135deg, rgba(124,58,237,0.05) 0%, rgba(0,102,204,0.05) 100%);
             border: 2px solid var(--ai-purple);
@@ -560,7 +692,44 @@
             text-decoration: underline;
         }
 
-        /* Use case */
+        /* Client compatibility chip strip */
+        .client-strip {
+            margin-top: 2.5rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.6rem;
+            justify-content: center;
+        }
+
+        .client-chip {
+            background: rgba(51,103,145,0.08);
+            border: 1px solid rgba(51,103,145,0.25);
+            color: var(--pg-blue);
+            padding: 0.4rem 0.95rem;
+            border-radius: 20px;
+            font-size: 0.92rem;
+            font-weight: 500;
+        }
+
+        /* Code block */
+        .code-block {
+            background: #0f172a;
+            color: #e2e8f0;
+            border-radius: 12px;
+            padding: 1.5rem 1.8rem;
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', 'Roboto Mono', monospace;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            overflow-x: auto;
+            margin-top: 2rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .code-block .prompt { color: #64748b; user-select: none; }
+        .code-block .keyword { color: #c4b5fd; }
+        .code-block .string { color: #86efac; }
+        .code-block .comment { color: #64748b; font-style: italic; }
+
         .use-case {
             background: var(--bg-white);
             border-radius: 16px;
@@ -582,6 +751,8 @@
             letter-spacing: 0.05em;
             margin-bottom: 1rem;
         }
+
+        .use-case-label.pg { background: var(--gradient-pg); }
 
         .use-case-query {
             font-size: 1.3rem;
@@ -607,7 +778,6 @@
             font-size: 0.9rem;
         }
 
-        /* FAQ */
         .faq-item {
             background: var(--bg-white);
             border-radius: 12px;
@@ -639,7 +809,6 @@
             font-weight: 600;
         }
 
-        /* Footer */
         footer {
             background: var(--text-dark);
             color: #999;
@@ -654,54 +823,24 @@
             transition: color 0.2s;
         }
 
-        footer a:hover {
-            color: var(--secondary);
-        }
+        footer a:hover { color: var(--secondary); }
 
-        footer p {
-            margin: 0.5rem 0;
-        }
+        footer p { margin: 0.5rem 0; }
 
-        /* Responsive */
         @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2.5rem;
-            }
-
-            .hero .subtitle {
-                font-size: 1.15rem;
-            }
-
-            section h2 {
-                font-size: 2rem;
-            }
-
-            .cards {
-                grid-template-columns: 1fr;
-            }
-
-            .steps {
-                grid-template-columns: 1fr;
-            }
-
-            .hero-buttons {
-                flex-direction: column;
-            }
-
-            .btn {
-                width: 100%;
-                justify-content: center;
-            }
+            .hero h1 { font-size: 2.5rem; }
+            .hero .subtitle { font-size: 1.15rem; }
+            section h2 { font-size: 2rem; }
+            .cards { grid-template-columns: 1fr; }
+            .steps { grid-template-columns: 1fr; }
+            .ecosystem-trio { grid-template-columns: 1fr; }
+            .hero-buttons { flex-direction: column; }
+            .btn { width: 100%; justify-content: center; }
         }
 
-        html {
-            scroll-behavior: smooth;
-        }
+        html { scroll-behavior: smooth; }
 
-        ::selection {
-            background: var(--ai-purple);
-            color: white;
-        }
+        ::selection { background: var(--ai-purple); color: white; }
     </style>
     <meta name="google-site-verification" content="2AXpuBNn_TdA-xG6K1qj7sNcaWK_pim0yH5Pj4jW5yQ" />
 
@@ -726,31 +865,52 @@
 </script>
 <body>
 
-<!-- Hero Section — ofrag is now the star -->
+<!-- Hero — three tools, one ecosystem -->
 <section class="hero">
     <div class="hero-content">
-        <div class="hero-badge">AI-Powered &middot; Free &middot; Open Ecosystem</div>
+        <div class="hero-badge">Three Free Tools &middot; One Open Ecosystem</div>
         <h1>Talk to Your Oracle Fusion</h1>
-        <p class="hero-product-name">powered by <strong>ofrag</strong> — Oracle Fusion RAG Engine</p>
-        <p class="subtitle">Let AI agents query your ERP data with natural language</p>
-        <p class="subtitle-detail">Semantic search across 25,000+ tables &middot; AST-based SQL validation &middot; MCP Server for Claude, Gemini & other LLMs &middot; 4-second query execution</p>
+        <p class="hero-product-name">in the language your stack already speaks &mdash; AI, PostgreSQL, or JDBC</p>
+        <p class="subtitle">AI agents, any PostgreSQL client, or any JVM tool &mdash; pick the surface that fits.</p>
+        <p class="subtitle-detail">ofrag for Claude/Gemini &middot; ofpgproxy for pgAdmin/DBeaver/Metabase/DuckDB/dbt &middot; OFJDBC for the JVM</p>
+
+        <div class="ecosystem-trio">
+            <a href="#ofrag" class="trio-card ai">
+                <span class="trio-tag">AI &middot; RAG</span>
+                <h4>ofrag</h4>
+                <p>MCP Server for Claude, Gemini, and other LLMs. Semantic search across 25,000+ tables.</p>
+            </a>
+            <a href="#ofjdbc" class="trio-card jdbc">
+                <span class="trio-tag">JDBC Driver</span>
+                <h4>OFJDBC</h4>
+                <p>JVM-native driver for DBeaver, Apache Airflow, Java/Kotlin/Scala data pipelines.</p>
+            </a>
+            <a href="#ofpgproxy" class="trio-card pg">
+                <span class="trio-tag">PostgreSQL Wire</span>
+                <h4>ofpgproxy</h4>
+                <p>Native PG endpoint &mdash; pgAdmin, DBeaver, Metabase, DuckDB, dbt, psql, asyncpg, pgx all just work.</p>
+            </a>
+        </div>
 
         <div class="hero-buttons">
             <a href="https://github.com/krokozyab/ofrag" class="btn btn-primary" target="_blank" rel="noopener">
                 <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
                 ofrag on GitHub
             </a>
-            <a href="https://github.com/krokozyab/ofrag/blob/master/docs/README.md" class="btn btn-secondary" target="_blank" rel="noopener">Documentation</a>
-            <a href="https://github.com/krokozyab/ofjdbc" class="btn btn-secondary" target="_blank" rel="noopener">OFJDBC — SQL Tools</a>
+            <a href="https://github.com/krokozyab/ofpgproxy" class="btn btn-secondary" target="_blank" rel="noopener">
+                <svg width="20" height="20" viewBox="0 0 16 16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"></path></svg>
+                ofpgproxy on GitHub
+            </a>
+            <a href="https://github.com/krokozyab/ofjdbc" class="btn btn-secondary" target="_blank" rel="noopener">OFJDBC on GitHub</a>
         </div>
     </div>
 </section>
 
-<!-- How it works -->
-<section class="how-it-works">
+<!-- ofrag: How it works (kept) -->
+<section class="how-it-works" id="ofrag">
     <div class="container">
-        <h2>How It Works</h2>
-        <p>ofrag is an MCP Server that gives AI agents structured, safe access to your Oracle Fusion data</p>
+        <h2>ofrag &mdash; AI Agents Talk to Oracle Fusion</h2>
+        <p>An MCP Server that gives Claude, Gemini, and other LLMs structured, safe access to your Oracle Fusion data</p>
 
         <div class="steps">
             <div class="step">
@@ -759,60 +919,59 @@
             </div>
             <div class="step">
                 <h3>Semantic Discovery</h3>
-                <p>ofrag finds the right tables and REST APIs using vector embeddings and business process mapping — no hardcoded queries needed</p>
+                <p>ofrag finds the right tables and REST APIs using vector embeddings and business process mapping &mdash; no hardcoded queries needed</p>
             </div>
             <div class="step">
                 <h3>Validate Locally</h3>
                 <p>SQL is parsed into an AST and validated against a cached schema. Only clean, verified queries reach your database</p>
             </div>
             <div class="step">
-                <h3>Execute & Return</h3>
+                <h3>Execute &amp; Return</h3>
                 <p>The validated query runs against Oracle Fusion and results come back in about 4 seconds, formatted and ready to use</p>
             </div>
         </div>
 
-        <!-- Use case example -->
         <div class="use-case" style="margin-top: 3rem;">
             <div class="use-case-label">Live Example</div>
             <div class="use-case-query">"Show me the top 5 unpaid invoices for vendor Acme Corp generated last month"</div>
             <div class="use-case-result">
-                ofrag interprets "unpaid" as <code>PAYMENT_STATUS_FLAG = 'N'</code>, discovers the correct AP tables via semantic search, validates the SQL against the local schema cache, executes it on Oracle Fusion, and returns a formatted table — all without the user knowing a single table name.
+                ofrag interprets "unpaid" as <code>PAYMENT_STATUS_FLAG = 'N'</code>, discovers the correct AP tables via semantic search, validates the SQL against the local schema cache, executes it on Oracle Fusion, and returns a formatted table &mdash; all without the user knowing a single table name.
             </div>
             <div class="use-case-time">~4 seconds end-to-end</div>
         </div>
     </div>
 </section>
 
-<!-- ofrag Capabilities -->
+<!-- ofrag Capabilities (kept) -->
 <section style="background: var(--bg-white);">
     <div class="container">
-        <h2>ofrag — AI Intelligence Layer for Oracle Fusion</h2>
+        <h2>ofrag &mdash; AI Intelligence Layer</h2>
         <p>Everything your AI agent needs to understand and interact with Oracle Fusion Cloud</p>
 
         <div class="cards">
             <div class="card card-ai">
                 <h3>Semantic Search</h3>
-                <p>Find relevant tables and APIs using natural language. Vector embeddings across 25,000+ table descriptions and 500+ REST resources. Understands business intent — "money from customers" finds AR tables even without exact matches.</p>
+                <p>Find relevant tables and APIs using natural language. Vector embeddings across 25,000+ table descriptions and 500+ REST resources. Understands business intent &mdash; "money from customers" finds AR tables even without exact matches.</p>
             </div>
 
             <div class="card card-ai">
                 <h3>AST-Based SQL Validation</h3>
-                <p>Every query is parsed into an Abstract Syntax Tree and validated against a locally cached schema before execution. The AI gets precise feedback like "column VENDOR_NAME does not exist in AP_INVOICES_ALL" — preventing hallucinations.</p>
+                <p>Every query is parsed into an Abstract Syntax Tree and validated against a locally cached schema before execution. The AI gets precise feedback like "column VENDOR_NAME does not exist in AP_INVOICES_ALL" &mdash; preventing hallucinations.</p>
             </div>
 
             <div class="card card-ai">
                 <h3>MCP Server Protocol</h3>
-                <p>Native integration with Claude, Gemini, and any MCP-compatible LLM. Tools include semantic_search, execute_oracle_sql, rest_call, lint_sql, module_summary, and more — giving AI structured access to your ERP.</p>
+                <p>Native integration with Claude, Gemini, and any MCP-compatible LLM. Tools include semantic_search, execute_oracle_sql, rest_call, lint_sql, module_summary, and more &mdash; giving AI structured access to your ERP.</p>
             </div>
 
             <div class="card card-ai">
                 <h3>Universal REST Client</h3>
-                <p>Full CRUD operations on Oracle Fusion REST APIs. Self-discovering endpoints — the AI calls /describe to understand resource structure dynamically. Automatic pagination for bulk exports.</p>
+                <p>Full CRUD operations on Oracle Fusion REST APIs. Self-discovering endpoints &mdash; the AI calls /describe to understand resource structure dynamically. Automatic pagination for bulk exports.</p>
             </div>
 
             <div class="card card-ai">
                 <h3>Local Intelligence</h3>
-                <p>All metadata exploration happens locally — zero queries to production during discovery. Schema cache, fuzzy search, synonym expansion, and business process cross-referencing run at zero latency.</p>
+                <p>All metadata exploration happens locally &mdash; zero queries to production during discovery. Schema cache, fuzzy search, synonym expansion, and business process cross-referencing run at zero latency.</p>
             </div>
 
             <div class="card card-ai">
@@ -823,16 +982,16 @@
     </div>
 </section>
 
-<!-- OFJDBC Section — now positioned as foundation -->
-<section>
+<!-- OFJDBC -->
+<section id="ofjdbc">
     <div class="container">
-        <h2>OFJDBC — The SQL Foundation</h2>
-        <p>Free, open-source JDBC driver that powers direct SQL access to Oracle Fusion Cloud. The engine behind the ecosystem.</p>
+        <h2>OFJDBC &mdash; The JDBC Foundation</h2>
+        <p>Free, open-source JDBC driver for the JVM ecosystem &mdash; DBeaver, Apache Airflow, Java/Kotlin/Scala/Groovy data pipelines.</p>
 
         <div class="cards">
             <div class="card">
                 <h3>Direct SQL Query Access</h3>
-                <p>Execute SQL queries directly against Oracle Fusion Cloud without creating OTBI reports. Get instant results for troubleshooting, analysis, and data exploration with DBeaver's intelligent autocomplete.</p>
+                <p>Execute SQL queries directly against Oracle Fusion Cloud without creating BIP reports. Get instant results for troubleshooting, analysis, and data exploration with DBeaver's intelligent autocomplete.</p>
             </div>
 
             <div class="card">
@@ -851,20 +1010,20 @@
             </div>
 
             <div class="card">
-                <h3>JVM & Airflow Support</h3>
-                <p>Standard JDBC driver — works in Java, Kotlin, Scala, Groovy, Apache Airflow (JdbcOperator), Talend, Pentaho, and Apache NiFi. For non-JVM languages, use OFArrow with Arrow Flight SQL.</p>
+                <h3>JVM &amp; Airflow Support</h3>
+                <p>Standard JDBC driver &mdash; works in Java, Kotlin, Scala, Groovy, Apache Airflow (JdbcOperator), Talend, Pentaho, and Apache NiFi. For non-JVM languages, use OFArrow with Arrow Flight SQL or ofpgproxy with native Postgres bindings.</p>
             </div>
 
             <div class="card">
-                <h3>BI & Analytics Platforms</h3>
+                <h3>BI &amp; Analytics Platforms</h3>
                 <p>Connect QuickSight, Power BI, Tableau, or Looker to Oracle Fusion data via cloud data warehouses populated by OFJDBC pipelines.</p>
             </div>
         </div>
 
         <div class="highlight" style="margin-top: 3rem;">
-            <h3>Tutorials & Articles</h3>
+            <h3>Tutorials &amp; Articles</h3>
 
-            <p><strong>OFJDBC & DBeaver:</strong></p>
+            <p><strong>OFJDBC &amp; DBeaver:</strong></p>
             <ul style="margin-left: 0; margin-bottom: 1.5rem;">
                 <li><a href="https://www.linkedin.com/pulse/analysis-ad-hoc-sql-query-tools-oracle-fusion-cloud-sergey-rudenko-igaif/" target="_blank">Analysis of Ad-Hoc SQL Query Tools for Oracle Fusion Cloud</a></li>
                 <li><a href="https://www.linkedin.com/pulse/bridging-gap-using-open-source-jdbc-driver-oracle-fusion-rudenko-i6cwf/" target="_blank">Building Oracle Fusion &rarr; AWS S3 &rarr; Athena &rarr; QuickSight Data Pipelines</a></li>
@@ -873,14 +1032,135 @@
             <p><strong>OFArrow (Arrow Flight SQL):</strong></p>
             <ul style="margin-left: 0; margin-bottom: 1.5rem;">
                 <li><a href="https://medium.com/@rudenko.s/simplifying-oracle-fusion-data-access-with-ofarrow-a78f59a18b12" target="_blank">Simplifying Oracle Fusion Data Access with OFArrow</a></li>
-                <li><a href="https://www.linkedin.com/pulse/query-oracle-fusion-arrow-flight-sql-visualize-apache-sergey-rudenko-7rwlf/" target="_blank">Query Oracle Fusion & Visualize in Apache Superset</a></li>
+                <li><a href="https://www.linkedin.com/pulse/query-oracle-fusion-arrow-flight-sql-visualize-apache-sergey-rudenko-7rwlf/" target="_blank">Query Oracle Fusion &amp; Visualize in Apache Superset</a></li>
                 <li><a href="https://www.linkedin.com/pulse/export-oracle-fusion-data-google-sheets-minutes-sergey-rudenko-izj4f/" target="_blank">Export Oracle Fusion Data to Google Sheets in Minutes</a></li>
             </ul>
 
-            <p><strong>AI & RAG:</strong></p>
+            <p><strong>ofpgproxy &mdash; PostgreSQL Wire:</strong></p>
+            <ul style="margin-left: 0; margin-bottom: 1.5rem;">
+                <li><a href="https://github.com/krokozyab/ofpgproxy" target="_blank">ofpgproxy on GitHub &mdash; PostgreSQL endpoint for Oracle Fusion</a></li>
+                <li><a href="https://github.com/krokozyab/ofpgproxy/blob/master/doc/recipes.md" target="_blank">Copy-paste recipes &mdash; DuckDB, dblink, postgres_fdw</a></li>
+                <li><a href="https://github.com/krokozyab/ofpgproxy/releases" target="_blank">Pre-built binaries (macOS Apple Silicon, Windows x64)</a></li>
+            </ul>
+
+            <p><strong>AI &amp; RAG:</strong></p>
             <ul style="margin-left: 0;">
-                <li><a href="https://github.com/krokozyab/ofrag" target="_blank">Oracle Fusion RAG Engine (ofrag) — GitHub</a></li>
-                <li><a href="https://github.com/krokozyab/ofrag/blob/master/docs/README.md" target="_blank">ofrag Documentation & Setup Guide</a></li>
+                <li><a href="https://github.com/krokozyab/ofrag" target="_blank">Oracle Fusion RAG Engine (ofrag) &mdash; GitHub</a></li>
+                <li><a href="https://github.com/krokozyab/ofrag/blob/master/docs/README.md" target="_blank">ofrag Documentation &amp; Setup Guide</a></li>
+            </ul>
+        </div>
+    </div>
+</section>
+
+<!-- ofpgproxy section (moved below OFJDBC) -->
+<section class="how-it-works" id="ofpgproxy">
+    <div class="container">
+        <h2>ofpgproxy &mdash; Oracle Fusion as a Native PostgreSQL Endpoint</h2>
+        <p>Any tool that speaks PostgreSQL connects to your Oracle Fusion tenant. No driver install, no BIP report, no custom adapter &mdash; just a connection string.</p>
+
+        <div class="client-strip">
+            <span class="client-chip">pgAdmin</span>
+            <span class="client-chip">DBeaver</span>
+            <span class="client-chip">DataGrip</span>
+            <span class="client-chip">Metabase</span>
+            <span class="client-chip">Superset</span>
+            <span class="client-chip">Grafana</span>
+            <span class="client-chip">DuckDB</span>
+            <span class="client-chip">dbt</span>
+            <span class="client-chip">psql</span>
+            <span class="client-chip">pgx (Go)</span>
+            <span class="client-chip">asyncpg (Python)</span>
+            <span class="client-chip">SQLAlchemy</span>
+            <span class="client-chip">pandas</span>
+            <span class="client-chip">postgres_fdw</span>
+            <span class="client-chip">dblink</span>
+        </div>
+
+        <div class="code-block">
+<span class="comment"># Start ofpgproxy locally</span>
+<span class="prompt">$</span> ./ofpgproxy --listen 127.0.0.1:5433 --metadata-path ./metadata.db
+
+<span class="comment"># Connect from anywhere PostgreSQL is supported</span>
+<span class="prompt">$</span> psql -h 127.0.0.1 -p 5433 -U anyone -d any \
+       -c <span class="string">"SELECT period_name, period_year FROM gl_periods LIMIT 5"</span>
+
+<span class="comment"># DuckDB attach &mdash; query Fusion as a regular Postgres DB</span>
+<span class="prompt">D</span> <span class="keyword">SET</span> pg_use_text_protocol = <span class="keyword">true</span>;
+<span class="prompt">D</span> <span class="keyword">ATTACH</span> <span class="string">'host=127.0.0.1 port=5433 user=anyone dbname=any'</span> <span class="keyword">AS</span> fusion (<span class="keyword">TYPE</span> POSTGRES);
+<span class="prompt">D</span> <span class="keyword">SELECT</span> * <span class="keyword">FROM</span> fusion.gl_periods <span class="keyword">LIMIT</span> 5;</div>
+
+        <div class="steps pg-steps" style="margin-top: 3.5rem;">
+            <div class="step">
+                <h3>Client Sends PostgreSQL SQL</h3>
+                <p>Any PG client &mdash; pgAdmin, DuckDB, dbt, asyncpg &mdash; opens a normal Postgres connection on port 5433</p>
+            </div>
+            <div class="step">
+                <h3>Translate &amp; Route</h3>
+                <p>18+ translator passes rewrite Postgres idioms (LIMIT, ILIKE, regex, date_trunc, EXCEPT, recursive CTE) into Oracle SQL</p>
+            </div>
+            <div class="step">
+                <h3>Local pg_catalog</h3>
+                <p>Schema-introspection queries are answered from an embedded DuckDB metadata cache &mdash; never reach Oracle, never block the user</p>
+            </div>
+            <div class="step">
+                <h3>Stream Results Back</h3>
+                <p>SOAP XML response is parsed in constant memory and streamed to the client row by row, with proper PG types (numeric, timestamp, bool)</p>
+            </div>
+        </div>
+
+        <div class="use-case" style="margin-top: 3rem;">
+            <div class="use-case-label pg">Live Example</div>
+            <div class="use-case-query">A Metabase dashboard plotting unpaid invoices by month, refreshed every 5 minutes</div>
+            <div class="use-case-result">
+                Metabase admin adds a standard PostgreSQL data source pointing at <code>127.0.0.1:5433</code>. The dashboard's SQL uses native Postgres syntax &mdash; <code>WHERE invoice_date &gt;= NOW() - INTERVAL '1 month' AND payment_status_flag = 'N'</code>. ofpgproxy rewrites <code>NOW()</code> to <code>SYSDATE</code>, the date math to Oracle's <code>ADD_MONTHS</code> semantics, the boolean predicate to <code>'N'</code>, and ships the request to BI Publisher. Results stream back into the chart. No BIP report. No ETL.
+            </div>
+        </div>
+    </div>
+</section>
+
+<section style="background: var(--bg-white);">
+    <div class="container">
+        <h2>ofpgproxy &mdash; Why It Works for Every Postgres Tool</h2>
+        <p>Built for production: streaming, cancellation, transaction state, type fidelity. Tested against 6 client toolchains in real Fusion tenants.</p>
+
+        <div class="cards">
+            <div class="card card-pg">
+                <h3>Native PostgreSQL Wire Protocol</h3>
+                <p>Implements the actual PG wire protocol, not a REST shim. Every PG client driver works unmodified &mdash; pgx (Go), psycopg / asyncpg / SQLAlchemy (Python), pgJDBC (Java), node-postgres, libpq, ADO.NET. No vendor lock-in.</p>
+            </div>
+
+            <div class="card card-pg">
+                <h3>18+ SQL Translation Passes</h3>
+                <p>LIMIT n &rarr; FETCH FIRST n ROWS ONLY, ILIKE &rarr; UPPER() LIKE UPPER(), <code>~</code> / <code>!~</code> regex &rarr; REGEXP_LIKE, date_trunc &rarr; TRUNC, EXCEPT &rarr; MINUS, WITH RECURSIVE preserved, boolean TRUE/FALSE &rarr; 1/0 or Y/N depending on column type. Idioms translate transparently.</p>
+            </div>
+
+            <div class="card card-pg">
+                <h3>pg_catalog &amp; information_schema</h3>
+                <p>Schema-introspection queries (the bulk of what BI tools fire on connect) are answered from a local DuckDB-backed catalog. ~30,000 Fusion tables indexed offline. Connection setup is instant; production never sees a discovery probe.</p>
+            </div>
+
+            <div class="card card-pg">
+                <h3>Streaming XML Parser</h3>
+                <p>BI Publisher's SOAP responses are parsed in constant memory regardless of result size. Million-row SELECTs flow through the proxy without OOM. Streaming is respected end-to-end &mdash; rows reach the client as they arrive.</p>
+            </div>
+
+            <div class="card card-pg">
+                <h3>Cursor Protocol &amp; COPY OUT</h3>
+                <p>DECLARE / FETCH / CLOSE for postgres_fdw and dblink. <code>COPY (...) TO STDOUT</code> text format for DuckDB's postgres_scanner and pg_dump. CancelRequest support &mdash; the Stop button in IDEs actually cancels the in-flight SOAP call.</p>
+            </div>
+
+            <div class="card card-pg">
+                <h3>Read-Only by Design</h3>
+                <p>BI Publisher cannot write, and ofpgproxy will never write. DML paths simply don't exist in the codebase &mdash; safe to point production users at without permission gymnastics. SSO authentication via Chrome with auto-reopen on token expiry.</p>
+            </div>
+        </div>
+
+        <div class="highlight" style="margin-top: 3rem; border-color: var(--pg-blue); background: linear-gradient(135deg, rgba(51,103,145,0.05) 0%, rgba(74,144,201,0.05) 100%);">
+            <h3 style="color: var(--pg-blue);">Get ofpgproxy</h3>
+            <ul>
+                <li><a href="https://github.com/krokozyab/ofpgproxy" target="_blank" style="color: var(--pg-blue);">Source code &amp; documentation on GitHub</a></li>
+                <li><a href="https://github.com/krokozyab/ofpgproxy/releases" target="_blank" style="color: var(--pg-blue);">Pre-built binaries for macOS (Apple Silicon) and Windows x64</a></li>
+                <li><a href="https://github.com/krokozyab/ofpgproxy/blob/master/doc/recipes.md" target="_blank" style="color: var(--pg-blue);">Copy-paste recipes &mdash; DuckDB ATTACH, dblink, postgres_fdw, dbt-postgres</a></li>
             </ul>
         </div>
     </div>
@@ -893,7 +1173,27 @@
 
         <div class="faq-item">
             <h3>What is the Oracle Fusion RAG Engine (ofrag)?</h3>
-            <p><strong>ofrag</strong> is a Retrieval-Augmented Generation engine and MCP Server that enables AI agents like Claude and Gemini to intelligently query Oracle Fusion Cloud. It provides semantic search across 25,000+ table descriptions, AST-based SQL validation, and live query execution — letting your AI understand and retrieve ERP data using natural language.</p>
+            <p><strong>ofrag</strong> is a Retrieval-Augmented Generation engine and MCP Server that enables AI agents like Claude and Gemini to intelligently query Oracle Fusion Cloud. It provides semantic search across 25,000+ table descriptions, AST-based SQL validation, and live query execution &mdash; letting your AI understand and retrieve ERP data using natural language.</p>
+        </div>
+
+        <div class="faq-item">
+            <h3>Can I connect pgAdmin or DBeaver to Oracle Fusion as a Postgres database?</h3>
+            <p>Yes. <strong>ofpgproxy</strong> exposes Oracle Fusion as a native PostgreSQL endpoint. Point pgAdmin, DBeaver, DataGrip, or any other PG client at the proxy's local port (default 5433) and use it like any Postgres database. SQL is translated on the fly into BI Publisher calls &mdash; no BIP report creation required.</p>
+        </div>
+
+        <div class="faq-item">
+            <h3>How do I query Oracle Fusion from DuckDB, dbt, or Metabase?</h3>
+            <p>ofpgproxy makes Fusion look like Postgres. <strong>DuckDB</strong> connects via <code>ATTACH (TYPE POSTGRES)</code>. <strong>dbt</strong> uses the <code>dbt-postgres</code> adapter. <strong>Metabase</strong>, Superset, and Grafana add a PostgreSQL data source pointing at the proxy. All standard SQL works &mdash; JOINs, GROUP BY, aggregates, ILIKE, regex, date_trunc, EXCEPT, recursive CTEs &mdash; translated transparently.</p>
+        </div>
+
+        <div class="faq-item">
+            <h3>What is ofpgproxy and how is it different from OFJDBC?</h3>
+            <p><strong>ofpgproxy</strong> is a read-only PostgreSQL wire-protocol proxy &mdash; any tool that speaks Postgres connects to it. <strong>OFJDBC</strong> is a JDBC driver &mdash; only JVM-based tools (DBeaver, Airflow, Java/Kotlin/Scala apps) can use it. Pick the surface that matches your toolchain: PG wire for the broadest compatibility (Python, Go, Rust, BI tools); JDBC for JVM-native data pipelines.</p>
+        </div>
+
+        <div class="faq-item">
+            <h3>How does ofpgproxy translate PostgreSQL SQL into Oracle SQL?</h3>
+            <p>18+ translator passes rewrite Postgres idioms into Oracle equivalents on the fly: <code>LIMIT n</code> &rarr; <code>FETCH FIRST n ROWS ONLY</code>, <code>ILIKE</code> &rarr; <code>UPPER() LIKE UPPER()</code>, the regex operators <code>~</code>/<code>!~</code>/<code>~*</code>/<code>!~*</code> &rarr; <code>REGEXP_LIKE</code>, <code>date_trunc</code> &rarr; <code>TRUNC</code>, <code>EXCEPT</code> &rarr; <code>MINUS</code>, <code>WITH RECURSIVE</code> preserved, <code>TRUE</code>/<code>FALSE</code> mapped to <code>1</code>/<code>0</code> or <code>'Y'</code>/<code>'N'</code> depending on the column's actual Oracle type. <code>pg_catalog</code> and <code>information_schema</code> are emulated against an embedded DuckDB catalog so client schema-introspection queries never touch Oracle.</p>
         </div>
 
         <div class="faq-item">
@@ -903,47 +1203,37 @@
 
         <div class="faq-item">
             <h3>Can I use AI to query Oracle Fusion Cloud data?</h3>
-            <p>Yes. ofrag is an <strong>MCP Server</strong> that connects AI agents directly to Oracle Fusion Cloud. The AI agent can search for relevant tables using natural language, validate SQL queries against cached schemas, and execute them in real-time — typically returning results in about 4 seconds.</p>
+            <p>Yes. ofrag is an <strong>MCP Server</strong> that connects AI agents directly to Oracle Fusion Cloud. The AI agent can search for relevant tables using natural language, validate SQL queries against cached schemas, and execute them in real-time &mdash; typically returning results in about 4 seconds.</p>
         </div>
 
         <div class="faq-item">
             <h3>What is MCP and how does ofrag use it?</h3>
-            <p><strong>MCP (Model Context Protocol)</strong> is an open standard that lets AI agents use external tools. ofrag implements MCP to provide Claude, Gemini, and other LLMs with tools like semantic_search, execute_oracle_sql, rest_call, lint_sql, and more — giving the AI structured access to Oracle Fusion data while keeping production databases protected.</p>
+            <p><strong>MCP (Model Context Protocol)</strong> is an open standard that lets AI agents use external tools. ofrag implements MCP to provide Claude, Gemini, and other LLMs with tools like semantic_search, execute_oracle_sql, rest_call, lint_sql, and more &mdash; giving the AI structured access to Oracle Fusion data while keeping production databases protected.</p>
         </div>
 
         <div class="faq-item">
-            <h3>How does ofrag protect production databases?</h3>
-            <p>ofrag uses <strong>local intelligence</strong> — it caches Oracle Fusion metadata locally and performs all exploration (schema search, SQL validation, semantic parsing) without touching the production database. Only final, validated queries reach the live system, preventing exploratory load on production.</p>
+            <h3>How do I run SQL queries against Oracle Fusion without BIP?</h3>
+            <p>Three free open-source paths, depending on your toolchain. <strong>ofpgproxy</strong> makes Oracle Fusion look like Postgres &mdash; use any PG client (pgAdmin, DBeaver, psql, Metabase, DuckDB, dbt, etc.). <strong>OFJDBC</strong> is a JDBC driver for DBeaver and JVM tools. <strong>ofrag</strong> is the AI-powered surface: it lets agents like Claude and Gemini write, validate, and execute SQL through natural language. All three share the same BI Publisher backend mechanism.</p>
         </div>
 
         <div class="faq-item">
-            <h3>Can ofrag work with multiple Oracle Fusion environments?</h3>
-            <p>Yes. Switch between <strong>dev, SIT, UAT, and production</strong> environments instantly without config changes. Each environment can use different authentication methods (SSO or basic auth), and you can compare data across environments.</p>
+            <h3>How does the platform protect production?</h3>
+            <p>Both <strong>ofrag</strong> and <strong>ofpgproxy</strong> use <strong>local intelligence</strong> &mdash; metadata is cached locally and exploration (schema search, SQL validation, semantic parsing, pg_catalog probes) never touches the production database. Only final, validated queries reach the live Oracle Fusion system. ofpgproxy is read-only by design &mdash; DML paths simply don't exist in the codebase.</p>
         </div>
 
         <div class="faq-item">
-            <h3>How do I run SQL queries against Oracle Fusion without OTBI?</h3>
-            <p><strong>OFJDBC</strong> is a free, open-source JDBC driver that lets you run SQL queries directly using DBeaver or any JDBC-compatible tool. No OTBI reports needed. For AI-powered access, use ofrag — it lets AI agents write, validate, and execute SQL queries through natural language.</p>
-        </div>
-
-        <div class="faq-item">
-            <h3>How to connect DBeaver to Oracle Fusion Cloud?</h3>
-            <p>Download the <strong>OFJDBC JAR</strong> from GitHub releases, add it to DBeaver as a custom JDBC driver, and connect using your Oracle Fusion Cloud URL and credentials. DBeaver will automatically cache Oracle Fusion metadata for autocomplete.</p>
+            <h3>Can I use OFJDBC programmatically in Kotlin, Java, or Scala?</h3>
+            <p>Yes. OFJDBC is a standard JDBC driver and works in any JVM-based platform including Java, Kotlin, Scala, and Groovy. It also supports ETL tools like Apache Airflow (JdbcOperator), Talend, Pentaho, and Apache NiFi. For non-JVM languages, <strong>ofpgproxy</strong> offers PG wire which natively binds to Python (psycopg, asyncpg, SQLAlchemy, pandas), Go (pgx), Rust (tokio-postgres), and every other Postgres client driver.</p>
         </div>
 
         <div class="faq-item">
             <h3>Is there a free alternative to commercial Oracle Fusion SQL tools?</h3>
-            <p>Yes. OFJDBC is a 100% free, open-source JDBC driver that provides the same direct SQL query access as commercial tools like SQLConnect or DataFusing. Combined with <strong>ofrag, you also get AI-powered querying</strong> — something no commercial tool offers.</p>
-        </div>
-
-        <div class="faq-item">
-            <h3>Can I use OFJDBC with Apache Airflow?</h3>
-            <p>Yes. Apache Airflow has built-in JDBC support through JdbcOperator and JdbcHook. Use OFJDBC to build ETL pipelines that extract data from Oracle Fusion on a schedule. For Python-native code, use <strong>OFArrow</strong> with Arrow Flight SQL.</p>
+            <p>Yes &mdash; three of them, all open source: <strong>ofpgproxy</strong> (PostgreSQL wire proxy), <strong>OFJDBC</strong> (JDBC driver), and <strong>ofrag</strong> (AI/RAG). Together they cover every modern data-tool surface and provide direct SQL query access to Oracle Fusion Cloud, matching commercial tools like SQLConnect or DataFusing without licensing fees. Combined with ofrag, you also get AI-powered querying &mdash; something no commercial tool offers.</p>
         </div>
 
         <div class="faq-item">
             <h3>Is the platform secure?</h3>
-            <p>Yes. Both ofrag and OFJDBC connect <strong>directly from your machine</strong> to Oracle Fusion Cloud. No data passes through third-party servers. ofrag processes all metadata exploration locally, and only validated queries reach production. OFJDBC source code is fully available on GitHub.</p>
+            <p>Yes. ofrag, ofpgproxy, and OFJDBC all connect <strong>directly from your machine</strong> to Oracle Fusion Cloud. No data passes through third-party servers. ofrag processes all metadata exploration locally; ofpgproxy answers pg_catalog probes from a local DuckDB cache without touching Oracle; OFJDBC source code is fully available on GitHub for review.</p>
         </div>
     </div>
 </section>
@@ -951,10 +1241,11 @@
 <!-- Footer -->
 <footer>
     <div class="container">
-        <p style="color: #ccc; font-size: 1.1rem; margin-bottom: 1rem;">AI-Powered Platform for Oracle Fusion Cloud — RAG Engine, SQL Tools & Data Integration</p>
+        <p style="color: #ccc; font-size: 1.1rem; margin-bottom: 1rem;">Free Open-Source Ecosystem for Oracle Fusion Cloud &mdash; AI Agents, PostgreSQL Proxy, JDBC Driver</p>
         <p>&copy; <span id="year"></span> Oracle Fusion Open-Source Ecosystem | Developed by <a href="https://github.com/krokozyab" target="_blank">Sergey Rudenko</a></p>
         <p style="margin-top: 1.5rem;">
             <a href="https://github.com/krokozyab/ofrag" target="_blank">ofrag RAG Engine</a> |
+            <a href="https://github.com/krokozyab/ofpgproxy" target="_blank">ofpgproxy</a> |
             <a href="https://github.com/krokozyab/ofjdbc" target="_blank">OFJDBC</a> |
             <a href="https://github.com/krokozyab/ofarrow" target="_blank">OFArrow</a> |
             <a href="https://www.linkedin.com/pulse/analysis-ad-hoc-sql-query-tools-oracle-fusion-cloud-sergey-rudenko-igaif/" target="_blank">Tool Comparison</a>
