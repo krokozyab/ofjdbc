@@ -19,7 +19,7 @@
   <a href="#-documentation">Docs</a>
 </p>
 
----
+
 <!--[![GitHub Downloads](https://img.shields.io/github/downloads/krokozyab/ofjdbc/total?style=for-the-badge&logo=github)](https://github.com/krokozyab/ofjdbc/releases)->
 
 ## The Problem
