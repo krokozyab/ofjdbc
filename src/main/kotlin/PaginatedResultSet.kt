@@ -302,7 +302,7 @@ class PaginatedResultSet(
         val value = getString(columnLabel)          // lastWasNull already set
         if (lastWasNull) return null
         return when {
-            value!!.matches(Regex("^-?\\d+$"))            -> value.toInt()
+            value!!.matches(Regex("^-?\\d+$"))            -> value.toLong()
             value.matches(Regex("^-?\\d+\\.\\d+$"))       -> value.toDouble()
             value.matches(Regex("^-?\\d+\\.?\\d*[Ee][+-]?\\d+$")) -> value.toDouble()
             else                                          -> value
