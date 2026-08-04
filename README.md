@@ -89,23 +89,26 @@ Upload `otbireport/DM_ARB.xdm.catalog` and `RP_ARB.xdo.catalog` to
 OFJDBC is the foundation of a complete open-source platform for Oracle Fusion data access:
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                     AI / LLM Layer                       │
-│  ofrag — MCP Server for Claude, Gemini, any LLM          │
-│  Semantic search · SQL validation · Natural language     │
-├──────────────────────────────────────────────────────────┤
-│                    Data Access Layer                     │
-│  OFJDBC (JDBC)                                           │
-│  JVM, DBeaver, Airflow, any JDBC-compatible tool         │
-├──────────────────────────────────────────────────────────┤
-│                  Oracle Fusion Cloud                     │
-│              BI Publisher SOAP Web Services              │
-└──────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│                       AI / LLM Layer                       │
+│       ofrag — MCP Server for Claude, Gemini, any LLM       │
+│    Semantic search · SQL validation · Natural language     │
+├────────────────────────────────────────────────────────────┤
+│                     Data Access Layer                      │
+├──────────────────────────┬─────────────────────────────────┤
+│ OFJDBC (JDBC)            │ oratofusionproxy (Oracle Net)   │
+│ JVM, DBeaver, Airflow,   │ SQL Developer, Excel,           │
+│ any JDBC tool            │ Power BI, sqlplus, dblink       │
+├──────────────────────────┴─────────────────────────────────┤
+│                    Oracle Fusion Cloud                     │
+│               BI Publisher SOAP Web Services               │
+└────────────────────────────────────────────────────────────┘
 ```
 
 | Project | What it does | Link |
 |---|---|---|
 | **OFJDBC** | JDBC driver — SQL access from DBeaver, IntelliJ, JVM apps | [GitHub](https://github.com/krokozyab/ofjdbc) |
+| oratofusionproxy | Oracle Net/TNS proxy — Fusion as a real Oracle database for SQL Developer, Excel, Power BI and dblink from EBS | GitHub (https://github.com/krokozyab/oracle-fusion-tns-proxy) |
 | **ofrag** | AI RAG engine & MCP Server — natural language queries via Claude/Gemini | [GitHub](https://github.com/krokozyab/ofrag) |
 
 ## 💡 Use Cases
