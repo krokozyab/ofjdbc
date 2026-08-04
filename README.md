@@ -86,7 +86,7 @@ Upload `otbireport/DM_ARB.xdm.catalog` and `RP_ARB.xdo.catalog` to
 
 ## 🌐 Ecosystem
 
-OFJDBC is the foundation of a complete open-source platform for Oracle Fusion data access:
+Two ways into the same data: a JDBC driver for the JVM world, and an Oracle Net endpoint for everything that speaks to an Oracle database. Both talk to Fusion through the same documented BI Publisher service:
 
 ```
 ┌────────────────────────────────────────────────────────────┐
