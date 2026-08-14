@@ -1,5 +1,5 @@
 
-<h1 align="center">OFJDBC — JDBC Driver for Oracle Fusion Cloud</h1>
+<h1 align="center">SQL Developer experience for Oracle Fusion Cloud</h1>
 
 <p align="center">
   <strong>Run SQL queries directly against Oracle Fusion. Free. Open-source. No OTBI required.</strong>
