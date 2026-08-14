@@ -2,7 +2,7 @@
 <h1 align="center">SQL Developer experience for Oracle Fusion Cloud</h1>
 
 <p align="center">
-  <strong>Run SQL queries directly against Oracle Fusion. Free. Open-source. No OTBI required.</strong>
+  <strong>Run SQL queries directly against Oracle Fusion. Free. Open-source.</strong>
 </p>
 
 <p align="center">
