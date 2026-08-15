@@ -24,6 +24,7 @@ This guide provides detailed instructions for setting up the OFJDBC driver in yo
 3.  **Driver Settings:**
     *   **Class Name:** `my.jdbc.wsdl_driver.WsdlDriver`
     *   **Library:** Select the JAR file you saved.
+    *   **URL TEMPLATE (not shown on screenshot):**  jdbc:wsdl://{host}/xmlpserver/services/ExternalReportWSSService?WSDL:{database}
 
     <img src="../pics/setup_1.png" alt="dbeaver setup 1" width="600"/>
     <img src="../pics/setup_2.png" alt="dbeaver setup 2" width="600"/>
