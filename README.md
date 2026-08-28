@@ -26,6 +26,12 @@
 Oracle Fusion Cloud doesn't allow direct database connections. Developers and consultants are forced to use **OTBI** (limited subject areas, 65K row cap), **BI Publisher** (tiny SQL editor, multi-step process), or **paid third-party tools** — just to run a simple `SELECT` query.
 
 **OFJDBC fixes this.** It's a lightweight JDBC driver that translates standard SQL into SOAP requests against Oracle Fusion's BI layer. Plug it into DBeaver, IntelliJ, or any JDBC-compatible tool — and query Oracle Fusion tables like a normal database.
+<p align="center">
+  <a href="https://www.youtube.com/watch?v=7HQwmzQriRM">
+    <img src="https://img.youtube.com/vi/7HQwmzQriRM/maxresdefault.jpg" alt="OFJDBC Oracle Fusion SQL query tool" width="800">
+  </a>
+</p>
+
 
 ## ✨ Why OFJDBC
 
