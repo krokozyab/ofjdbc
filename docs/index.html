@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Oracle Fusion Tooling — SQL, AI and native Oracle access</title>
-<meta name="description" content="Tools for reading Oracle Fusion Cloud: OFJDBC (open-source JDBC driver), ofrag (AI / MCP), Oracle Fusion TNS Proxy (native Oracle endpoint and dblink), and FusionLens (desktop GL client). One BI Publisher backend, read-only SQL.">
+<meta name="description" content="Tools for reading Oracle Fusion Cloud: OFJDBC (open-source JDBC driver), ofquack (DuckDB extension, Fusion beside your other sources), ofrag (AI / MCP), Oracle Fusion TNS Proxy (native Oracle endpoint and dblink), and FusionLens (desktop GL client). One BI Publisher backend, read-only SQL.">
 <link rel="canonical" href="https://oraclefusionsql.com/">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://oraclefusionsql.com/">
@@ -40,6 +40,7 @@
   :root{
     --paper:#f5f0e6; --ink:#1c1a17; --muted:#6d675d; --rule:#d8d0c0; --card:#fbf8f1;
     --ofjdbc:#b8552e; --ofrag:#6b4fbb; --tns:#2d6a8e; --arrow:#4a6b3e; --lens:#8a6d1f;
+    --ofquack:#8c3b52;
     --serif:'Iowan Old Style','Palatino Linotype',Palatino,Georgia,serif;
     --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
     --mono:ui-monospace,SFMono-Regular,'SF Mono',Menlo,Consolas,monospace;
@@ -95,7 +96,7 @@
   .facts{margin-top:16px;font-family:var(--mono);font-size:11.5px;color:var(--muted);display:grid;grid-template-columns:max-content 1fr;gap:4px 14px}
   .card a.go{margin-top:16px;font-family:var(--mono);font-size:12.5px;text-decoration:none;border-bottom:1px solid currentColor;align-self:flex-start}
   .c-ofjdbc{color:var(--ofjdbc)} .c-ofrag{color:var(--ofrag)} .c-tns{color:var(--tns)}
-  .c-arrow{color:var(--arrow)} .c-lens{color:var(--lens)}
+  .c-arrow{color:var(--arrow)} .c-lens{color:var(--lens)} .c-ofquack{color:var(--ofquack)}
 
   /* ---------- diagram ---------- */
   pre.diagram{font-family:var(--mono);font-size:13px;line-height:1.65;background:var(--card);border:1px solid var(--rule);padding:22px;margin-top:26px;overflow-x:auto;color:#3a352e}
@@ -141,7 +142,7 @@
 
 <header class="hero"><div class="wrap">
   <h1>Read your Oracle Fusion data <em>from the tools you already have.</em></h1>
-  <p>Four tools over one backend: a JDBC driver, an MCP server for AI agents, a native Oracle endpoint your database can link to, and a desktop client for accountants. No new platform, no data pipeline, no per-question BI Publisher report.</p>
+  <p>Five tools over one backend: a JDBC driver, an MCP server for AI agents, a native Oracle endpoint your database can link to, a DuckDB extension for joining Fusion to your other data, and a desktop client for accountants. No new platform, no data pipeline, no per-question BI Publisher report.</p>
   <div class="cta">
     <a class="btn primary" href="https://github.com/krokozyab/ofjdbc" target="_blank" rel="noopener noreferrer" data-conv="ofjdbc-hero">Get OFJDBC — the flagship</a>
     <a class="btn" href="#choose">Which tool do I need?</a>
@@ -157,11 +158,12 @@
 
 <section id="choose"><div class="wrap">
   <div class="lbl"><b>§01</b> Decide — pick by the tool you already have open</div>
-  <h2>Three developer surfaces and one desktop client, over the same tenant.</h2>
+  <h2>Four developer surfaces and one desktop client, over the same tenant.</h2>
   <table>
     <thead><tr><th>If your stack is…</th><th>Use</th><th>Maturity</th><th>What it gives you</th></tr></thead>
     <tbody>
       <tr><td>DBeaver, SQL Developer, DataGrip, JVM code, Airflow</td><td class="pick c-ofjdbc">OFJDBC</td><td class="pick">Established</td><td>SQL Developer experience for Oracle Fusion Cloud</td></tr>
+      <tr><td>Fusion is not the only source — EBS, another database, Parquet or CSV in the same question</td><td class="pick c-ofquack">ofquack</td><td class="pick">New</td><td>All of them open at once, so a reconciliation is one statement.</td></tr>
       <tr><td>Claude, Gemini, any MCP host</td><td class="pick c-ofrag">ofrag</td><td class="pick">Active</td><td>Semantic search over the schema, SQL validated before it runs.</td></tr>
       <tr><td>SQLcl, python-oracledb, another Oracle database — or Toad / PL/SQL Developer</td><td class="pick c-tns">Oracle Fusion TNS Proxy</td><td class="pick">New</td><td>A real Oracle listener on <code>1521</code> — including <code>dblink</code> from EBS. Toad and PL/SQL Developer take the same Oracle-client path, not yet tested.</td></tr>
       <tr><td>Accountants and support who don't write SQL</td><td class="pick c-lens">FusionLens</td><td class="pick">Active</td><td>Desktop GL investigation — pivot, drill, jump into Fusion.</td></tr>
@@ -184,6 +186,21 @@
         <span>Source</span><span>Open source · MIT · on GitHub</span>
       </div>
       <a class="go c-ofjdbc" href="https://github.com/krokozyab/ofjdbc" target="_blank" rel="noopener noreferrer" data-conv="ofjdbc-card">GitHub →</a>
+    </div>
+
+    <div class="card">
+      <div class="top c-ofquack"><span class="tag">DuckDB · SQL</span><span class="tag">New</span></div>
+      <h3 class="c-ofquack">ofquack</h3>
+      <div class="sub">For when Fusion is not the only source</div>
+      <p>A DuckDB extension. Fusion mounts as one catalog in a session that can hold an EBS database, a Parquet file and a spreadsheet at the same time — so reconciling Fusion against EBS is a single <code>SELECT</code> rather than two exports and a manual match. Rows travel the other way too: <code>INSERT … SELECT</code> straight from Fusion into an ordinary Oracle table, with no file in between.</p>
+      <div class="facts">
+        <span>Clients</span><span>DuckDB CLI and UI · DBeaver · Python</span>
+        <span>Joins</span><span>Fusion · Oracle databases · Parquet, CSV, JSON</span>
+        <span>Access</span><span>Read-only against Fusion</span>
+        <span>Source</span><span>Open source · MIT · DuckDB Community Extensions</span>
+      </div>
+      <a class="go c-ofquack" href="https://github.com/krokozyab/ofquack" target="_blank" rel="noopener noreferrer" data-conv="ofquack-card">GitHub →</a>
+      <a class="go c-ofquack" href="https://medium.com/@rudenko.s/oracle-fusion-oracle-ebs-and-your-files-in-one-sql-session-edebb2c04678" target="_blank" rel="noopener noreferrer" data-conv="ofquack-article" style="margin-top:8px">Read the walkthrough →</a>
     </div>
 
     <div class="card">
@@ -228,7 +245,7 @@
       <a class="go c-lens" href="https://github.com/krokozyab/FL/releases/latest" target="_blank" rel="noopener noreferrer" data-conv="fusionlens-card">Download →</a>
     </div>
 
-    <div class="card wide" style="justify-content:center">
+    <div class="card" style="justify-content:center">
       <div class="sub" style="margin-bottom:10px">Not sure which one?</div>
       <p style="flex:0">Every tool reads the same tenant through the same backend, so the choice is only about the client you already have open. The table above decides it in one line — and switching later costs nothing but a different download.</p>
       <a class="go" href="#choose">Back to the chooser →</a>
@@ -342,6 +359,7 @@
       <h5>Tools</h5>
       <ul>
         <li><a href="https://github.com/krokozyab/ofjdbc" target="_blank" rel="noopener noreferrer">OFJDBC</a></li>
+        <li><a href="https://github.com/krokozyab/ofquack" target="_blank" rel="noopener noreferrer">ofquack</a></li>
         <li><a href="https://github.com/krokozyab/ofrag" target="_blank" rel="noopener noreferrer">ofrag</a></li>
         <li><a href="https://github.com/krokozyab/oracle-fusion-tns-proxy" target="_blank" rel="noopener noreferrer">Oracle Fusion TNS Proxy</a></li>
         <li><a href="https://github.com/krokozyab/FL" target="_blank" rel="noopener noreferrer">FusionLens</a></li>
@@ -352,6 +370,7 @@
       <ul>
         <li><a href="https://www.linkedin.com/pulse/analysis-ad-hoc-sql-query-tools-oracle-fusion-cloud-sergey-rudenko-igaif/" target="_blank" rel="noopener noreferrer">Ad-hoc SQL tools, compared</a></li>
         <li><a href="https://www.linkedin.com/pulse/bridging-gap-using-open-source-jdbc-driver-oracle-fusion-rudenko-i6cwf/" target="_blank" rel="noopener noreferrer">Bridging the gap with OFJDBC</a></li>
+        <li><a href="https://medium.com/@rudenko.s/oracle-fusion-oracle-ebs-and-your-files-in-one-sql-session-edebb2c04678" target="_blank" rel="noopener noreferrer">Fusion, EBS and your files in one SQL session</a></li>
         <li><a href="https://youtu.be/tCHShFHWbZk" target="_blank" rel="noopener noreferrer">FusionLens — demo video</a></li>
       </ul>
     </div>
@@ -364,7 +383,7 @@
       </ul>
     </div>
   </div>
-  <p>© Oracle Fusion Tooling · built by Sergey Rudenko. OFJDBC is open source under MIT;
+  <p>© Oracle Fusion Tooling · built by Sergey Rudenko. OFJDBC and ofquack are open source under MIT;
      the other tools are binary downloads.
      Not affiliated with, endorsed by or supported by Oracle Corporation.
      &ldquo;Oracle&rdquo;, &ldquo;Oracle Fusion Cloud&rdquo;, &ldquo;SQL Developer&rdquo; and &ldquo;SQLcl&rdquo; are trademarks of Oracle and/or its affiliates, used here descriptively.</p>
@@ -378,6 +397,7 @@
   "description": "Free tools for reading Oracle Fusion Cloud through its BI Publisher web service.",
   "itemListElement": [
     {"@type":"SoftwareApplication","name":"OFJDBC","applicationCategory":"DeveloperApplication","operatingSystem":"Any (JVM)","license":"https://opensource.org/licenses/MIT","url":"https://github.com/krokozyab/ofjdbc","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}},
+    {"@type":"SoftwareApplication","name":"ofquack","applicationCategory":"DeveloperApplication","operatingSystem":"macOS, Linux, Windows","license":"https://opensource.org/licenses/MIT","url":"https://github.com/krokozyab/ofquack","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}},
     {"@type":"SoftwareApplication","name":"ofrag","applicationCategory":"DeveloperApplication","operatingSystem":"macOS, Linux, Windows","url":"https://github.com/krokozyab/ofrag"},
     {"@type":"SoftwareApplication","name":"Oracle Fusion TNS Proxy","alternateName":"oratofusionproxy","applicationCategory":"DeveloperApplication","operatingSystem":"macOS, Linux, Windows","url":"https://github.com/krokozyab/oracle-fusion-tns-proxy","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}},
     {"@type":"SoftwareApplication","name":"FusionLens","applicationCategory":"BusinessApplication","operatingSystem":"macOS, Windows","url":"https://github.com/krokozyab/FL","offers":{"@type":"Offer","price":"0","priceCurrency":"EUR"}}
