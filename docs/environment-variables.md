@@ -7,6 +7,7 @@ This document describes all environment variables and system properties that can
 - [HTTP Configuration](#http-configuration)
 - [Fetch Size Configuration](#fetch-size-configuration)
 - [Retry Configuration](#retry-configuration)
+- [OAuth Authentication](#oauth-authentication)
 - [System Properties](#system-properties)
 - [Usage Examples](#usage-examples)
 
@@ -130,6 +131,58 @@ export OFJDBC_RETRY_MULTIPLIER=1.5
 ```
 
 **Impact**: Controls how quickly retry delays increase. Lower values = more gradual increase.
+
+---
+
+## OAuth Authentication
+
+OFJDBC can authenticate with an OAuth 2.0 Bearer token instead of Basic auth. Authentication is
+provider-agnostic: you point the driver at a class implementing
+`my.jdbc.wsdl_driver.OAuthProvider`, and the driver performs the token exchange itself (no extra
+dependencies). New providers can be added without changing core driver logic.
+
+### Enabling OAuth
+
+Add the `oauthProviderClass` parameter to the JDBC URL (or as a connection property):
+
+```
+jdbc:wsdl://<host>/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo?oauthProviderClass=my.jdbc.wsdl_driver.SystemEnvOAuthProvider
+```
+
+The named class must implement `OAuthProvider` and have a public no-argument constructor; the driver
+instantiates it reflectively, requests an access token, and sends it as `Authorization: Bearer <token>`
+on every request. Tokens are cached and refreshed automatically before expiry. When
+`oauthProviderClass` is absent, the driver behaves exactly as before (Basic auth), preserving backward
+compatibility.
+
+### Reference provider: `SystemEnvOAuthProvider`
+
+Reads all OAuth configuration from environment variables (each also supports the dotted lowercase
+system-property fallback, e.g. `ofjdbc.oauth.client.id`):
+
+| Variable | Required | Default | Description |
+|----------|----------|---------|-------------|
+| `OFJDBC_OAUTH_CLIENT_ID` | Yes | — | OAuth client identifier |
+| `OFJDBC_OAUTH_CLIENT_SECRET` | No | `""` | OAuth client secret |
+| `OFJDBC_OAUTH_TOKEN_ENDPOINT` | Yes | — | Token endpoint URL |
+| `OFJDBC_OAUTH_SCOPE` | No | — | Space-delimited scope |
+| `OFJDBC_OAUTH_GRANT_TYPE` | No | `client_credentials` | OAuth grant type |
+| `OFJDBC_OAUTH_CLIENT_AUTH` | No | `post` | `post` (body fields) or `basic` (HTTP Basic header) |
+| `OFJDBC_OAUTH_EXTRA_PARAMS` | No | — | Extra form params, e.g. `audience=x&resource=y` |
+
+**Example**:
+```bash
+export OFJDBC_OAUTH_CLIENT_ID=my-client
+export OFJDBC_OAUTH_CLIENT_SECRET=my-secret
+export OFJDBC_OAUTH_TOKEN_ENDPOINT=https://idp.example.com/oauth2/token
+export OFJDBC_OAUTH_SCOPE="fusion.read"
+```
+
+### Custom providers
+
+Implement `my.jdbc.wsdl_driver.OAuthProvider` (client id/secret, token endpoint, optional scope,
+grant type, client-auth method, and additional parameters), package it on the driver classpath, and
+reference it via `oauthProviderClass`. No core driver changes are required.
 
 ---
 

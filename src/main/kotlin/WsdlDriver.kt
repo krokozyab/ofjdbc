@@ -19,18 +19,45 @@ class WsdlDriver : Driver {
     private val logger = LoggerFactory.getLogger(WsdlDriver::class.java)
 
     override fun connect(url: String?, info: Properties?): Connection? {
-        if (url == null || info == null) return null
+        if (url == null) return null
+        if (!url.startsWith("jdbc:wsdl://")) return null
+        val props = info ?: Properties()
         val parts: List<String> = url.split(":")
-        val user = info.getProperty("user")
-        val pass = info.getProperty("password")
+        val user = props.getProperty("user") ?: ""
+        val pass = props.getProperty("password") ?: ""
         wsdlEndpoint = "https:" + parts[2]
-        reportPath = parts.getOrElse(3) { "/Custom/Financials/RP_ARB.xdo" }
-        if (url.startsWith("jdbc:wsdl://")) {
-            logger.info("Connecting to WSDL-based database with user: $user")
-            return WsdlConnection(wsdlEndpoint, user, pass, reportPath)
+        // Strip any query-style parameters (e.g. ?oauthProviderClass=..., ?authType=...) from the report path.
+        reportPath = parts.getOrElse(3) { "/Custom/Financials/RP_ARB.xdo" }.substringBefore("?")
+
+        // Optional OAuth: instantiate the configured provider via reflection and register an
+        // OAuth Bearer authenticator for this endpoint. Core request logic stays untouched.
+        val oauthProviderClass = extractUrlParam(url, "oauthProviderClass")
+            ?: props.getProperty("oauthProviderClass")
+        if (!oauthProviderClass.isNullOrBlank()) {
+            try {
+                val instance = Class.forName(oauthProviderClass.trim())
+                    .getDeclaredConstructor()
+                    .newInstance()
+                val provider = instance as? OAuthProvider
+                    ?: throw java.sql.SQLException(
+                        "Class '$oauthProviderClass' does not implement my.jdbc.wsdl_driver.OAuthProvider"
+                    )
+                AuthenticatorRegistry.register(wsdlEndpoint, OAuthAuthenticator(provider))
+                logger.info("Registered OAuth provider '{}' for endpoint {}", oauthProviderClass, wsdlEndpoint)
+            } catch (e: java.sql.SQLException) {
+                throw e
+            } catch (e: Exception) {
+                throw java.sql.SQLException("Failed to initialize OAuth provider '$oauthProviderClass': ${e.message}", e)
+            }
         }
-        return null
+
+        logger.info("Connecting to WSDL-based database with user: $user")
+        return WsdlConnection(wsdlEndpoint, user, pass, reportPath)
     }
+
+    /** Extracts a query-style parameter value (e.g. `?name=value` or `&name=value`) from the URL. */
+    private fun extractUrlParam(url: String, name: String): String? =
+        Regex("[?&]" + Regex.escape(name) + "=([^?&]+)").find(url)?.groupValues?.get(1)
 
     override fun acceptsURL(url: String?): Boolean =
         url?.startsWith("jdbc:wsdl://") ?: false
