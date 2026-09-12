@@ -17,7 +17,7 @@ dependencies {
     implementation(kotlin("stdlib", "2.2.20-Beta2"))
     implementation("org.apache.commons:commons-text:1.14.0")
     implementation("org.slf4j:slf4j-api:2.1.0-alpha1")
-    implementation("org.duckdb:duckdb_jdbc:1.3.2.0")
+    implementation("org.hsqldb:hsqldb:2.7.4")
 }
 
 tasks.test {
