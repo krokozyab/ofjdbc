@@ -18,6 +18,8 @@ dependencies {
     implementation("org.apache.commons:commons-text:1.14.0")
     implementation("org.slf4j:slf4j-api:2.1.0-alpha1")
     implementation("org.hsqldb:hsqldb:2.7.4")
+    testImplementation("org.junit.jupiter:junit-jupiter-api:5.11.0")
+    testRuntimeOnly("org.junit.jupiter:junit-jupiter-engine:5.11.0")
 }
 
 tasks.test {
