@@ -59,7 +59,7 @@ interface OAuthProvider {
 
 /**
  * Reference [OAuthProvider] implementation that reads every configuration value from
- * system environment variables. Useful for headless / CI usage and as a template for
+ * system environment variables or JVM flags. Useful for headless / CI usage and as a template for
  * building custom providers.
  *
  * Environment variables:
@@ -143,7 +143,7 @@ fun acquireOAuthToken(provider: OAuthProvider): OAuthToken {
         requestBuilder.header("Authorization", "Basic $encoded")
     }
 
-    oauthLogger.info("Requesting OAuth token from {}", provider.getTokenEndpoint())
+    oauthLogger.trace("Requesting OAuth token from {}", provider.getTokenEndpoint())
     val response = executeWithRetry("OAuth token request") {
         val resp = HttpClientManager.httpClient.send(requestBuilder.build(), HttpResponse.BodyHandlers.ofString())
         if (isRetryableHttpStatus(resp.statusCode())) {
@@ -163,7 +163,7 @@ fun acquireOAuthToken(provider: OAuthProvider): OAuthToken {
     val expiresInSec = extractJsonNumber(respBody, "expires_in") ?: 3600L
     val expiresAt = System.currentTimeMillis() + expiresInSec * 1000L
 
-    oauthLogger.info("Obtained OAuth access token (expires in {}s)", expiresInSec)
+    oauthLogger.trace("Obtained OAuth access token (expires in {}s)", expiresInSec)
     return OAuthToken(accessToken, expiresAt)
 }
 
