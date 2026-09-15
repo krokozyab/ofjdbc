@@ -36,8 +36,8 @@ class WsdlDriver : Driver {
         if (!oauthProviderClass.isNullOrBlank()) {
             try {
                 val instance = Class.forName(oauthProviderClass.trim())
-                    .getDeclaredConstructor()
-                    .newInstance()
+                    .getDeclaredConstructor(String::class.java, String::class.java, String::class.java)
+                    .newInstance(wsdlEndpoint, user, pass)
                 val provider = instance as? OAuthProvider
                     ?: throw java.sql.SQLException(
                         "Class '$oauthProviderClass' does not implement my.jdbc.wsdl_driver.OAuthProvider"

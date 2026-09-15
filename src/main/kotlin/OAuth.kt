@@ -19,8 +19,9 @@ private val oauthLogger = LoggerFactory.getLogger("OAuth")
  * driver itself in [acquireOAuthToken]. This keeps the core driver logic unchanged
  * when new providers are added — a new provider only implements this interface.
  *
- * Implementations MUST be instantiable via a public no-argument constructor so the
- * driver can create them reflectively from the `oauthProviderClass` JDBC URL parameter.
+ * Implementations MUST be instantiable via a constructor accepting (String, String, String)
+ * so the driver can create them reflectively from the `oauthProviderClass` JDBC URL parameter.
+ * The constructor parameters are: wsdlEndpoint, user, and pass .
  */
 interface OAuthProvider {
 
@@ -63,24 +64,26 @@ interface OAuthProvider {
  * building custom providers.
  *
  * Environment variables:
- *  - `OFJDBC_OAUTH_CLIENT_ID`       (required)
- *  - `OFJDBC_OAUTH_CLIENT_SECRET`   (optional, default "")
+ *  - `OFJDBC_OAUTH_CLIENT_ID`       (optional, username passed to constructor is used if not set)
+ *  - `OFJDBC_OAUTH_CLIENT_SECRET`   (optional, password passed to constructor is used if not set)
  *  - `OFJDBC_OAUTH_TOKEN_ENDPOINT`  (required)
  *  - `OFJDBC_OAUTH_SCOPE`           (optional)
  *  - `OFJDBC_OAUTH_GRANT_TYPE`      (optional, default "client_credentials")
  *  - `OFJDBC_OAUTH_CLIENT_AUTH`     (optional, default "post"; "basic" to use HTTP Basic)
  *  - `OFJDBC_OAUTH_EXTRA_PARAMS`    (optional, `k1=v1&k2=v2` extra form parameters)
  */
-class SystemEnvOAuthProvider : OAuthProvider {
+class SystemEnvOAuthProvider(val wsdlEndpoint: String, val user: String?, val pass: String?) : OAuthProvider {
 
     private fun env(name: String): String? =
         System.getenv(name) ?: System.getProperty(name.lowercase().replace('_', '.'))
 
     override fun getClientId(): String =
+
         env("OFJDBC_OAUTH_CLIENT_ID")
+            ?: user
             ?: throw IllegalStateException("OFJDBC_OAUTH_CLIENT_ID is not set")
 
-    override fun getClientSecret(): String = env("OFJDBC_OAUTH_CLIENT_SECRET") ?: ""
+    override fun getClientSecret(): String = env("OFJDBC_OAUTH_CLIENT_SECRET") ?: pass ?:  throw IllegalStateException("OFJDBC_OAUTH_CLIENT_SECRET is not set")
 
     override fun getTokenEndpoint(): String =
         env("OFJDBC_OAUTH_TOKEN_ENDPOINT")
