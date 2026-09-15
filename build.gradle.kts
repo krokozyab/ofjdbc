@@ -39,7 +39,9 @@ tasks.test {
 tasks.wrapper {
     gradleVersion = "8.8"
 }
-
+java {
+    withSourcesJar()
+}
 
 tasks {
     named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
