@@ -68,15 +68,18 @@ After changing authentication type:
 
 ## Authentication Types Comparison
 
-| Feature | Basic Auth | Browser SSO |
-|---------|------------|-------------|
-| **Username/Password** | Required | Not needed |
-| **MFA Support** | ❌ No | ✅ Yes |
-| **SSO Provider** | ❌ No | ✅ Yes (SAML, OAuth) |
-| **Password Storage** | In DBeaver | Not needed |
-| **Session Persistence** | No | ✅ Yes (cookies) |
-| **Browser Required** | No | ✅ Yes (Chrome/Chromium) |
-| **Setup Complexity** | Simple | Moderate |
+| Feature | Basic Auth | Browser SSO | Programmatic OAuth |
+|---------|------------|-------------|-------------------|
+| **Username/Password** | Required | Not needed | Not needed |
+| **MFA Support** | ❌ No | ✅ Yes | ❌ No (direct credentials) |
+| **SSO Provider** | ❌ No | ✅ Yes (SAML, OAuth) | ✅ Yes (OAuth 2.0) |
+| **Password Storage** | In DBeaver | Not needed | In environment/vault |
+| **Session Persistence** | No | ✅ Yes (cookies) | ✅ Yes (token caching) |
+| **Browser Required** | No | ✅ Yes (Chrome/Chromium) | No |
+| **User Interaction** | Yes (login) | ✅ Yes (browser) | No (fully automated) |
+| **Best For** | Development | Interactive tools | ETL, scheduled jobs, servers |
+| **Setup Complexity** | Simple | Moderate | Moderate to Complex |
+| **Custom Implementation** | No | No | ✅ Yes (OAuthProvider interface) |
 
 ---
 
@@ -153,9 +156,109 @@ System.setProperty("ofjdbc.ssoTimeoutSeconds", "600");
 
 ---
 
-## Troubleshooting
+## Programmatic OAuth Authentication
 
-### Browser Doesn't Open
+### Overview
+
+For server-side applications and automation workflows, OFJDBC supports **OAuth 2.0 Client Credentials** flow. This allows your application to authenticate programmatically without user interaction, perfect for scheduled jobs, ETL pipelines, and backend services.
+
+**Use Cases**:
+- ✅ Scheduled ETL jobs (Apache Airflow, NiFi, Talend)
+- ✅ Server-side applications (Spring Boot, microservices)
+- ✅ Automated testing & data validation
+- ✅ Integration pipelines (OIC, third-party systems)
+- ✅ Custom application authentication
+
+### How It Works
+
+1. **Client Credentials**: Your application provides OAuth `client_id` and `client_secret` via environment variables
+2. **Default OAuth Provider**: `SystemEnvOauthProvider` (built-in) handles token acquisition and refresh from environment variables
+3. **Custom Providers**: You can implement your own OAuth provider for advanced scenarios (e.g., vault integration, custom token caching)
+4. **Automatic Token Refresh**: Driver manages token lifecycle transparently
+5. **No User Interaction**: Fully automated, suitable for headless environments
+
+### Quick Setup
+
+#### Step 1: Set Environment Variables
+
+Configure your OAuth credentials:
+
+```bash
+export OFJDBC_OAUTH_CLIENT_ID="your_client_id"
+export OFJDBC_OAUTH_CLIENT_SECRET="your_client_secret"
+export OFJDBC_OAUTH_TOKEN_ENDPOINT="https://your-oauth-server.com/token"
+export OFJDBC_OAUTH_PROVIDER_CLASS=" my.jdbc.wsdl_driver.SystemEnvOauthProvider"
+```
+
+Or set them in Java:
+
+```java
+System.setProperty("ofjdbc.oauth.clientId", "your_client_id");
+System.setProperty("ofjdbc.oauth.clientSecret", "your_client_secret");
+System.setProperty("ofjdbc.oauth.tokenEndpoint", "https://your-oauth-server.com/token");
+System.setProperty("ofjdbc.oauth.providerClass", "com.onsemi.middleware.http.oauth.SystemEnvOauthProvider");
+```
+
+#### Step 2: Add `oauthProviderClass` to JDBC URL
+
+Specify the OAuth provider class in the JDBC URL:
+
+```
+jdbc:wsdl://your-instance.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo&oauthProviderClass=com.onsemi.middleware.http.oauth.SystemEnvOauthProvider
+```
+
+
+### Configuration Reference
+
+| Setting | Environment Variable | Java Property | Default | Description                                                                              |
+|---------|----------------------|----------------|---------|------------------------------------------------------------------------------------------|
+| **OAuth Provider Class** | `OFJDBC_OAUTH_PROVIDER_CLASS` | `ofjdbc.oauth.providerClass` | None | Use `com.onsemi.middleware.http.oauth.SystemEnvOauthProvider` for default implementation |
+| **Client ID** | `OFJDBC_OAUTH_CLIENT_ID` | `ofjdbc.oauth.clientId` | None | OAuth 2.0 client identifier                                                              |
+| **Client Secret** | `OFJDBC_OAUTH_CLIENT_SECRET` | `ofjdbc.oauth.clientSecret` | None | OAuth 2.0 client secret                                                                  |
+| **Token Endpoint** | `OFJDBC_OAUTH_TOKEN_ENDPOINT` | `ofjdbc.oauth.tokenEndpoint` | None | OAuth 2.0 token endpoint URL                                                             |
+| **Scope** | `OFJDBC_OAUTH_SCOPE` | `ofjdbc.oauth.scope` | `fusion-api` | OAuth 2.0 scope (space-separated)                                                        |
+
+
+
+### Custom OAuth Providers
+
+`SystemEnvOauthProvider` is the **default implementation** that reads OAuth credentials from environment variables. For advanced use cases, you can implement your own OAuth provider by:
+
+1. **Creating a custom class implementing the `OAuthProvider` interface**
+2. **Specifying your custom class in the JDBC URL via `oauthProviderClass` parameter**
+
+#### When to Use Custom Providers
+
+- ✅ Integrate with secret vaults (AWS Secrets Manager, Vault, Kubernetes secrets)
+- ✅ Implement custom token caching (Redis, Memcached)
+- ✅ Support alternative OAuth flows (implicit, authorization code, etc.)
+- ✅ Add audit logging and monitoring
+- ✅ Refresh tokens from external sources (database, API, etc.)
+
+#### Implementing a Custom OAuth Provider
+
+Your custom class must implement the `OAuthProvider` interface. Here's the contract:
+
+```java
+package com.onsemi.middleware.http.oauth;
+
+public interface OAuthProvider {
+    /**
+     * Initialize the OAuth provider with credentials
+     */
+    void initialize(String clientId, String clientSecret, String tokenEndpoint) throws Exception;
+    
+    /**
+     * Get or acquire a valid OAuth access token
+     * The implementation should handle token refresh automatically
+     */
+    String getAccessToken() throws Exception;
+}
+```
+
+### Browser Authentication Troubleshooting
+
+#### Browser Doesn't Open
 
 **Symptom**: Connection fails with "Failed to launch Chrome browser"
 
@@ -172,7 +275,7 @@ System.setProperty("ofjdbc.ssoTimeoutSeconds", "600");
 
 3. **Check Permissions**: Ensure Chrome executable has execute permissions
 
-### Browser Opens But Connection Fails
+#### Browser Opens But Connection Fails
 
 **Symptom**: Browser opens, you log in, but DBeaver shows "Connection failed"
 
@@ -195,7 +298,7 @@ System.setProperty("ofjdbc.ssoTimeoutSeconds", "600");
    rm -rf ~/.ofjdbc/chrome-profile/
    ```
 
-### "Connection cannot be established" After Login
+#### "Connection cannot be established" After Login
 
 **Symptom**: Browser shows successful login, but DBeaver still shows connection error
 
@@ -211,7 +314,7 @@ System.setProperty("ofjdbc.ssoTimeoutSeconds", "600");
    tail -f ~/.dbeaver/workspace6/log/dbeaver-debug.log
    ```
 
-### Multiple Chrome Windows Open
+#### Multiple Chrome Windows Open
 
 **Symptom**: Each connection attempt opens a new Chrome window
 
@@ -228,7 +331,7 @@ System.setProperty("ofjdbc.ssoTimeoutSeconds", "600");
 
 2. **Restart DBeaver**
 
-### Session Expires Too Quickly
+#### Session Expires Too Quickly
 
 **Symptom**: Need to re-authenticate on every connection
 
