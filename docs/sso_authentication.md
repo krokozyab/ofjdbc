@@ -204,7 +204,7 @@ System.setProperty("ofjdbc.oauth.providerClass", "com.onsemi.middleware.http.oau
 Specify the OAuth provider class in the JDBC URL:
 
 ```
-jdbc:wsdl://your-instance.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo?oauthProviderClass=com.onsemi.middleware.http.oauth.SystemEnvOauthProvider
+jdbc:wsdl://your-instance.oraclecloud.com/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo&oauthProviderClass=com.onsemi.middleware.http.oauth.SystemEnvOauthProvider
 ```
 
 

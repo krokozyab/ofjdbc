@@ -26,11 +26,11 @@ class WsdlDriver : Driver {
         val user = props.getProperty("user") ?: ""
         val pass = props.getProperty("password") ?: ""
         wsdlEndpoint = "https:" + parts[2]
-        // Strip any query-style parameters (e.g. ?oauthProviderClass=..., ?authType=...) from the report path.
+        // Strip any query-style parameters (e.g. ?WSDL:/path&oauthProviderClass=...&authType=...) from the report path.
         reportPath = parts.getOrElse(3) { "/Custom/Financials/RP_ARB.xdo" }.substringBefore("?")
 
         // Optional OAuth: instantiate the configured provider via reflection and register an
-        // OAuth Bearer authenticator for this endpoint. Core request logic stays untouched.
+        // OAuth authenticator for this endpoint. Core request logic stays untouched.
         val oauthProviderClass = extractUrlParam(url, "oauthProviderClass")
             ?: props.getProperty("oauthProviderClass")
         if (!oauthProviderClass.isNullOrBlank()) {
@@ -55,9 +55,11 @@ class WsdlDriver : Driver {
         return WsdlConnection(wsdlEndpoint, user, pass, reportPath)
     }
 
-    /** Extracts a query-style parameter value (e.g. `?name=value` or `&name=value`) from the URL. */
+    /** Extracts a query parameter value from URL. Only supports '&' as separator (standard URL format).
+     *  Example: `?WSDL:/path&oauthProviderClass=value&authType=BROWSER` → extracts `value` for `oauthProviderClass`
+     */
     private fun extractUrlParam(url: String, name: String): String? =
-        Regex("[?&]" + Regex.escape(name) + "=([^?&]+)").find(url)?.groupValues?.get(1)
+        Regex("&" + Regex.escape(name) + "=([^&]+)").find(url)?.groupValues?.get(1)
 
     override fun acceptsURL(url: String?): Boolean =
         url?.startsWith("jdbc:wsdl://") ?: false
