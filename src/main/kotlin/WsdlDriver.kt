@@ -27,7 +27,7 @@ class WsdlDriver : Driver {
         val pass = props.getProperty("password") ?: ""
         wsdlEndpoint = "https:" + parts[2]
         // Strip any query-style parameters (e.g. ?WSDL:/path&oauthProviderClass=...&authType=...) from the report path.
-        reportPath = parts.getOrElse(3) { "/Custom/Financials/RP_ARB.xdo" }.substringBefore("?")
+        reportPath = parts.getOrElse(3) { "/Custom/Financials/RP_ARB.xdo" }.substringBefore("&")
 
         // Optional OAuth: instantiate the configured provider via reflection and register an
         // OAuth authenticator for this endpoint. Core request logic stays untouched.
