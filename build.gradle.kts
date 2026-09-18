@@ -8,7 +8,7 @@ plugins {
 }
 
 group = "my.jdbc"
-version = "1.01"
+version = "1.0-SNAPSHOT"
 
 repositories {
     mavenCentral()
