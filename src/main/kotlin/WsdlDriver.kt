@@ -35,13 +35,7 @@ class WsdlDriver : Driver {
             ?: props.getProperty("oauthProviderClass")
         if (!oauthProviderClass.isNullOrBlank()) {
             try {
-                val instance = Class.forName(oauthProviderClass.trim())
-                    .getDeclaredConstructor(String::class.java, String::class.java, String::class.java)
-                    .newInstance(wsdlEndpoint, user, pass)
-                val provider = instance as? OAuthProvider
-                    ?: throw java.sql.SQLException(
-                        "Class '$oauthProviderClass' does not implement my.jdbc.wsdl_driver.OAuthProvider"
-                    )
+                val provider = loadOAuthProvider(oauthProviderClass, wsdlEndpoint, user, pass)
                 AuthenticatorRegistry.register(wsdlEndpoint, OAuthAuthenticator(provider))
                 logger.info("Registered OAuth provider '{}' for endpoint {}", oauthProviderClass, wsdlEndpoint)
             } catch (e: java.sql.SQLException) {
@@ -60,6 +54,36 @@ class WsdlDriver : Driver {
      */
     private fun extractUrlParam(url: String, name: String): String? =
         Regex("&" + Regex.escape(name) + "=([^&]+)").find(url)?.groupValues?.get(1)
+
+    private fun loadOAuthProvider(
+        className: String,
+        wsdlEndpoint: String,
+        user: String,
+        pass: String
+    ): OAuthProvider {
+        val providerClassName = className.trim()
+        val providerClass = loadClass(providerClassName)
+        val instance = providerClass
+            .getDeclaredConstructor(String::class.java, String::class.java, String::class.java)
+            .newInstance(wsdlEndpoint, user, pass)
+
+        return instance as? OAuthProvider
+            ?: throw java.sql.SQLException(
+                "Class '$className' does not implement my.jdbc.wsdl_driver.OAuthProvider"
+            )
+    }
+
+    private fun loadClass(className: String): Class<*> {
+        val contextClassLoader = Thread.currentThread().contextClassLoader
+        if (contextClassLoader != null) {
+            try {
+                return Class.forName(className, true, contextClassLoader)
+            } catch (_: ClassNotFoundException) {
+                // Fall back to the driver's class loader below.
+            }
+        }
+        return Class.forName(className)
+    }
 
     override fun acceptsURL(url: String?): Boolean =
         url?.startsWith("jdbc:wsdl://") ?: false
