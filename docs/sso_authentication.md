@@ -256,6 +256,12 @@ public interface OAuthProvider {
 }
 ```
 
+> **Note (application containers):** if hierarchical class loading causes the driver and your provider
+> class to see two different `OAuthProvider` types, the driver automatically falls back to structural
+> matching — it verifies the required methods via reflection and wraps your object in
+> `OAuthProviderWrapper`. See
+> [environment-variables.md](environment-variables.md#class-loader-compatibility-application-containers).
+
 ### Browser Authentication Troubleshooting
 
 #### Browser Doesn't Open

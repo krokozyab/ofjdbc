@@ -65,12 +65,28 @@ class WsdlDriver : Driver {
         val providerClass = loadClass(providerClassName)
         val instance = providerClass
             .getDeclaredConstructor(String::class.java, String::class.java, String::class.java)
+            .apply { isAccessible = true }
             .newInstance(wsdlEndpoint, user, pass)
 
-        return instance as? OAuthProvider
-            ?: throw java.sql.SQLException(
-                "Class '$className' does not implement my.jdbc.wsdl_driver.OAuthProvider"
+        // Direct match: the provider class was loaded by a class loader that shares our OAuthProvider type.
+        (instance as? OAuthProvider)?.let { return it }
+
+        // Hierarchical class loading in application containers can yield an object that implements a
+        // *different* OAuthProvider Class object. Fall back to structural (duck-typed) matching.
+        val mismatches = mutableListOf<String>()
+        OAuthProviderWrapper.wrapIfCompatible(instance, mismatches)?.let { wrapper ->
+            logger.trace(
+                "Class '{}' does not implement {} (likely a separate class loader); using reflective wrapper",
+                providerClassName,
+                OAuthProvider::class.java.name
             )
+            return wrapper
+        }
+
+        throw java.sql.SQLException(
+            "Class '$className' does not implement ${OAuthProvider::class.java.name} and is not " +
+                "structurally compatible with it: ${mismatches.joinToString("; ")}"
+        )
     }
 
     private fun loadClass(className: String): Class<*> {

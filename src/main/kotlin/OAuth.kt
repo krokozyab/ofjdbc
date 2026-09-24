@@ -106,6 +106,125 @@ class SystemEnvOAuthProvider(val wsdlEndpoint: String, val user: String?, val pa
     }
 }
 
+/**
+ * Adapts an arbitrary object that *structurally* matches [OAuthProvider] (i.e. exposes the same
+ * public methods) but is not assignable to it, which happens in application containers using
+ * hierarchical class loading where the driver and the provider class see two distinct
+ * `my.jdbc.wsdl_driver.OAuthProvider` types loaded by different class loaders.
+ *
+ * All calls are delegated reflectively to [delegate]. Use [OAuthProviderWrapper.wrapIfCompatible]
+ * to obtain an instance after validating the delegate's methods.
+ */
+class OAuthProviderWrapper private constructor(
+    private val delegate: Any,
+    private val methods: Map<String, java.lang.reflect.Method>
+) : OAuthProvider {
+
+    private fun invoke(name: String): Any? {
+        val method = methods[name] ?: throw IllegalStateException(
+            "Method '$name' is not available on ${delegate.javaClass.name}"
+        )
+        return try {
+            method.invoke(delegate)
+        } catch (e: java.lang.reflect.InvocationTargetException) {
+            throw e.targetException ?: e
+        }
+    }
+
+    private fun invokeString(name: String): String? = invoke(name) as String?
+
+    override fun getClientId(): String =
+        invokeString("getClientId") ?: throw IllegalStateException("getClientId() returned null")
+
+    override fun getClientSecret(): String =
+        invokeString("getClientSecret") ?: throw IllegalStateException("getClientSecret() returned null")
+
+    override fun getTokenEndpoint(): String =
+        invokeString("getTokenEndpoint") ?: throw IllegalStateException("getTokenEndpoint() returned null")
+
+    override fun getScope(): String? =
+        if (methods.containsKey("getScope")) invokeString("getScope") else null
+
+    override fun getGrantType(): String =
+        if (methods.containsKey("getGrantType")) invokeString("getGrantType") ?: "client_credentials"
+        else "client_credentials"
+
+    override fun getClientAuthMethod(): String =
+        if (methods.containsKey("getClientAuthMethod")) invokeString("getClientAuthMethod") ?: "post"
+        else "post"
+
+    @Suppress("UNCHECKED_CAST")
+    override fun getAdditionalParameters(): Map<String, String> =
+        if (methods.containsKey("getAdditionalParameters"))
+            (invoke("getAdditionalParameters") as Map<String, String>?) ?: emptyMap()
+        else emptyMap()
+
+    companion object {
+
+        /** Methods an object must expose to be usable as an [OAuthProvider]. */
+        private val REQUIRED = mapOf(
+            "getClientId" to String::class.java,
+            "getClientSecret" to String::class.java,
+            "getTokenEndpoint" to String::class.java
+        )
+
+        /** Methods that may be absent, in which case the interface defaults are used. */
+        private val OPTIONAL = mapOf(
+            "getScope" to String::class.java,
+            "getGrantType" to String::class.java,
+            "getClientAuthMethod" to String::class.java,
+            "getAdditionalParameters" to Map::class.java
+        )
+
+        /**
+         * Returns the candidate wrapped as an [OAuthProvider] when it structurally matches the
+         * interface, or `null` when one or more required methods are missing or have an
+         * incompatible signature. [missing] receives a human-readable description of every
+         * mismatch so callers can produce a helpful error message.
+         */
+        fun wrapIfCompatible(candidate: Any, missing: MutableList<String> = mutableListOf()): OAuthProviderWrapper? {
+            val resolved = LinkedHashMap<String, java.lang.reflect.Method>()
+
+            for ((name, returnType) in REQUIRED) {
+                val method = findNoArgMethod(candidate.javaClass, name)
+                when {
+                    method == null -> missing += "missing method '$name()'"
+                    !returnType.isAssignableFrom(method.returnType) ->
+                        missing += "method '$name()' returns ${method.returnType.name}, expected ${returnType.name}"
+                    else -> resolved[name] = method
+                }
+            }
+
+            for ((name, returnType) in OPTIONAL) {
+                val method = findNoArgMethod(candidate.javaClass, name) ?: continue
+                if (returnType.isAssignableFrom(method.returnType)) resolved[name] = method
+            }
+
+            if (missing.isNotEmpty()) return null
+            return OAuthProviderWrapper(candidate, resolved)
+        }
+
+        /**
+         * Finds a public, non-static, zero-argument method named [name] on [type] or any of its
+         * supertypes and makes it accessible, so providers declared in non-exported/non-public
+         * classes still work.
+         */
+        private fun findNoArgMethod(type: Class<*>, name: String): java.lang.reflect.Method? {
+            val method = type.methods.firstOrNull {
+                it.name == name &&
+                    it.parameterCount == 0 &&
+                    !java.lang.reflect.Modifier.isStatic(it.modifiers)
+            } ?: return null
+            return try {
+                method.isAccessible = true
+                method
+            } catch (_: RuntimeException) {
+                method
+            }
+        }
+    }
+}
+
 /** An OAuth access token together with the epoch millis at which it should be considered expired. */
 data class OAuthToken(val accessToken: String, val expiresAtEpochMs: Long) {
     /** Treat the token as expired slightly early to avoid using it right at the boundary. */

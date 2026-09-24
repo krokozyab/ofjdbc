@@ -149,11 +149,25 @@ Add the `oauthProviderClass` parameter to the JDBC URL (or as a connection prope
 jdbc:wsdl://<host>/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo?oauthProviderClass=my.jdbc.wsdl_driver.SystemEnvOAuthProvider
 ```
 
-The named class must implement `OAuthProvider` and have a public no-argument constructor; the driver
+The named class must implement `OAuthProvider` and have a public constructor accepting
+`(String wsdlEndpoint, String user, String pass)`; the driver
 instantiates it reflectively, requests an access token, and sends it as `Authorization: Bearer <token>`
 on every request. Tokens are cached and refreshed automatically before expiry. When
 `oauthProviderClass` is absent, the driver behaves exactly as before (Basic auth), preserving backward
 compatibility.
+
+#### Class loader compatibility (application containers)
+
+In application containers with hierarchical class loading, the provider class may be loaded by a
+different class loader than the driver, so `instanceof OAuthProvider` fails even though the class
+declares the interface. In that case the driver falls back to *structural* matching: it checks via
+reflection that the object exposes the required no-argument methods `getClientId(): String`,
+`getClientSecret(): String` and `getTokenEndpoint(): String`, plus any of the optional
+`getScope(): String`, `getGrantType(): String`, `getClientAuthMethod(): String` and
+`getAdditionalParameters(): Map`. If the required methods match, the object is wrapped in
+`OAuthProviderWrapper`, a delegating `OAuthProvider` implementation that forwards each call
+reflectively; missing optional methods use the interface defaults. If required methods are missing or
+have incompatible return types, the connection fails with an error listing every mismatch.
 
 ### Reference provider: `SystemEnvOAuthProvider`
 
