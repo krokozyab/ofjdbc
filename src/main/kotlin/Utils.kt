@@ -403,7 +403,10 @@ private fun sendSqlViaWsdlInternal(
     val securedSql = SecuredViewMappings.apply(normalizedSql)
     logger.info("Sending SQL to WSDL service: {}", securedSql)
     val soapEnvelope = createSoapEnvelope(securedSql, reportPath)
-    val authHeader = encodeCredentials(username, password)
+    // Resolve the Authorization header via the registry (OAuth Bearer if configured for this
+    // endpoint), falling back to Basic auth built from the threaded username/password.
+    val authenticator = AuthenticatorRegistry.get(wsdlEndpoint) ?: BasicAuthenticator(username, password)
+    val authHeader = authenticator.authorizationHeader()
     
     val request = HttpRequest.newBuilder()
         .uri(URI.create(wsdlEndpoint))

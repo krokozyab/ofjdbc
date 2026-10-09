@@ -67,7 +67,9 @@ Upload `otbireport/DM_ARB.xdm.catalog` and `RP_ARB.xdo.catalog` to
 |---|---|
 | **JDBC URL** | `jdbc:wsdl://<host>/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo` |
 | **Driver Class** | `my.jdbc.wsdl_driver.WsdlDriver` |
-| **Authentication** | Fusion Username & Password **or** Browser SSO (`?authType=BROWSER`) |
+| **Authentication** | **Option 1**: Fusion Username & Password (**Basic Auth**) |
+| | **Option 2**: Browser SSO (`?authType=BROWSER`) |
+| | **Option 3**: OAuth 2.0 Client Credentials (`?oauthProviderClass=...`) |
 
 ### 4. Query
 <p align="center">
@@ -76,7 +78,8 @@ Upload `otbireport/DM_ARB.xdm.catalog` and `RP_ARB.xdo.catalog` to
 
 
 👉 [**Full Setup Guide with Screenshots**](docs/setup_guide.md)  
-🔐 [**SSO Browser Authentication**](docs/sso_authentication.md)
+🔐 [**SSO Browser Authentication**](docs/sso_authentication.md) — Browser-based SSO with MFA  
+🔑 [**Programmatic OAuth**](docs/sso_authentication.md#programmatic-oauth-authentication) — Client credentials for server-side apps
 
 ## 🔧 Key Features
 
@@ -84,7 +87,7 @@ Upload `otbireport/DM_ARB.xdm.catalog` and `RP_ARB.xdo.catalog` to
 
 **Smart Metadata Cache** — Local DuckDB-based cache of Oracle Fusion metadata. Enables fast autocomplete, syntax highlighting, and table/column discovery in your IDE without querying production.
 
-**SSO & MFA** — Browser-based Single Sign-On with MFA support. Add `?authType=BROWSER` to your JDBC URL and authenticate through your corporate identity provider.
+**SSO & MFA** — Browser-based Single Sign-On with MFA support. Add `?authType=BROWSER` to your JDBC URL and authenticate through your corporate identity provider. Plus **OAuth 2.0 client credentials** for programmatic access in server-side apps, ETL pipelines, and automation workflows.
 
 **Automatic Pagination** — Handles large datasets transparently by injecting `FETCH FIRST` clauses. No manual pagination needed.
 
