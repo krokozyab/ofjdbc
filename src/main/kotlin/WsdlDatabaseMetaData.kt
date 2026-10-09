@@ -9,7 +9,7 @@ object LocalMetadataCache {
     // Use a file path in the user's home directory.
     private val userHome = System.getProperty("user.home")
     private val ofjdbcDir = "$userHome/.ofjdbc"
-    private val duckDbFilePath = "$ofjdbcDir/metadata.db"
+    private val hyperSqlFilePath = "$ofjdbcDir/metadata"
     
     @Volatile
     private var _connection: Connection? = null
@@ -28,31 +28,31 @@ object LocalMetadataCache {
     
     private fun createConnection(): Connection {
         java.io.File(ofjdbcDir).mkdirs()
-        logger.info("Using DuckDB file: $duckDbFilePath")
-        val conn = DriverManager.getConnection("jdbc:duckdb:$duckDbFilePath")
+        logger.info("Using HyperSQL file: $hyperSqlFilePath")
+        val conn = DriverManager.getConnection("jdbc:hsqldb:file:$hyperSqlFilePath")
         conn.autoCommit = true
         conn.createStatement().use { stmt ->
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS SCHEMAS_CACHE (
-                    TABLE_SCHEM VARCHAR,
-                    TABLE_CATALOG VARCHAR
+                    TABLE_SCHEM varchar(4000),
+                    TABLE_CATALOG varchar(4000)
                 )
                 """.trimIndent()
             )
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS CACHED_TABLES (
-                    TABLE_CAT VARCHAR,
-                    TABLE_SCHEM VARCHAR,
-                    TABLE_NAME VARCHAR,
-                    TABLE_TYPE VARCHAR,
-                    REMARKS VARCHAR,
-                    TYPE_CAT VARCHAR,
-                    TYPE_SCHEM VARCHAR,
-                    TYPE_NAME VARCHAR,
-                    SELF_REFERENCING_COL_NAME VARCHAR,
-                    REF_GENERATION VARCHAR,
+                    TABLE_CAT varchar(4000),
+                    TABLE_SCHEM varchar(4000),
+                    TABLE_NAME varchar(4000),
+                    TABLE_TYPE varchar(4000),
+                    REMARKS VARCHAR(4000),
+                    TYPE_CAT varchar(4000),
+                    TYPE_SCHEM varchar(4000),
+                    TYPE_NAME varchar(4000),
+                    SELF_REFERENCING_COL_NAME varchar(4000),
+                    REF_GENERATION varchar(4000),
                     PRIMARY KEY (TABLE_SCHEM, TABLE_NAME)
                 )
                 """.trimIndent()
@@ -60,13 +60,13 @@ object LocalMetadataCache {
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS CACHED_COLUMNS (
-                    TABLE_CAT VARCHAR,
-                    TABLE_SCHEM VARCHAR,
-                    TABLE_NAME VARCHAR,
-                    COLUMN_NAME VARCHAR,
-                    DATA_TYPE VARCHAR,
-                    TYPE_NAME VARCHAR,
-                    COLUMN_SIZE VARCHAR,
+                    TABLE_CAT varchar(4000),
+                    TABLE_SCHEM varchar(4000),
+                    TABLE_NAME varchar(4000),
+                    COLUMN_NAME varchar(4000),
+                    DATA_TYPE varchar(4000),
+                    TYPE_NAME varchar(4000),
+                    COLUMN_SIZE varchar(4000),
                     DECIMAL_DIGITS INTEGER,
                     NUM_PREC_RADIX INTEGER,
                     NULLABLE INTEGER,
@@ -78,19 +78,19 @@ object LocalMetadataCache {
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS CACHED_INDEXES (
-                    TABLE_CAT VARCHAR,
-                    TABLE_SCHEM VARCHAR,
-                    TABLE_NAME VARCHAR,
-                    NON_UNIQUE VARCHAR,
-                    INDEX_QUALIFIER VARCHAR,
-                    INDEX_NAME VARCHAR,
-                    TYPE VARCHAR,
+                    TABLE_CAT varchar(4000),
+                    TABLE_SCHEM varchar(4000),
+                    TABLE_NAME varchar(4000),
+                    NON_UNIQUE varchar(4000),
+                    INDEX_QUALIFIER varchar(4000),
+                    INDEX_NAME varchar(4000),
+                    TYPE varchar(4000),
                     ORDINAL_POSITION INTEGER,
-                    COLUMN_NAME VARCHAR,
-                    ASC_OR_DESC VARCHAR,
+                    COLUMN_NAME varchar(4000),
+                    ASC_OR_DESC varchar(4000),
                     CARDINALITY BIGINT,
                     PAGES INTEGER,
-                    FILTER_CONDITION VARCHAR,
+                    FILTER_CONDITION VARCHAR(4000),
                     PRIMARY KEY (TABLE_SCHEM, TABLE_NAME, INDEX_NAME, COLUMN_NAME)
                 )
                 """.trimIndent()
@@ -98,19 +98,19 @@ object LocalMetadataCache {
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS CACHED_FOREIGN_KEYS (
-                    PKTABLE_CAT VARCHAR,
-                    PKTABLE_SCHEM VARCHAR,
-                    PKTABLE_NAME VARCHAR,
-                    PKCOLUMN_NAME VARCHAR,
-                    FKTABLE_CAT VARCHAR,
-                    FKTABLE_SCHEM VARCHAR,
-                    FKTABLE_NAME VARCHAR,
-                    FKCOLUMN_NAME VARCHAR,
+                    PKTABLE_CAT varchar(4000),
+                    PKTABLE_SCHEM varchar(4000),
+                    PKTABLE_NAME varchar(4000),
+                    PKCOLUMN_NAME varchar(4000),
+                    FKTABLE_CAT varchar(4000),
+                    FKTABLE_SCHEM varchar(4000),
+                    FKTABLE_NAME varchar(4000),
+                    FKCOLUMN_NAME varchar(4000),
                     KEY_SEQ INTEGER,
                     UPDATE_RULE INTEGER,
                     DELETE_RULE INTEGER,
-                    FK_NAME VARCHAR,
-                    PK_NAME VARCHAR,
+                    FK_NAME varchar(4000),
+                    PK_NAME varchar(4000),
                     DEFERRABILITY INTEGER,
                     PRIMARY KEY (FKTABLE_SCHEM, FKTABLE_NAME, FK_NAME, KEY_SEQ)
                 )
@@ -119,12 +119,12 @@ object LocalMetadataCache {
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS CACHED_PROCEDURES (
-                    PROCEDURE_CAT VARCHAR,
-                    PROCEDURE_SCHEM VARCHAR,
-                    PROCEDURE_NAME VARCHAR,
-                    REMARKS VARCHAR,
+                    PROCEDURE_CAT varchar(4000),
+                    PROCEDURE_SCHEM varchar(4000),
+                    PROCEDURE_NAME varchar(4000),
+                    REMARKS VARCHAR(4000),
                     PROCEDURE_TYPE INTEGER,
-                    SPECIFIC_NAME VARCHAR,
+                    SPECIFIC_NAME varchar(4000),
                     PRIMARY KEY (PROCEDURE_SCHEM, PROCEDURE_NAME)
                 )
                 """.trimIndent()
@@ -132,12 +132,12 @@ object LocalMetadataCache {
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS CACHED_FUNCTIONS (
-                    FUNCTION_CAT VARCHAR,
-                    FUNCTION_SCHEM VARCHAR,
-                    FUNCTION_NAME VARCHAR,
-                    REMARKS VARCHAR,
+                    FUNCTION_CAT varchar(4000),
+                    FUNCTION_SCHEM varchar(4000),
+                    FUNCTION_NAME varchar(4000),
+                    REMARKS VARCHAR(4000),
                     FUNCTION_TYPE INTEGER,
-                    SPECIFIC_NAME VARCHAR,
+                    SPECIFIC_NAME varchar(4000),
                     PRIMARY KEY (FUNCTION_SCHEM, FUNCTION_NAME)
                 )
                 """.trimIndent()
@@ -145,12 +145,12 @@ object LocalMetadataCache {
             stmt.executeUpdate(
                 """
                 CREATE TABLE IF NOT EXISTS CACHED_UDTS (
-                    TYPE_CAT VARCHAR,
-                    TYPE_SCHEM VARCHAR,
-                    TYPE_NAME VARCHAR,
-                    CLASS_NAME VARCHAR,
+                    TYPE_CAT varchar(4000),
+                    TYPE_SCHEM varchar(4000),
+                    TYPE_NAME varchar(4000),
+                    CLASS_NAME varchar(4000),
                     DATA_TYPE INTEGER,
-                    REMARKS VARCHAR,
+                    REMARKS VARCHAR(4000),
                     BASE_TYPE INTEGER,
                     PRIMARY KEY (TYPE_SCHEM, TYPE_NAME)
                 )
@@ -207,11 +207,11 @@ object LocalMetadataCache {
             _connection?.let { conn ->
                 try {
                     if (!conn.isClosed) {
-                        logger.info("Closing DuckDB connection.")
+                        logger.info("Closing HyperSQL connection.")
                         conn.close()
                     }
                 } catch (ex: Exception) {
-                    logger.error("Error closing DuckDB connection: ${ex.message}")
+                    logger.error("Error closing HyperSQL connection: ${ex.message}")
                 } finally {
                     _connection = null
                 }
@@ -585,19 +585,23 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
         try {
             localConn.prepareStatement(
                 """
-                INSERT OR IGNORE INTO CACHED_PROCEDURES 
+                INSERT INTO CACHED_PROCEDURES 
                 (PROCEDURE_CAT, PROCEDURE_SCHEM, PROCEDURE_NAME, REMARKS, PROCEDURE_TYPE, SPECIFIC_NAME) 
                 VALUES (?, ?, ?, ?, ?, ?)
                 """.trimIndent()
             ).use { pstmt ->
                 for (row in remoteRows) {
-                    pstmt.setString(1, row["PROCEDURE_CAT"] ?: "")
-                    pstmt.setString(2, row["PROCEDURE_SCHEM"] ?: "")
-                    pstmt.setString(3, row["PROCEDURE_NAME"] ?: "")
-                    pstmt.setString(4, row["REMARKS"] ?: "")
-                    pstmt.setObject(5, row["PROCEDURE_TYPE"]?.toIntOrNull())
-                    pstmt.setString(6, row["SPECIFIC_NAME"] ?: "")
-                    pstmt.addBatch()
+                    try {
+                        pstmt.setString(1, row["PROCEDURE_CAT"] ?: "")
+                        pstmt.setString(2, row["PROCEDURE_SCHEM"] ?: "")
+                        pstmt.setString(3, row["PROCEDURE_NAME"] ?: "")
+                        pstmt.setString(4, row["REMARKS"] ?: "")
+                        pstmt.setObject(5, row["PROCEDURE_TYPE"]?.toIntOrNull())
+                        pstmt.setString(6, row["SPECIFIC_NAME"] ?: "")
+                        pstmt.addBatch()
+                    } catch (ex: SQLException) {
+                        logger.debug("Skipping duplicate procedure: ${row["PROCEDURE_NAME"]} - ${ex.message}")
+                    }
                 }
                 pstmt.executeBatch()
                 logger.info("Saved remote procedures metadata into local cache.")
@@ -724,12 +728,12 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
                 .map { (_, dupes) -> dupes.minBy { typePriority(it["TABLE_TYPE"] ?: "") } }
 
         // ---------------------------------------------------------
-        // 4) Cache the unique rows into DuckDB & build result set
+        // 4) Cache the unique rows into HyperSQL & build result set
         // ---------------------------------------------------------
         try {
             localConn.prepareStatement(
                 """
-            INSERT OR IGNORE INTO CACHED_TABLES 
+            INSERT INTO CACHED_TABLES 
             (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, TABLE_TYPE, REMARKS, TYPE_CAT, TYPE_SCHEM, TYPE_NAME, SELF_REFERENCING_COL_NAME, REF_GENERATION) 
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
@@ -739,27 +743,31 @@ class WsdlDatabaseMetaData(private val connection: WsdlConnection) : DatabaseMet
                 else
                     uniqueRows.filter { requestedTypes.contains(it["TABLE_TYPE"]?.uppercase()) }
                 for (row in rowsToCache) {
-                    val tableCat   = row["TABLE_CAT"] ?: ""
-                    val tableSchem = row["TABLE_SCHEM"] ?: ""
-                    val tableName  = row["TABLE_NAME"] ?: ""
-                    val tableType  = row["TABLE_TYPE"] ?: ""
-                    val remarks    = row["REMARKS"] ?: ""
-                    val typeCat    = row["TYPE_CAT"] ?: ""
-                    val typeSchem  = row["TYPE_SCHEM"] ?: ""
-                    val typeName   = row["TYPE_NAME"] ?: ""
-                    val selfRefCol = row["SELF_REFERENCING_COL_NAME"] ?: ""
-                    val refGeneration = row["REF_GENERATION"] ?: ""
-                    pstmt.setString(1, tableCat)
-                    pstmt.setString(2, tableSchem)
-                    pstmt.setString(3, tableName)
-                    pstmt.setString(4, tableType)
-                    pstmt.setString(5, remarks)
-                    pstmt.setString(6, typeCat)
-                    pstmt.setString(7, typeSchem)
-                    pstmt.setString(8, typeName)
-                    pstmt.setString(9, selfRefCol)
-                    pstmt.setString(10, refGeneration)
-                    pstmt.addBatch()
+                    try {
+                        val tableCat   = row["TABLE_CAT"] ?: ""
+                        val tableSchem = row["TABLE_SCHEM"] ?: ""
+                        val tableName  = row["TABLE_NAME"] ?: ""
+                        val tableType  = row["TABLE_TYPE"] ?: ""
+                        val remarks    = row["REMARKS"] ?: ""
+                        val typeCat    = row["TYPE_CAT"] ?: ""
+                        val typeSchem  = row["TYPE_SCHEM"] ?: ""
+                        val typeName   = row["TYPE_NAME"] ?: ""
+                        val selfRefCol = row["SELF_REFERENCING_COL_NAME"] ?: ""
+                        val refGeneration = row["REF_GENERATION"] ?: ""
+                        pstmt.setString(1, tableCat)
+                        pstmt.setString(2, tableSchem)
+                        pstmt.setString(3, tableName)
+                        pstmt.setString(4, tableType)
+                        pstmt.setString(5, remarks)
+                        pstmt.setString(6, typeCat)
+                        pstmt.setString(7, typeSchem)
+                        pstmt.setString(8, typeName)
+                        pstmt.setString(9, selfRefCol)
+                        pstmt.setString(10, refGeneration)
+                        pstmt.addBatch()
+                    } catch (ex: SQLException) {
+                        logger.debug("Skipping duplicate table: ${row["TABLE_NAME"]} - ${ex.message}")
+                    }
                 }
                 pstmt.executeBatch()
                 logger.info("Saved remote tables metadata into local cache.")
@@ -933,24 +941,28 @@ override fun getColumns(
     try {
         localConn.prepareStatement(
             """
-            INSERT OR IGNORE INTO CACHED_COLUMNS 
+            INSERT INTO CACHED_COLUMNS 
             (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, COLUMN_NAME, DATA_TYPE, TYPE_NAME, COLUMN_SIZE, DECIMAL_DIGITS, NUM_PREC_RADIX, NULLABLE, ORDINAL_POSITION)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """.trimIndent()
         ).use { pstmt ->
             for (row in uniqueRows) {
-                pstmt.setString(1, row["table_cat"] ?: "")
-                pstmt.setString(2, row["table_schem"] ?: "")
-                pstmt.setString(3, row["table_name"] ?: "")
-                pstmt.setString(4, row["column_name"] ?: "")
-                pstmt.setString(5, row["data_type"] ?: "")
-                pstmt.setString(6, row["type_name"] ?: "")
-                pstmt.setString(7, row["column_size"] ?: "")
-                pstmt.setObject(8, row["decimal_digits"]?.takeIf { it.isNotBlank() }?.toIntOrNull())
-                pstmt.setObject(9, row["num_prec_radix"]?.takeIf { it.isNotBlank() }?.toIntOrNull())
-                pstmt.setString(10, row["nullable"] ?: "")
-                pstmt.setString(11, row["ordinal_position"] ?: "")
-                pstmt.addBatch()
+                try {
+                    pstmt.setString(1, row["table_cat"] ?: "")
+                    pstmt.setString(2, row["table_schem"] ?: "")
+                    pstmt.setString(3, row["table_name"] ?: "")
+                    pstmt.setString(4, row["column_name"] ?: "")
+                    pstmt.setString(5, row["data_type"] ?: "")
+                    pstmt.setString(6, row["type_name"] ?: "")
+                    pstmt.setString(7, row["column_size"] ?: "")
+                    pstmt.setObject(8, row["decimal_digits"]?.takeIf { it.isNotBlank() }?.toIntOrNull())
+                    pstmt.setObject(9, row["num_prec_radix"]?.takeIf { it.isNotBlank() }?.toIntOrNull())
+                    pstmt.setString(10, row["nullable"] ?: "")
+                    pstmt.setString(11, row["ordinal_position"] ?: "")
+                    pstmt.addBatch()
+                } catch (ex: SQLException) {
+                    logger.debug("Skipping duplicate column: ${row["column_name"]} - ${ex.message}")
+                }
             }
             pstmt.executeBatch()
             logger.info("Saved remote columns into local cache (${uniqueRows.size} rows).")
@@ -1156,27 +1168,31 @@ override fun getColumns(
         try {
             localConn.prepareStatement(
                 """
-                INSERT OR IGNORE INTO CACHED_FOREIGN_KEYS 
+                INSERT INTO CACHED_FOREIGN_KEYS 
                 (PKTABLE_CAT, PKTABLE_SCHEM, PKTABLE_NAME, PKCOLUMN_NAME, FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, FKCOLUMN_NAME, KEY_SEQ, UPDATE_RULE, DELETE_RULE, FK_NAME, PK_NAME, DEFERRABILITY) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """.trimIndent()
             ).use { pstmt ->
                 for (row in remoteRows) {
-                    pstmt.setString(1, row["PKTABLE_CAT"] ?: "")
-                    pstmt.setString(2, row["PKTABLE_SCHEM"] ?: "")
-                    pstmt.setString(3, row["PKTABLE_NAME"] ?: "")
-                    pstmt.setString(4, row["PKCOLUMN_NAME"] ?: "")
-                    pstmt.setString(5, row["FKTABLE_CAT"] ?: "")
-                    pstmt.setString(6, row["FKTABLE_SCHEM"] ?: "")
-                    pstmt.setString(7, row["FKTABLE_NAME"] ?: "")
-                    pstmt.setString(8, row["FKCOLUMN_NAME"] ?: "")
-                    pstmt.setObject(9, row["KEY_SEQ"]?.toIntOrNull())
-                    pstmt.setObject(10, row["UPDATE_RULE"]?.toIntOrNull())
-                    pstmt.setObject(11, row["DELETE_RULE"]?.toIntOrNull())
-                    pstmt.setString(12, row["FK_NAME"] ?: "")
-                    pstmt.setString(13, row["PK_NAME"] ?: "")
-                    pstmt.setObject(14, row["DEFERRABILITY"]?.toIntOrNull())
-                    pstmt.addBatch()
+                    try {
+                        pstmt.setString(1, row["PKTABLE_CAT"] ?: "")
+                        pstmt.setString(2, row["PKTABLE_SCHEM"] ?: "")
+                        pstmt.setString(3, row["PKTABLE_NAME"] ?: "")
+                        pstmt.setString(4, row["PKCOLUMN_NAME"] ?: "")
+                        pstmt.setString(5, row["FKTABLE_CAT"] ?: "")
+                        pstmt.setString(6, row["FKTABLE_SCHEM"] ?: "")
+                        pstmt.setString(7, row["FKTABLE_NAME"] ?: "")
+                        pstmt.setString(8, row["FKCOLUMN_NAME"] ?: "")
+                        pstmt.setObject(9, row["KEY_SEQ"]?.toIntOrNull())
+                        pstmt.setObject(10, row["UPDATE_RULE"]?.toIntOrNull())
+                        pstmt.setObject(11, row["DELETE_RULE"]?.toIntOrNull())
+                        pstmt.setString(12, row["FK_NAME"] ?: "")
+                        pstmt.setString(13, row["PK_NAME"] ?: "")
+                        pstmt.setObject(14, row["DEFERRABILITY"]?.toIntOrNull())
+                        pstmt.addBatch()
+                    } catch (ex: SQLException) {
+                        logger.debug("Skipping duplicate foreign key: ${row["FK_NAME"]} - ${ex.message}")
+                    }
                 }
                 pstmt.executeBatch()
                 logger.info("Saved remote imported keys metadata into local cache.")
@@ -1325,27 +1341,31 @@ override fun getColumns(
         try {
             localConn.prepareStatement(
                 """
-                INSERT OR IGNORE INTO CACHED_FOREIGN_KEYS 
+                INSERT INTO CACHED_FOREIGN_KEYS 
                 (PKTABLE_CAT, PKTABLE_SCHEM, PKTABLE_NAME, PKCOLUMN_NAME, FKTABLE_CAT, FKTABLE_SCHEM, FKTABLE_NAME, FKCOLUMN_NAME, KEY_SEQ, UPDATE_RULE, DELETE_RULE, FK_NAME, PK_NAME, DEFERRABILITY) 
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """.trimIndent()
             ).use { pstmt ->
                 for (row in remoteRows) {
-                    pstmt.setString(1, row["PKTABLE_CAT"] ?: "")
-                    pstmt.setString(2, row["PKTABLE_SCHEM"] ?: "")
-                    pstmt.setString(3, row["PKTABLE_NAME"] ?: "")
-                    pstmt.setString(4, row["PKCOLUMN_NAME"] ?: "")
-                    pstmt.setString(5, row["FKTABLE_CAT"] ?: "")
-                    pstmt.setString(6, row["FKTABLE_SCHEM"] ?: "")
-                    pstmt.setString(7, row["FKTABLE_NAME"] ?: "")
-                    pstmt.setString(8, row["FKCOLUMN_NAME"] ?: "")
-                    pstmt.setObject(9, row["KEY_SEQ"]?.toIntOrNull())
-                    pstmt.setObject(10, row["UPDATE_RULE"]?.toIntOrNull())
-                    pstmt.setObject(11, row["DELETE_RULE"]?.toIntOrNull())
-                    pstmt.setString(12, row["FK_NAME"] ?: "")
-                    pstmt.setString(13, row["PK_NAME"] ?: "")
-                    pstmt.setObject(14, row["DEFERRABILITY"]?.toIntOrNull())
-                    pstmt.addBatch()
+                    try {
+                        pstmt.setString(1, row["PKTABLE_CAT"] ?: "")
+                        pstmt.setString(2, row["PKTABLE_SCHEM"] ?: "")
+                        pstmt.setString(3, row["PKTABLE_NAME"] ?: "")
+                        pstmt.setString(4, row["PKCOLUMN_NAME"] ?: "")
+                        pstmt.setString(5, row["FKTABLE_CAT"] ?: "")
+                        pstmt.setString(6, row["FKTABLE_SCHEM"] ?: "")
+                        pstmt.setString(7, row["FKTABLE_NAME"] ?: "")
+                        pstmt.setString(8, row["FKCOLUMN_NAME"] ?: "")
+                        pstmt.setObject(9, row["KEY_SEQ"]?.toIntOrNull())
+                        pstmt.setObject(10, row["UPDATE_RULE"]?.toIntOrNull())
+                        pstmt.setObject(11, row["DELETE_RULE"]?.toIntOrNull())
+                        pstmt.setString(12, row["FK_NAME"] ?: "")
+                        pstmt.setString(13, row["PK_NAME"] ?: "")
+                        pstmt.setObject(14, row["DEFERRABILITY"]?.toIntOrNull())
+                        pstmt.addBatch()
+                    } catch (ex: SQLException) {
+                        logger.debug("Skipping duplicate foreign key: ${row["FK_NAME"]} - ${ex.message}")
+                    }
                 }
                 pstmt.executeBatch()
                 logger.info("Saved remote foreign keys metadata into local cache.")
@@ -1639,7 +1659,7 @@ override fun getColumns(
                         for (i in 1..meta.columnCount) {
                             val colName = meta.getColumnName(i).lowercase()
                             val raw      = rs.getString(i)
-                            // For numeric columns (BIGINT/INTEGER) DuckDB returns null;
+                            // For numeric columns (BIGINT/INTEGER) HyperSQL returns null;
                             // DBeaver expects "0" or a valid integer, not an empty string.
                             val normalised = if (raw.isNullOrBlank() &&
                                 (colName == "cardinality" || colName == "pages" || colName == "ordinal_position"))
@@ -1727,38 +1747,42 @@ override fun getColumns(
         try {
             localConn.prepareStatement(
                 """
-                INSERT OR IGNORE INTO CACHED_INDEXES
+                INSERT INTO CACHED_INDEXES
                 (TABLE_CAT, TABLE_SCHEM, TABLE_NAME, NON_UNIQUE, INDEX_QUALIFIER, INDEX_NAME,
                  TYPE, ORDINAL_POSITION, COLUMN_NAME, ASC_OR_DESC, CARDINALITY, PAGES, FILTER_CONDITION)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """.trimIndent()
             ).use { pstmt ->
                 for (row in remoteRows) {
-                    pstmt.setString(1, row["table_cat"] ?: "")
-                    pstmt.setString(2, row["table_schem"] ?: "")
-                    pstmt.setString(3, row["table_name"] ?: "")
-                    pstmt.setString(4, row["non_unique"] ?: "")
-                    pstmt.setString(5, row["index_qualifier"] ?: "")
-                    pstmt.setString(6, row["index_name"] ?: "")
-                    pstmt.setString(7, row["type"] ?: "")
-                    // ORDINAL_POSITION (INTEGER)
-                    pstmt.setObject(
-                        8,
-                        row["ordinal_position"]?.takeIf { it.isNotBlank() }?.toIntOrNull()
-                    )
-                    pstmt.setString(9, row["column_name"] ?: "")
-                    pstmt.setString(10, row["asc_or_desc"] ?: "")
-                    pstmt.setObject(
-                        11,
-                        row["cardinality"]?.takeIf { it.isNotBlank() }?.toLongOrNull()
-                    )
-                    // PAGES (INTEGER)
-                    pstmt.setObject(
-                        12,
-                        row["pages"]?.takeIf { it.isNotBlank() }?.toIntOrNull()
-                    )
-                    pstmt.setString(13, row["filter_condition"] ?: "")
-                    pstmt.addBatch()
+                    try {
+                        pstmt.setString(1, row["table_cat"] ?: "")
+                        pstmt.setString(2, row["table_schem"] ?: "")
+                        pstmt.setString(3, row["table_name"] ?: "")
+                        pstmt.setString(4, row["non_unique"] ?: "")
+                        pstmt.setString(5, row["index_qualifier"] ?: "")
+                        pstmt.setString(6, row["index_name"] ?: "")
+                        pstmt.setString(7, row["type"] ?: "")
+                        // ORDINAL_POSITION (INTEGER)
+                        pstmt.setObject(
+                            8,
+                            row["ordinal_position"]?.takeIf { it.isNotBlank() }?.toIntOrNull()
+                        )
+                        pstmt.setString(9, row["column_name"] ?: "")
+                        pstmt.setString(10, row["asc_or_desc"] ?: "")
+                        pstmt.setObject(
+                            11,
+                            row["cardinality"]?.takeIf { it.isNotBlank() }?.toLongOrNull()
+                        )
+                        // PAGES (INTEGER)
+                        pstmt.setObject(
+                            12,
+                            row["pages"]?.takeIf { it.isNotBlank() }?.toIntOrNull()
+                        )
+                        pstmt.setString(13, row["filter_condition"] ?: "")
+                        pstmt.addBatch()
+                    } catch (ex: SQLException) {
+                        logger.debug("Skipping duplicate index: ${row["index_name"]} - ${ex.message}")
+                    }
                 }
                 pstmt.executeBatch()
                 logger.info("Saved remote index info into local cache (${remoteRows.size} rows).")
@@ -1990,20 +2014,24 @@ override fun getColumns(
         try {
             localConn.prepareStatement(
                 """
-                INSERT OR IGNORE INTO CACHED_UDTS 
+                INSERT INTO CACHED_UDTS 
                 (TYPE_CAT, TYPE_SCHEM, TYPE_NAME, CLASS_NAME, DATA_TYPE, REMARKS, BASE_TYPE) 
                 VALUES (?, ?, ?, ?, ?, ?, ?)
                 """.trimIndent()
             ).use { pstmt ->
                 for (row in remoteRows) {
-                    pstmt.setString(1, row["TYPE_CAT"] ?: "")
-                    pstmt.setString(2, row["TYPE_SCHEM"] ?: "")
-                    pstmt.setString(3, row["TYPE_NAME"] ?: "")
-                    pstmt.setString(4, row["CLASS_NAME"] ?: "")
-                    pstmt.setObject(5, row["DATA_TYPE"]?.toIntOrNull())
-                    pstmt.setString(6, row["REMARKS"] ?: "")
-                    pstmt.setObject(7, row["BASE_TYPE"]?.toIntOrNull())
-                    pstmt.addBatch()
+                    try {
+                        pstmt.setString(1, row["TYPE_CAT"] ?: "")
+                        pstmt.setString(2, row["TYPE_SCHEM"] ?: "")
+                        pstmt.setString(3, row["TYPE_NAME"] ?: "")
+                        pstmt.setString(4, row["CLASS_NAME"] ?: "")
+                        pstmt.setObject(5, row["DATA_TYPE"]?.toIntOrNull())
+                        pstmt.setString(6, row["REMARKS"] ?: "")
+                        pstmt.setObject(7, row["BASE_TYPE"]?.toIntOrNull())
+                        pstmt.addBatch()
+                    } catch (ex: SQLException) {
+                        logger.debug("Skipping duplicate UDT: ${row["TYPE_NAME"]} - ${ex.message}")
+                    }
                 }
                 pstmt.executeBatch()
                 logger.info("Saved remote UDTs metadata into local cache.")
@@ -2177,19 +2205,23 @@ override fun getColumns(
         try {
             localConn.prepareStatement(
                 """
-                INSERT OR IGNORE INTO CACHED_FUNCTIONS 
+                INSERT INTO CACHED_FUNCTIONS 
                 (FUNCTION_CAT, FUNCTION_SCHEM, FUNCTION_NAME, REMARKS, FUNCTION_TYPE, SPECIFIC_NAME) 
                 VALUES (?, ?, ?, ?, ?, ?)
                 """.trimIndent()
             ).use { pstmt ->
                 for (row in remoteRows) {
-                    pstmt.setString(1, row["FUNCTION_CAT"] ?: "")
-                    pstmt.setString(2, row["FUNCTION_SCHEM"] ?: "")
-                    pstmt.setString(3, row["FUNCTION_NAME"] ?: "")
-                    pstmt.setString(4, row["REMARKS"] ?: "")
-                    pstmt.setObject(5, row["FUNCTION_TYPE"]?.toIntOrNull())
-                    pstmt.setString(6, row["SPECIFIC_NAME"] ?: "")
-                    pstmt.addBatch()
+                    try {
+                        pstmt.setString(1, row["FUNCTION_CAT"] ?: "")
+                        pstmt.setString(2, row["FUNCTION_SCHEM"] ?: "")
+                        pstmt.setString(3, row["FUNCTION_NAME"] ?: "")
+                        pstmt.setString(4, row["REMARKS"] ?: "")
+                        pstmt.setObject(5, row["FUNCTION_TYPE"]?.toIntOrNull())
+                        pstmt.setString(6, row["SPECIFIC_NAME"] ?: "")
+                        pstmt.addBatch()
+                    } catch (ex: SQLException) {
+                        logger.debug("Skipping duplicate function: ${row["FUNCTION_NAME"]} - ${ex.message}")
+                    }
                 }
                 pstmt.executeBatch()
                 logger.info("Saved remote functions metadata into local cache.")
