@@ -12,6 +12,42 @@ import java.sql.Date
 import java.util.*
 
 /**
+ * Lightweight implementation of ParameterMetaData that satisfies External tools requirements.
+ * This implementation:
+ * - Returns the correct parameter count by counting '?' in the SQL
+ * - Provides sensible defaults for parameter types (VARCHAR)
+ * - Avoids additional database round-trips
+ */
+internal class SimpleParameterMetaData(private val parameterCount: Int) : ParameterMetaData {
+    override fun getParameterCount(): Int = parameterCount
+
+    override fun isNullable(param: Int): Int = ParameterMetaData.parameterNullableUnknown
+
+    override fun isSigned(param: Int): Boolean = false
+
+    override fun getPrecision(param: Int): Int = 0
+
+    override fun getScale(param: Int): Int = 0
+
+    override fun getParameterType(param: Int): Int = java.sql.Types.VARCHAR
+
+    override fun getParameterTypeName(param: Int): String = "VARCHAR"
+
+    override fun getParameterClassName(param: Int): String = "java.lang.String"
+
+    override fun getParameterMode(param: Int): Int = ParameterMetaData.parameterModeIn
+
+    override fun <T> unwrap(iface: Class<T>?): T {
+        return if (iface != null && iface.isInstance(this)) iface.cast(this)
+        else throw SQLException("Cannot unwrap to ${iface?.name}")
+    }
+
+    override fun isWrapperFor(iface: Class<*>?): Boolean {
+        return iface != null && iface.isInstance(this)
+    }
+}
+
+/**
  * A minimal PreparedStatement implementation with parameter binding.
  * It uses a simple substitution mechanism to replace each '?' in the SQL
  * with the corresponding parameter value.
@@ -231,8 +267,10 @@ class WsdlPreparedStatement(
     override fun setURL(parameterIndex: Int, x: URL?) =
         throw UnsupportedOperationException("Parameter binding is not supported")
 
-    override fun getParameterMetaData(): ParameterMetaData =
-        throw SQLFeatureNotSupportedException("Parameter metadata is not supported")
+    override fun getParameterMetaData(): ParameterMetaData {
+        val paramCount = sql.count { it == '?' }
+        return SimpleParameterMetaData(paramCount)
+    }
 
     override fun setRowId(parameterIndex: Int, x: RowId?) =
         throw UnsupportedOperationException("Parameter binding is not supported")
