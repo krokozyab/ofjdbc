@@ -4,6 +4,7 @@ plugins {
     kotlin("jvm") version "2.2.20-Beta2"
     id("com.github.johnrengelman.shadow") version "8.1.1"
     id("com.github.ben-manes.versions") version "0.52.0"
+    `maven-publish`
 }
 
 group = "my.jdbc"
@@ -19,6 +20,21 @@ dependencies {
     implementation("org.slf4j:slf4j-api:2.1.0-alpha1")
     implementation("org.duckdb:duckdb_jdbc:1.3.2.0")
 }
+publishing {
+    publications {
+        create<MavenPublication>("mavenJava") {
+            from(components["java"])
+
+            groupId = project.group.toString()
+            artifactId = project.name
+            version = project.version.toString()
+
+            pom.withXml {
+                // optional customizations
+            }
+        }
+    }
+}
 
 tasks.test {
     useJUnitPlatform()
@@ -27,7 +43,9 @@ tasks.test {
 tasks.wrapper {
     gradleVersion = "8.8"
 }
-
+java {
+    withSourcesJar()
+}
 
 tasks {
     named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJar") {
