@@ -94,7 +94,7 @@ Upload `otbireport/DM_ARB.xdm.catalog` and `RP_ARB.xdo.catalog` to
 
 ```sql
 CREATE TABLE DUCK.je AS SELECT je_header_id, name, default_effective_date, running_total_dr
-                        FROM gl_je_headers WHERE ledger_id = 300000014084014;
+                        FROM gl_je_headers WHERE ledger_id = xx;
 INSERT INTO DUCK.je SELECT …;              -- append more Fusion rows
 SELECT currency_code, SUM(running_total_dr) FROM DUCK.je GROUP BY 1;
 ```
@@ -105,7 +105,7 @@ One query can also mix both: `UNION` branches and parenthesized subqueries that 
 SELECT l.*, f.enabled_flag
   FROM DUCK.gcc l
   JOIN (SELECT code_combination_id, enabled_flag FROM FUSION.GL_CODE_COMBINATIONS
-         WHERE segment2 = '214210') f ON f.code_combination_id = l.code_combination_id;
+         WHERE segment2 = 'xx') f ON f.code_combination_id = l.code_combination_id;
 ```
 
 Write `DUCK.` and `FUSION.` explicitly in such queries and keep the Fusion part filtered — it is fetched in full.
