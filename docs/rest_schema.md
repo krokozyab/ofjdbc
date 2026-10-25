@@ -1,6 +1,7 @@
 # REST Schema Reference
 
-The `REST` schema shows the REST resources of your Oracle Fusion instance as tables you can browse in the navigator,
+The `REST` schema shows the REST resources of your Oracle Fusion instance (one API family per schema — see
+[API families](#1-basics)) as tables you can browse in the navigator,
 query with SQL, join with `DUCK` and `FUSION` data, and import into the `DUCK` workspace. This page holds every rule,
 limit and message; the [README](../README.md#rest-schema-browse-and-query-fusion-rest-resources) has the short tour.
 
@@ -21,6 +22,36 @@ limit and message; the [README](../README.md#rest-schema-browse-and-query-fusion
   columns, with type, size, mandatory flag and the title as the column comment. The resource's title is the table
   comment. Expanding `REST` → Tables lists all resources — the first time takes a few seconds, then the list is
   remembered on your computer, as is each resource's description once you open it.
+- **API families.** Fusion's REST resources come in families: `fscmRestApi` (Financials, Supply Chain, Procurement,
+  Projects and most Common Features: lookups, value sets, setup tasks, announcements, …), `hcmRestApi` (HCM: workers,
+  absences, …) and `crmRestApi` (Sales and Service); some releases also have `fndSetupApi` (time zones), which you can
+  add by name.
+  One connection shows `fscmRestApi` by default; the setting `restApi` picks others:
+
+  | `restApi` | Schemas |
+  |---|---|
+  | `fscmRestApi` (default) | `REST` = Financials and SCM |
+  | `hcmRestApi` | `REST` = HCM |
+  | `fscmRestApi,hcmRestApi` | `REST` = Financials and SCM, `REST_HCM` = HCM |
+  | `all` | `REST` = Financials and SCM, `REST_HCM` = HCM, `REST_CRM` = Sales and Service |
+
+  The first family is the schema `REST`; every family is also `REST_<name>` (`hcmRestApi` → `REST_HCM`,
+  `fscmRestApi` → `REST_FSCM`), which names the same family on any connection. Everything on this page works in each
+  of them, and one query may read several: `… FROM REST.invoices i JOIN REST_HCM.workers w ON …`. `REST APIS` shows
+  which families your instance and user can read. Resources outside these families (SCIM users, `/api/boss/…` v1
+  resources, BPM tasks, ESS) have no catalog of this kind and are not shown.
+
+  **In DBeaver:**
+
+  1. Right-click the connection → **Edit Connection** (F4) → **Driver properties**.
+  2. Right-click in the property list → **Add new property**; name `restApi`, value `all` (or a list without spaces,
+     `fscmRestApi,hcmRestApi`). Click **OK**.
+  3. **Disconnect** and **Connect** again, then refresh the connection (F5): `REST_HCM`, `REST_CRM`, … appear next to
+     `REST`.
+  4. Run `REST APIS;` — the families you connected show `connected`.
+
+  Instead of the property, you can end the JDBC URL on the **Main** tab with `?restApi=all` (`&restApi=all` when it
+  already has a parameter); the URL wins over the property.
 - **Read-only.** The driver only reads. Nothing is ever created, changed or deleted in Fusion through `REST`.
 - **Access.** REST uses the connection's own sign-in (password, browser SSO or OAuth). Which resources and rows a user
   may read is decided by their Fusion roles. A resource can show its description and still refuse its rows — see
@@ -146,6 +177,7 @@ SELECT * FROM REST_FIND('ledgerBalances', 'AccountGroupBalanceFinder',
     accountingPeriod := 'Jan-24', currency := 'USD');
 ```
 
+- A resource of another schema is named with it: `REST_FIND('REST_HCM.absences', 'findByType', …)`.
 - `DESCRIBE REST x` lists a resource's finders; `DESCRIBE REST FINDER x f` lists the parameters with their type, marks
   the required ones `REQUIRED = Y` and ends with a call to copy (replace the sample values, drop the optional ones).
 - Some resources (`ledgerBalances`, …) are read **only** through a finder: a plain `SELECT` fails with the finders to
@@ -173,19 +205,23 @@ REFRESH DUCK.inv;
   `KEY`/`SINCE` (incremental refresh) is not available for REST imports.
 - A table imported as a plain projection of one resource that keeps its whole key (`SELECT *` or the key columns under
   their own names, no join, grouping or rename) gets that key as `SUGGESTED_KEY`; `DIFF` uses it when no `KEY` is given.
-- `REFRESH` of a REST import is refused on a connection whose `restApi` differs from the one the table was read with.
+- `REFRESH` of a REST import reads each schema it names as that schema now stands: `REST_HCM.x` is always HCM, while
+  `REST.x` is refused when the connection's first family differs from the one the table was read with (name the
+  schema, `REST_FSCM.x`, to be independent of the order). `REST_API` lists the families an import read.
 - Replacing or dropping the table by other DDL forgets its origin.
 
 ## 6. Commands
 
 | Command | Result |
 |---|---|
-| `REST RESOURCES ['pattern']` | `RESOURCE, DESCRIBED, TITLE, USAGE, ATTRIBUTES` — resources whose name contains the word, or matches a `%`/`_` pattern |
+| `REST APIS` | `SCHEMA, API, VERSION, RESOURCES, STATUS` — every known family: `connected` (with its schema), `available` (add it to `restApi`) or `not available` and why |
+| `REST RESOURCES ['pattern']` | `SCHEMA, RESOURCE, DESCRIBED, TITLE, USAGE, ATTRIBUTES` — resources of every REST schema whose name contains the word, or matches a `%`/`_` pattern; a schema whose list cannot be read is left out with a warning |
 | `DESCRIBE REST x` | `ATTRIBUTE, TYPE, SIZE, MANDATORY, QUERYABLE, UPDATABLE, LOV, PK, TITLE`, then rows `child:…` and `finder:…(params)` |
 | `DESCRIBE REST FINDER x f` | `PARAMETER, TYPE, REQUIRED`, then an `EXAMPLE` row with a call to copy |
 | `REFRESH REST x` | reads the description again: `RESOURCE, ATTRIBUTES, CHANGED` (`Y` when it changed) |
-| `REFRESH REST RESOURCES` | reads the list again: `RESOURCES, ADDED, REMOVED` |
+| `REFRESH REST RESOURCES` | reads the lists again: `SCHEMA, RESOURCES, ADDED, REMOVED` |
 
+`x` is a resource of schema `REST` or, with its schema, of another: `DESCRIBE REST REST_HCM.absences`.
 A description that Fusion refused (not found, no access) is remembered for an hour, so the navigator does not ask again
 on every click; `REFRESH REST x` asks again at once. The list is kept per host and API version, the descriptions also per user.
 
@@ -196,8 +232,8 @@ variable `OFJDBC_<NAME>` (`OFJDBC_REST_MAX_ROWS`, …):
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `rest` | `true` | `false` hides the `REST` schema |
-| `restApi` | `fscmRestApi` | the API family |
+| `rest` | `true` | `false` hides the `REST` schemas |
+| `restApi` | `fscmRestApi` | the API families: one, a list (`fscmRestApi,hcmRestApi`) or `all` — see [API families](#1-basics) |
 | `restVersion` | `latest` | the API version; `latest` is the newest version Fusion reports |
 | `restMaxRows` | `50000` | most rows one statement may read from a resource |
 | `restMaxParents` | `200` | most parents a child table is read for in one statement |
@@ -210,6 +246,7 @@ variable `OFJDBC_<NAME>` (`OFJDBC_REST_MAX_ROWS`, …):
 |---|---|
 | `REST GET … failed (403): access denied — the connection's user has no Fusion role …` | The user may read the description but not the rows. Ask your security administrator for a role, or read another resource with the same data. |
 | `REST GET … failed (404): not found` | No such resource for this API family and version (`restApi`, `restVersion`). |
+| `REST_HCM is not a REST schema of this connection; … Add hcmRestApi to the setting restApi …` | The query names a family the connection does not show. Add it to `restApi` (or use `all`) and reconnect. |
 | `REST GET … failed (400): <Fusion's reason>` | Fusion refused the request; its own reason follows. |
 | `REST.x can only be read through a finder: …` | Use `REST_FIND` with one of the listed finders — the message has an example ([section 4](#4-finders)). |
 | `REST.x has no finder 'f'` / `Finder f of REST.x has no parameter 'p'` | The names listed in the message are the valid ones. |
