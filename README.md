@@ -80,7 +80,7 @@ SELECT * FROM FUSION.GL_LEDGERS FETCH FIRST 10 ROWS ONLY;
 | Schema | What it gives you | SQL |
 |---|---|---|
 | `FUSION` | Live Fusion tables and views through BI Publisher | Oracle SQL |
-| `REST` | Fusion REST resources presented as tables | DuckDB SQL; supported filters are sent to REST |
+| `REST` | Fusion REST resources presented as tables (Financials and SCM by default; HCM, CRM in `REST_HCM`, `REST_CRM` on request) | DuckDB SQL; supported filters are sent to REST |
 | `DUCK` | Local tables, saved results and file analysis | DuckDB SQL |
 
 > Fusion and REST are read-only. DUCK tables are local and writable.
@@ -270,11 +270,14 @@ DUCK statements commit at once by default. Rollback of local edits requires `duc
 
 The `REST` schema shows the REST resources of your Fusion (`invoices`, `suppliers`, `ledgersLOV`, …) as tables, with their attributes as columns — type, size, mandatory, and the title as the column comment. The driver only reads; it never changes anything through REST. **Every rule, limit and message is in the [REST Schema Reference](docs/rest_schema.md).**
 
+By default `REST` is the Financials and Supply Chain API (`fscmRestApi`, which also holds most Common Features: lookups, value sets, setup tasks, …). Set `restApi` to see other families: `restApi=fscmRestApi,hcmRestApi` adds HCM as schema `REST_HCM`, `restApi=all` adds HCM and CRM (`REST_CRM`). A query may read several: `… FROM REST.invoices i JOIN REST_HCM.workers w ON …`. `REST APIS` shows which families your instance and user can read. [API families](docs/rest_schema.md#1-basics).
+
 | You do | What you get |
 |---|---|
 | Expand `REST` → Tables | all resources of the API (the first time takes a few seconds, then it is remembered) |
 | Expand a resource → Columns | its attributes, primary key and child resources |
-| `REST RESOURCES ['inv']` | the resources whose name contains the word (or matches a `%`/`_` pattern) |
+| `REST RESOURCES ['inv']` | the resources of every REST schema whose name contains the word (or matches a `%`/`_` pattern) |
+| `REST APIS` | the API families of your instance: connected, available or not available to your user |
 | `DESCRIBE REST invoices` | attributes with type, size, mandatory, queryable, updatable, LOV and key, then child resources and finders |
 | `REFRESH REST invoices` / `REFRESH REST RESOURCES` | reads the description or the list again |
 
@@ -342,8 +345,8 @@ URL parameter, connection property `ofjdbc.<name>`, `-Dofjdbc.<name>` or environ
 
 | Setting | Default | Meaning |
 |---|---|---|
-| `rest` | `true` | `false` hides the `REST` schema |
-| `restApi` | `fscmRestApi` | the API family |
+| `rest` | `true` | `false` hides the `REST` schemas |
+| `restApi` | `fscmRestApi` | the API families: one, a list (`fscmRestApi,hcmRestApi`) or `all` |
 | `restVersion` | `latest` | the API version |
 | `restMaxRows` | `50000` | most rows one statement may read |
 | `restMaxParents` | `200` | most parents a child table is read for in one statement |
