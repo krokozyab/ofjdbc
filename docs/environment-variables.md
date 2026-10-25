@@ -1,189 +1,116 @@
-# Environment Variables Configuration
+# Configuration: URL Parameters, Properties and Environment Variables
 
-This document describes all environment variables and system properties that can be used to configure the OFJDBC driver behavior.
+The driver reads its settings from four places. There are two kinds of settings, and they are read differently:
 
-## Table of Contents
+- **Connection settings** apply to one connection and are looked up, highest first, in the **JDBC URL parameter**
+  (`?fetchSize=1000`), the **connection property** (DBeaver: Driver properties), the **system property**
+  (`-Dofjdbc.fetchSize=1000`) and the **environment variable** (`OFJDBC_DEFAULT_FETCH_SIZE=1000`); otherwise the default.
+- **Driver-wide settings** (HTTP, retries, circuit breaker, browser) apply to the whole JVM and are read once, when the
+  driver is first used: from the system property or the environment variable only — restart the application (DBeaver)
+  after changing them.
 
-- [HTTP Configuration](#http-configuration)
-- [Fetch Size Configuration](#fetch-size-configuration)
-- [Retry Configuration](#retry-configuration)
-- [System Properties](#system-properties)
+## Contents
+
+- [Connection settings](#connection-settings)
+- [Driver-wide settings](#driver-wide-settings)
+- [Browser SSO](#browser-sso)
 - [OAuth Authentication](#oauth-authentication)
 - [DUCK Workspace](#duck-workspace-ofjdbc_duck_db)
-- [Usage Examples](#usage-examples)
+- [Next result page cache](#next-result-page-cache-ofjdbc_next_page_cache_seconds)
+- [Query history](#query-history-ofjdbc_history)
+- [REST schema](#rest-schema)
 - [Query Profiler](#query-profiler-ofjdbc_profile)
+- [Usage examples](#usage-examples)
+- [Troubleshooting](#troubleshooting)
 
 ---
 
-## HTTP Configuration
+## Connection settings
 
-### `OFJDBC_HTTP_CONNECT_TIMEOUT`
+| URL parameter / connection property | System property | Environment variable | Default | Meaning |
+|---|---|---|---|---|
+| `fetchSize` | `ofjdbc.fetchSize` | `OFJDBC_DEFAULT_FETCH_SIZE` | `500` | Rows per page read from Fusion, `1`–`10000` (larger values are capped with a log warning) |
+| `nextPageCacheSeconds` | `ofjdbc.nextPageCacheSeconds` | `OFJDBC_NEXT_PAGE_CACHE_SECONDS` | `300` | How long rows are kept for DBeaver's next result page; `0` off ([below](#next-result-page-cache-ofjdbc_next_page_cache_seconds)) |
+| `ofjdbc.prefetch.enabled` | same | `OFJDBC_PREFETCH_ENABLED` | `true` | Read the next page in the background while you look at the current one |
+| `ofjdbc.prefetch.threshold` | same | `OFJDBC_PREFETCH_THRESHOLD` | `0.75` | Share of a page read before the next one is requested, `0.0`–`1.0` (`1.0` waits for the whole page) |
+| `prefetchMetadata` | `ofjdbc.metadata.prefetchEnabled` | `OFJDBC_METADATA_PREFETCH_ENABLED` | `false` | Fill the metadata cache in the background; can open many BI Publisher sessions, so off by default |
+| `profile` | `ofjdbc.profile` | `OFJDBC_PROFILE` | `false` | Page telemetry in the Output panel ([below](#query-profiler-ofjdbc_profile)) |
+| `duckDb` | `ofjdbc.duckDb` | `OFJDBC_DUCK_DB` | `~/.ofjdbc/duck.duckdb` | File of the DUCK workspace; `:memory:` for none |
+| `duckTransactions` | `ofjdbc.duckTransactions` | `OFJDBC_DUCK_TRANSACTIONS` | `false` | Whether Commit and Rollback apply to DUCK tables ([below](#duck-workspace-ofjdbc_duck_db)) |
+| `history` | `ofjdbc.history` | `OFJDBC_HISTORY` | `false` | Keep the rows of every Fusion query ([below](#query-history-ofjdbc_history)) |
+| `historyMaxRows` | `ofjdbc.historyMaxRows` | `OFJDBC_HISTORY_MAX_ROWS` | `1000000` | Most rows kept in the history |
+| `rest` | `ofjdbc.rest` | `OFJDBC_REST` | `true` | `false` hides the `REST` schema |
+| `restApi` | `ofjdbc.restApi` | `OFJDBC_REST_API` | `fscmRestApi` | REST API family |
+| `restVersion` | `ofjdbc.restVersion` | `OFJDBC_REST_VERSION` | `latest` | REST API version |
+| `restMaxRows` | `ofjdbc.restMaxRows` | `OFJDBC_REST_MAX_ROWS` | `50000` | Most rows one statement may read from a REST resource |
+| `restMaxParents` | `ofjdbc.restMaxParents` | `OFJDBC_REST_MAX_PARENTS` | `200` | Most parents a REST child table is read for in one statement |
+| `restMaxRequests` | `ofjdbc.restMaxRequests` | `OFJDBC_REST_MAX_REQUESTS` | `2000` | Most REST requests of one statement for child tables or the keys of a join |
+| `restMaxKeys` | `ofjdbc.restMaxKeys` | `OFJDBC_REST_MAX_KEYS` | `1000` | Most keys of a DUCK table a join sends with a REST read |
+| `authType` | — | — | password | `BROWSER` for SSO, `OAUTH` for OAuth ([below](#oauth-authentication)) |
 
-**Description**: Sets the HTTP connection timeout (time to establish TCP connection).
+A connection property may also be written with the `ofjdbc.` prefix (`ofjdbc.fetchSize`), as DBeaver's driver
+properties dialog shows it.
 
-**Type**: Integer  
-**Default**: `30` seconds  
-**Range**: `1` - `300` seconds  
-**System Property**: `ofjdbc.http.connectTimeout`  
-**Used in**: `HttpClient.kt` (`HttpConfig.CONNECT_TIMEOUT_SECONDS`)
-
-**Example**:
-```bash
-export OFJDBC_HTTP_CONNECT_TIMEOUT=20
-```
-
-**Impact**: Lower values fail fast when Oracle Fusion is unreachable. Higher values tolerate slower network setup.
-
-### `OFJDBC_HTTP_READ_TIMEOUT`
-
-**Description**: Sets the HTTP read timeout (time waiting for response data after connection is established).
-
-**Type**: Integer  
-**Default**: `120` seconds  
-**Range**: `5` - `1800` seconds  
-**System Property**: `ofjdbc.http.readTimeout`  
-**Used in**: `HttpClient.kt` (`HttpConfig.READ_TIMEOUT_SECONDS`)
-
-**Example**:
-```bash
-export OFJDBC_HTTP_READ_TIMEOUT=300
-```
-
-**Impact**: Increase for complex queries or large result sets. Lower values fail faster on slow responses.
+**Fetch size.** Smaller pages (100–200) show the first rows sooner; larger ones (1000+) need fewer round trips for
+exports. Larger pages use more memory.
 
 ---
 
-## Fetch Size Configuration
+## Driver-wide settings
 
-### `OFJDBC_DEFAULT_FETCH_SIZE`
+### HTTP
 
-**Description**: Sets the default number of rows fetched per page from Oracle Fusion.
+| System property | Environment variable | Default | Range | Meaning |
+|---|---|---|---|---|
+| `ofjdbc.http.connectTimeout` | `OFJDBC_HTTP_CONNECT_TIMEOUT` | `30` s | `1`–`300` | Time to establish the connection |
+| `ofjdbc.http.readTimeout` | `OFJDBC_HTTP_READ_TIMEOUT` | `120` s | `5`–`1800` | Time to wait for the answer once connected — raise it for long-running queries |
+| `ofjdbc.http.maxConcurrentRequests` | `OFJDBC_MAX_CONCURRENT_REQUESTS` | `1` | `1`–`16` | Requests sent to one Fusion host at the same time |
 
-**Type**: Integer  
-**Default**: `500`  
-**Range**: `1` - `10000`  
-**Used in**: `WsdlStatement.kt`
+The system property wins over the environment variable; values outside the range are moved to its nearest end.
 
-**Example**:
-```bash
-export OFJDBC_DEFAULT_FETCH_SIZE=1000
-```
+### Retries
 
-Can also be set per connection via the JDBC URL parameter `?fetchSize=1000` or the
-connection property `ofjdbc.fetchSize` (e.g. in DBeaver's driver properties dialog);
-those take precedence over the system property and this environment variable.
+| System property | Environment variable | Default | Meaning |
+|---|---|---|---|
+| `ofjdbc.retry.maxAttempts` | `OFJDBC_RETRY_MAX_ATTEMPTS` | `3` | Attempts for a request that failed for a transient reason (timeout, connection reset, HTTP 408, 429, 500, 502, 503, 504) |
+| `ofjdbc.retry.baseDelayMs` | `OFJDBC_RETRY_BASE_DELAY_MS` | `1000` | Wait before the first retry |
+| `ofjdbc.retry.maxDelayMs` | `OFJDBC_RETRY_MAX_DELAY_MS` | `30000` | Longest wait between retries |
+| `ofjdbc.retry.multiplier` | `OFJDBC_RETRY_MULTIPLIER` | `2.0` | Growth of the wait from one retry to the next (with a little random jitter) |
 
-**Impact**: 
-- **Smaller values** (50-200): Faster initial response, good for interactive browsing
-- **Larger values** (1000+): Better performance for bulk operations, fewer round trips
+Here the **environment variable wins** over the system property. Errors from Oracle (an ORA- message) and failed
+sign-ins are not retried.
 
-### `OFJDBC_MAX_FETCH_SIZE`
+### Circuit breaker
 
-**Description**: Maximum allowed fetch size to prevent memory issues.
+After repeated failures in a row the driver stops sending requests to Fusion for a while and fails fast instead, so a
+broken connection does not keep you waiting on every statement.
 
-**Type**: Integer  
-**Default**: `10000`  
-**Range**: `100` - `50000`  
-**Used in**: `WsdlStatement.kt` (hardcoded constant, configurable in future versions)
+| System property | Environment variable | Default | Range | Meaning |
+|---|---|---|---|---|
+| `ofjdbc.circuitBreaker.enabled` | `OFJDBC_CIRCUIT_BREAKER_ENABLED` | `true` | | `false` turns it off |
+| `ofjdbc.circuitBreaker.failureThreshold` | `OFJDBC_CIRCUIT_BREAKER_THRESHOLD` | `5` | `2`–`100` | Failures in a row that open it |
+| `ofjdbc.circuitBreaker.recoveryTimeoutMs` | `OFJDBC_CIRCUIT_BREAKER_TIMEOUT_MS` | `60000` | `5000`–`600000` | How long it stays open before a trial request |
+| `ofjdbc.circuitBreaker.halfOpenMaxAttempts` | `OFJDBC_CIRCUIT_BREAKER_HALF_OPEN_ATTEMPTS` | `1` | `1`–`5` | Trial requests before it closes again |
 
-**Impact**: Prevents users from setting extremely large fetch sizes that could cause memory problems.
-
----
-
-## Retry Configuration
-
-### `OFJDBC_RETRY_MAX_ATTEMPTS`
-
-**Description**: Maximum number of retry attempts for failed operations.
-
-**Type**: Integer  
-**Default**: `3`  
-**Range**: `1` - `10`  
-**Used in**: `RetryConfig.kt`
-
-**Example**:
-```bash
-export OFJDBC_RETRY_MAX_ATTEMPTS=5
-```
-
-**Impact**: Higher values increase resilience but may cause longer delays on permanent failures.
-
-### `OFJDBC_RETRY_BASE_DELAY_MS`
-
-**Description**: Initial delay in milliseconds before first retry attempt.
-
-**Type**: Long  
-**Default**: `1000` (1 second)  
-**Range**: `100` - `30000` (100ms to 30 seconds)  
-**Used in**: `RetryConfig.kt`
-
-**Example**:
-```bash
-export OFJDBC_RETRY_BASE_DELAY_MS=2000
-```
-
-**Impact**: Controls the starting point for exponential backoff. Higher values reduce server load but increase response time.
-
-### `OFJDBC_RETRY_MAX_DELAY_MS`
-
-**Description**: Maximum delay in milliseconds between retry attempts.
-
-**Type**: Long  
-**Default**: `30000` (30 seconds)  
-**Range**: `1000` - `300000` (1 second to 5 minutes)  
-**Used in**: `RetryConfig.kt`
-
-**Example**:
-```bash
-export OFJDBC_RETRY_MAX_DELAY_MS=60000
-```
-
-**Impact**: Caps the exponential backoff to prevent extremely long waits.
-
-### `OFJDBC_RETRY_MULTIPLIER`
-
-**Description**: Multiplier for exponential backoff between retry attempts.
-
-**Type**: Double  
-**Default**: `2.0`  
-**Range**: `1.1` - `5.0`  
-**Used in**: `RetryConfig.kt`
-
-**Example**:
-```bash
-export OFJDBC_RETRY_MULTIPLIER=1.5
-```
-
-**Impact**: Controls how quickly retry delays increase. Lower values = more gradual increase.
+The system property wins over the environment variable.
 
 ---
 
-## System Properties
+## Browser SSO
 
-All environment variables can also be set as JVM system properties with the `ofjdbc.` prefix:
+| Environment variable / system property | Default | Meaning |
+|---|---|---|
+| `OFJDBC_CHROME_PATH` | Chrome, then Chromium, then Edge in their default locations | Browser used for `authType=BROWSER`; on Windows Edge is always present, so SSO works without Chrome |
+| `OFJDBC_SSO_LOGIN_URL` / `ofjdbc.ssoLoginUrl` | `https://<host>` | Page the browser opens to sign in, if your organisation starts elsewhere |
+| `OFJDBC_USE_TEMP_PROFILE` | `false` | `true` uses a throwaway browser profile instead of `~/.ofjdbc/chrome-profile`, so no sign-in cookies are kept between logins |
 
-| Environment Variable          | System Property            |
-|-------------------------------|----------------------------|
-| `OFJDBC_HTTP_CONNECT_TIMEOUT` | `ofjdbc.http.connectTimeout` |
-| `OFJDBC_HTTP_READ_TIMEOUT`    | `ofjdbc.http.readTimeout`    |
-| `OFJDBC_DEFAULT_FETCH_SIZE`   | `ofjdbc.fetchSize`         |
-| `OFJDBC_RETRY_MAX_ATTEMPTS`   | `ofjdbc.retry.maxAttempts` |
-| `OFJDBC_RETRY_BASE_DELAY_MS`  | `ofjdbc.retry.baseDelayMs` |
-| `OFJDBC_RETRY_MAX_DELAY_MS`   | `ofjdbc.retry.maxDelayMs`  |
-| `OFJDBC_RETRY_MULTIPLIER`     | `ofjdbc.retry.multiplier`  |
-| `OFJDBC_PREFETCH_ENABLED`     | `ofjdbc.prefetch.enabled`  |
-| `OFJDBC_PREFETCH_THRESHOLD`   | `ofjdbc.prefetch.threshold` |
-| `OFJDBC_METADATA_PREFETCH_ENABLED` | `ofjdbc.metadata.prefetchEnabled` |
-| `OFJDBC_PROFILE`              | `ofjdbc.profile`           |
-| `OFJDBC_DUCK_DB`              | `ofjdbc.duckDb`            |
-| `OFJDBC_OAUTH_*`              | `ofjdbc.oauth.*` (see [OAuth](#oauth-authentication)) |
-
-Resolution priority for every setting: JDBC URL parameter > connection Properties > system property > environment variable > default.
-
-**Example**:
-```bash
-java -Dofjdbc.fetchSize=1000 -Dofjdbc.http.connectTimeout=20 -Dofjdbc.http.readTimeout=300 -jar your-application.jar
+```bat
+setx OFJDBC_CHROME_PATH "C:\Program Files (x86)\Microsoft\Edge\Application\msedge.exe"
 ```
+
+The persistent profile lets the browser remember your identity provider's session, so the next sign-in is often a
+single click. If the browser does not start because one is already running with that profile, close it or set
+`OFJDBC_USE_TEMP_PROFILE=true`.
 
 ---
 
@@ -239,6 +166,7 @@ In application containers the provider may be loaded by another class loader and
 the interface; the driver then accepts any object with the required methods and calls them reflectively, or
 fails listing what is missing.
 
+
 ---
 
 ## DUCK Workspace (`OFJDBC_DUCK_DB`)
@@ -250,107 +178,54 @@ Set it per connection with the JDBC URL parameter `?duckDb=<file>` or the connec
 or globally with `-Dofjdbc.duckDb` / `OFJDBC_DUCK_DB`. Use `:memory:` for a workspace without a file: nothing is
 written to disk and its tables are gone once the last connection using it closes.
 
-**Example**:
 ```bash
 export OFJDBC_DUCK_DB=~/work/fusion-analysis.duckdb
 ```
 
----
+**Transactions (`duckTransactions`, default `false`).** DUCK statements commit at once, whatever mode the client asks
+for. With `?duckTransactions=true` Auto-commit off, Commit and Rollback apply to DUCK tables. `REFRESH` and imports are
+all or nothing either way. Why this default: [DUCK Workspace Reference](duck_workspace.md#2-transactions).
 
-## Usage Examples
-
-### Development Environment
-```bash
-# Fast response for development
-export OFJDBC_DEFAULT_FETCH_SIZE=100
-export OFJDBC_HTTP_CONNECT_TIMEOUT=15
-export OFJDBC_HTTP_READ_TIMEOUT=60
-export OFJDBC_RETRY_MAX_ATTEMPTS=2
-```
-
-### Production Environment
-```bash
-# Optimized for reliability and performance
-export OFJDBC_DEFAULT_FETCH_SIZE=1000
-export OFJDBC_HTTP_CONNECT_TIMEOUT=30
-export OFJDBC_HTTP_READ_TIMEOUT=300
-export OFJDBC_RETRY_MAX_ATTEMPTS=5
-export OFJDBC_RETRY_BASE_DELAY_MS=2000
-export OFJDBC_RETRY_MAX_DELAY_MS=60000
-```
-
-### DBeaver Optimization
-```bash
-# Optimized for interactive database browsing
-export OFJDBC_DEFAULT_FETCH_SIZE=200
-export OFJDBC_HTTP_CONNECT_TIMEOUT=20
-export OFJDBC_HTTP_READ_TIMEOUT=120
-export OFJDBC_RETRY_MAX_ATTEMPTS=3
-```
-
-### Bulk Data Export
-```bash
-# Optimized for large data exports
-export OFJDBC_DEFAULT_FETCH_SIZE=5000
-export OFJDBC_HTTP_CONNECT_TIMEOUT=30
-export OFJDBC_HTTP_READ_TIMEOUT=600
-export OFJDBC_RETRY_MAX_ATTEMPTS=5
-export OFJDBC_RETRY_BASE_DELAY_MS=5000
-```
+**DuckDB version and old files.** The driver embeds DuckDB 2.0. Files written by DuckDB 1.x open as they are; a file
+created by DuckDB 2.0 cannot be read by DuckDB 1.x. A file the driver cannot read is set aside with a warning instead
+of failing the connection: [details](duck_workspace.md#12-duckdb-20-and-your-existing-files).
 
 ---
 
-## Configuration Priority
+## Next result page cache (`OFJDBC_NEXT_PAGE_CACHE_SECONDS`)
 
-The driver uses the following priority order for configuration:
+DBeaver does not keep the cursor open between result pages: for the next page it closes the statement and runs
+the same SQL again with a larger fetch size (100, 200, 300, …). The driver keeps the rows of the last query, including
+the page prefetched while you looked at the previous one, and continues from them, so crossing a page boundary does
+not read every row again from Fusion. Running the query again with the first page size (Refresh, a new run) or any
+other query reads afresh.
 
-1. **JDBC URL parameters** (highest priority)
-2. **System properties** (`-Dofjdbc.property=value`)
-3. **Environment variables** (`OFJDBC_VARIABLE=value`)
-4. **Default values** (lowest priority)
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-**Slow Query Performance**:
-- Increase `OFJDBC_DEFAULT_FETCH_SIZE` to reduce round trips
-- Increase `OFJDBC_HTTP_READ_TIMEOUT` for complex queries
-
-**Memory Issues**:
-- Decrease `OFJDBC_DEFAULT_FETCH_SIZE` to reduce memory usage
-- Monitor JVM heap size with large fetch sizes
-
-**Connection Timeouts**:
-- Increase `OFJDBC_HTTP_CONNECT_TIMEOUT` if network/TCP setup is slow
-- Increase `OFJDBC_HTTP_READ_TIMEOUT` if query execution is slow
-- Increase `OFJDBC_RETRY_MAX_ATTEMPTS`
-- Adjust `OFJDBC_RETRY_BASE_DELAY_MS` for network conditions
-
-**Too Many Retries**:
-- Decrease `OFJDBC_RETRY_MAX_ATTEMPTS`
-- Increase `OFJDBC_RETRY_BASE_DELAY_MS` to reduce server load
-
-### Validation
-
-The driver validates all configuration values and will:
-- **Log warnings** for values outside recommended ranges
-- **Cap values** at maximum limits to prevent issues
-- **Use defaults** for invalid or missing values
-- **Throw exceptions** for critically invalid values (e.g., negative timeouts)
+The value is how long, in seconds since last use, the rows are kept: default `300`; `0` turns it off. The same setting
+keeps the Fusion and REST parts of a mixed query for the next page.
 
 ---
 
-## Monitoring
+## Query history (`OFJDBC_HISTORY`)
 
-Look for log messages like:
-- `Fetch size changed from X to Y (requested: Z)`
-- `Operation 'WSDL SQL Execution' succeeded on attempt N after Xms`
-- `Fetch size X exceeds maximum Y, capping at maximum`
+When on (`?history=true`; default off) the driver stores the rows of every Fusion query you run in the DUCK workspace,
+so a slow result can be looked at again without Fusion: `HISTORY [LAST n]`, `HISTORY SHOW n`,
+`HISTORY KEEP n AS DUCK.name [DECODE …]`, `HISTORY CLEAR`. The next result page of a query continues its entry instead
+of starting a new one. `historyMaxRows` (default `1000000`) caps the rows kept in total; the oldest queries are dropped
+first. An entry holds only the rows actually fetched — check `COMPLETE`. History needs the next result page cache
+(not `0`) and writes into the shared workspace file, so enable it per connection when you want it.
 
-### Query profiler (`OFJDBC_PROFILE`)
+---
+
+## REST schema
+
+`rest=false` hides the `REST` schema; `restApi` and `restVersion` choose the API (`latest` is the newest version
+Fusion reports); `restMaxRows`, `restMaxParents`, `restMaxRequests` and `restMaxKeys` keep a statement from reading too
+much (table [above](#connection-settings)). What each limit does and the messages you get: [REST Schema
+Reference](rest_schema.md#7-settings).
+
+---
+
+## Query Profiler (`OFJDBC_PROFILE`)
 
 With `?profile=true` in the JDBC URL (or connection property `ofjdbc.profile=true`, `-Dofjdbc.profile=true`,
 `OFJDBC_PROFILE=true`) every fetched page adds an SQL warning to the statement, which DBeaver and
@@ -372,3 +247,51 @@ IntelliJ show in their Output panel:
 Off by default.
 
 ---
+
+## Usage examples
+
+A DBeaver connection: put connection settings in the URL or in Driver properties, for example
+`jdbc:wsdl://<host>/xmlpserver/services/ExternalReportWSSService?WSDL:/Custom/Financials/RP_ARB.xdo?fetchSize=200&history=true`.
+
+### Interactive work
+```bash
+export OFJDBC_DEFAULT_FETCH_SIZE=200
+export OFJDBC_HTTP_CONNECT_TIMEOUT=20
+export OFJDBC_HTTP_READ_TIMEOUT=120
+```
+
+### Bulk export or scheduled job
+```bash
+export OFJDBC_DEFAULT_FETCH_SIZE=5000
+export OFJDBC_HTTP_READ_TIMEOUT=600
+export OFJDBC_RETRY_MAX_ATTEMPTS=5
+export OFJDBC_RETRY_BASE_DELAY_MS=5000
+```
+
+### JVM application
+```bash
+java -Dofjdbc.fetchSize=1000 -Dofjdbc.http.connectTimeout=20 -Dofjdbc.http.readTimeout=300 -jar your-application.jar
+```
+
+---
+
+## Troubleshooting
+
+**Slow queries** — raise `fetchSize` to reduce round trips; raise `OFJDBC_HTTP_READ_TIMEOUT` for queries that run
+long in Fusion; `?profile=true` shows where the time goes.
+
+**Memory** — lower `fetchSize`; watch the JVM heap with large pages.
+
+**Timeouts** — raise `OFJDBC_HTTP_CONNECT_TIMEOUT` for a slow network, `OFJDBC_HTTP_READ_TIMEOUT` for slow queries;
+more retries (`OFJDBC_RETRY_MAX_ATTEMPTS`) help with an unstable network.
+
+**Fails fast after an outage** — the circuit breaker is open; it lets a trial request through after
+`OFJDBC_CIRCUIT_BREAKER_TIMEOUT_MS` (default one minute).
+
+**Values that are wrong** — a fetch size outside `1`–`10000` is capped with a log warning; HTTP and circuit breaker
+values outside their range are moved to its nearest end; a prefetch threshold outside `0.0`–`1.0` is capped; a retry
+value that is not a number is ignored. A non-numeric HTTP or circuit breaker value stops the driver from starting —
+the log names it.
+
+**Log messages to look for** — `Fetch size changed from X to Y (requested: Z)`,
+`Fetch size X exceeds maximum Y, capping at maximum`, `Operation '…' succeeded on attempt N after Xms`.
