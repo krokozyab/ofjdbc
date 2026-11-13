@@ -379,8 +379,10 @@ Two ways into the same data: a JDBC driver for the JVM world, and an Oracle Net 
 | Project | What it does | Link |
 |---|---|---|
 | **OFJDBC** | JDBC driver — SQL over BI Publisher and Fusion REST resources, from DBeaver, IntelliJ, JVM apps | [GitHub](https://github.com/krokozyab/ofjdbc) |
-| **oratofusionproxy** | Oracle Net/TNS proxy — Fusion as a real Oracle database for SQL Developer, Excel, Power BI and `dblink` from EBS | [GitHub](https://github.com/krokozyab/oracle-fusion-tns-proxy) |
+| **QExcel** | Oracle Fusion Cloud data in Excel tables and formulas | [GitHub](https://github.com/krokozyab/qexcel) |
 | **ofrag** | AI RAG engine & MCP Server — natural language queries via Claude/Gemini | [GitHub](https://github.com/krokozyab/ofrag) |
+| **oratofusionproxy** | Oracle Net/TNS proxy — Fusion as a real Oracle database for SQL Developer, Excel, Power BI and `dblink` from EBS | [GitHub](https://github.com/krokozyab/oracle-fusion-tns-proxy) |
+
 
 ## 💡 Use Cases
 
