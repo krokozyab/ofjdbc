@@ -47,12 +47,17 @@ Oracle Fusion Cloud doesn't allow direct database connections. Developers and co
 ### 1. Download the JAR
 Get the latest `orfujdbc-x.x.jar` from [Releases](https://github.com/krokozyab/ofjdbc/releases).
 
-### 2. Upload BI Publisher Catalogs
-You need permission to upload the BI Publisher catalogs, or help from your Fusion administrator.
+### 2. Upload the BI Publisher Reports
+You need permission to upload to the BI Publisher catalog, or help from your Fusion administrator.
 
-Upload `otbireport/DM_ARB.xdmz` and `RP_ARB.xdoz` to `/Shared Folders/Custom/Financials` in your Oracle Fusion instance (Catalog → **Upload**).
+Download the four files and upload them to `/Shared Folders/Custom/Financials` in your Oracle Fusion instance (Catalog → **Upload**), data models first:
 
-**Recommended:** also upload `otbireport/DM_ARB2_V3.xdmz` and `RP_ARB2_V3.xdoz` to the same folder. The driver finds them by itself and uses this newer data model: wide tables and large results come back several times faster with far less network traffic, and a query may be longer than 32 KB. Without them everything works as before.
+1. [DM_ARB.xdmz](https://github.com/krokozyab/ofjdbc/raw/master/otbireport/DM_ARB.xdmz)
+2. [DM_ARB2_V3.xdmz](https://github.com/krokozyab/ofjdbc/raw/master/otbireport/DM_ARB2_V3.xdmz)
+3. [RP_ARB.xdoz](https://github.com/krokozyab/ofjdbc/raw/master/otbireport/RP_ARB.xdoz)
+4. [RP_ARB2_V3.xdoz](https://github.com/krokozyab/ofjdbc/raw/master/otbireport/RP_ARB2_V3.xdoz)
+
+The driver uses `DM_ARB2_V3` by itself: wide tables and large results come back several times faster with far less network traffic, and a query may be longer than 32 KB. `DM_ARB` covers the few queries the newer model cannot take and older driver versions. `CHECK SETUP` (step 5) shows what the driver finds.
 
 Using another folder? Name it in the URL (step 3), and point each report to the data model in that folder (open the report → **Edit** → data model).
 

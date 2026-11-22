@@ -14,8 +14,8 @@ This guide provides detailed instructions for setting up the OFJDBC driver in yo
     Download the latest version (`orfujdbc-1.0-SNAPSHOT.zip`) from the [Releases page](https://github.com/krokozyab/ofjdbc/releases).
 
 2.  **Setup Fusion Reports:**
-    In your Fusion instance, upload `DM_ARB.xdmz` and `RP_ARB.xdoz` (found in the `otbireport` folder of this repository) into the `/Shared Folders/Custom/Financials` folder (Catalog → **Upload**).
-    **Recommended:** also upload `DM_ARB2_V3.xdmz` and `RP_ARB2_V3.xdoz` from the same `otbireport` folder into the same catalog folder (Catalog → **Upload**). The driver uses this newer data model when it finds it: wide and large results come back several times faster and queries may be longer than 32 KB. `CHECK SETUP` shows whether it is found.
+    Download the four files and upload them into the `/Shared Folders/Custom/Financials` folder of your Fusion instance (Catalog → **Upload**), data models first: [DM_ARB.xdmz](https://github.com/krokozyab/ofjdbc/raw/master/otbireport/DM_ARB.xdmz), [DM_ARB2_V3.xdmz](https://github.com/krokozyab/ofjdbc/raw/master/otbireport/DM_ARB2_V3.xdmz), [RP_ARB.xdoz](https://github.com/krokozyab/ofjdbc/raw/master/otbireport/RP_ARB.xdoz), [RP_ARB2_V3.xdoz](https://github.com/krokozyab/ofjdbc/raw/master/otbireport/RP_ARB2_V3.xdoz).
+    The driver uses `DM_ARB2_V3` by itself: wide and large results come back several times faster and queries may be longer than 32 KB; `DM_ARB` covers the few queries the newer model cannot take and older driver versions. `CHECK SETUP` shows what the driver finds.
     *Note: You can use a different folder; then name it in the connection URL (`jdbc:wsdl://<host>/<folder>`), and point each report to the data model in that folder (open the report → **Edit** → data model).*
 
 ## ⚙️ Configuration (Step-by-Step)
