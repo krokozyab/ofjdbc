@@ -53,6 +53,10 @@ You need permission to upload the BI Publisher catalogs, or help from your Fusio
 Upload `otbireport/DM_ARB.xdm.catalog` and `RP_ARB.xdo.catalog` to  
 `/Shared Folders/Custom/Financials` in your Oracle Fusion instance.
 
+**Recommended:** also upload `otbireport/DM_ARB2_V3.xdmz` and `RP_ARB2_V3.xdoz` to the same folder (Catalog → **Upload**, not Unarchive). The driver finds them by itself and uses this newer data model: wide tables and large results come back several times faster with far less network traffic, and a query may be longer than 32 KB. Without them everything works as before.
+
+Using another folder? Name it in the URL (step 3), and point each report to the data model in that folder (open the report → **Edit** → data model).
+
 ### 3. Connect
 In DBeaver, create a JDBC driver, add the downloaded JAR under Libraries, then enter the driver class and connection URL below.
 
@@ -412,7 +416,7 @@ Two ways into the same data: a JDBC driver for the JVM world, and an Oracle Net 
 - **Read-only** — Oracle Fusion is queried with `SELECT` only (the BI layer permits no writes, and the driver never writes through REST); writing is possible only in the local `DUCK` schema.
 - **Performance** — SOAP and REST transports add overhead compared to native DB access. Automatic pagination helps, but very large exports take time.
 - **Long queries** — The driver waits 120 seconds for BI Publisher's answer (`OFJDBC_HTTP_READ_TIMEOUT`). A query not answered in time is stopped with advice on making it faster and is not sent again, since it may still be running in Fusion.
-- **SQL length** — The BI Publisher data model receives the query as a PL/SQL `VARCHAR2`, so a query may be at most 32,767 bytes (UTF-8) as sent — comments are stripped, but the added pagination clause and secured-view names count. Longer queries are rejected before sending with a clear error (SQLState `54000`).
+- **SQL length** — With `DM_ARB` the query may be at most 32,767 bytes (UTF-8) as sent, up to about 375 KB with `DM_ARB2_V3` — comments are stripped, but the added pagination clause and secured-view names count. Longer queries are rejected before sending with a clear error (SQLState `54000`).
 - **Security** — Ensure usage complies with your organization's security policies and Oracle Fusion terms of service.
 
 ## 📄 Documentation

@@ -9,6 +9,7 @@ Driver class: my.jdbc.wsdl_driver.WsdlDriver
 JDBC URL: jdbc:wsdl://<host>[/<catalog folder> | /<report>.xdo]  (folder default /Custom/Financials)
           or jdbc:wsdl://<host>/xmlpserver/services/ExternalReportWSSService?WSDL:/<report-path>
 Driver commands: HELP [word] (all commands with examples), CHECK SETUP (driver JAR, login, reports, test query)
+Reports: otbireport/DM_ARB.xdm.catalog + RP_ARB.xdo.catalog; optional faster DM_ARB2_V3.xdmz + RP_ARB2_V3.xdoz in the same folder
 License: MIT
 Stack: Kotlin 2.2.20-Beta2, JVM 11, Gradle 8.10
 

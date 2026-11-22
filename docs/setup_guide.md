@@ -15,7 +15,8 @@ This guide provides detailed instructions for setting up the OFJDBC driver in yo
 
 2.  **Setup Fusion Reports:**
     In your Fusion instance, un-archive `DM_ARB.xdm.catalog` and `RP_ARB.xdo.catalog` (found in the `otbireport` folder of this repository) into the `/Shared Folders/Custom/Financials` folder.
-    *Note: You can use a different folder; then name it in the connection URL (`jdbc:wsdl://<host>/<folder>`).*
+    **Recommended:** also upload `DM_ARB2_V3.xdmz` and `RP_ARB2_V3.xdoz` from the same `otbireport` folder into the same catalog folder (Catalog → **Upload**). The driver uses this newer data model when it finds it: wide and large results come back several times faster and queries may be longer than 32 KB. `CHECK SETUP` shows whether it is found.
+    *Note: You can use a different folder; then name it in the connection URL (`jdbc:wsdl://<host>/<folder>`), and point each report to the data model in that folder (open the report → **Edit** → data model).*
 
 ## ⚙️ Configuration (Step-by-Step)
 

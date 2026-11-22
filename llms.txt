@@ -38,6 +38,7 @@ The driver deploys a lightweight `.xdo` report template on BI Publisher that pas
 - **SOAP endpoint**: `ExternalReportWSSService?WSDL`
 - **Driver class**: `my.jdbc.wsdl_driver.WsdlDriver`
 - **URL format**: `jdbc:wsdl://<host>[/<catalog folder> | /<report>.xdo]` (folder default `/Custom/Financials`), or the long form `jdbc:wsdl://<host>/xmlpserver/services/ExternalReportWSSService?WSDL:/<report-path>`
+- **Reports**: `otbireport/DM_ARB.xdm.catalog` + `RP_ARB.xdo.catalog` (unarchive); optional faster `DM_ARB2_V3.xdmz` + `RP_ARB2_V3.xdoz` (upload, same folder; used when found, queries up to ~375 KB)
 - **Driver commands**: `HELP [word]` lists them all with examples; `CHECK SETUP` checks driver JAR, login, reports and a test query
 - **Response handling**: HTTP response → gzip decompress → DOM parse SOAP → extract `<reportBytes>` → Base64 decode → TagSoup XML parse
 - **Pagination**: client-side `OFFSET n ROWS FETCH NEXT m ROWS ONLY` injection
