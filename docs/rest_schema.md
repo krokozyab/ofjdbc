@@ -111,10 +111,17 @@ setting does not lift it.
   alias there (`WHERE i.InvoiceStatus = 'Validated'`) — an unqualified column could belong to the other table.
 - `IS NULL` on a resource that is the outer side of a `LEFT`/`RIGHT`/`FULL JOIN` is applied locally only: it is also
   true for the rows the join adds.
-- Joined to a DUCK table on a queryable attribute by an inner join (or a `LEFT JOIN` from the DUCK table), the resource
-  is read only for the DUCK table's distinct keys; an empty DUCK table reads nothing. With more than `restMaxKeys` keys
-  (default 1,000), or keys that do not fit the attribute's type, the resource is read without them and a warning says
-  so.
+- Joined to a DUCK table or a parenthesized FUSION subquery on a queryable attribute by an inner join (or a
+  `LEFT JOIN` from that table), the resource is read only for the distinct keys the table gives — a FUSION subquery is
+  read first; an empty one reads nothing. With more than `restMaxKeys` keys (default 1,000), or keys that do not fit
+  the attribute's type, the resource is read without them and a warning says so.
+
+  ```sql
+  -- REST reads only the invoices the Fusion subquery returns
+  SELECT i.InvoiceNumber, i.Supplier
+  FROM REST.invoices i
+  JOIN (SELECT invoice_id FROM FUSION.ap_invoices_all WHERE invoice_id = 1) a ON a.invoice_id = i.InvoiceId
+  ```
 - A `LIMIT` is never applied before a join or a local filter.
 
 **Next result page.** DBeaver runs a statement again for its next page; the rows already read from REST are reused for
@@ -210,6 +217,11 @@ REFRESH DUCK.inv;
   schema, `REST_FSCM.x`, to be independent of the order). `REST_API` lists the families an import read.
 - Replacing or dropping the table by other DDL forgets its origin.
 
+**Views instead of copies.** `CREATE VIEW DUCK.x AS SELECT … FROM REST.y …` keeps no rows: every query of the view
+reads the resource again, so it shows current data without `REFRESH`. The view's own conditions on queryable
+attributes go to REST; conditions written on the view filter what REST returned, and a `LIMIT` stops reading early.
+Child resources cannot be in a view. Details: [DUCK workspace](duck_workspace.md), "Views that read REST".
+
 ## 6. Commands
 
 | Command | Result |
@@ -238,7 +250,7 @@ variable `OFJDBC_<NAME>` (`OFJDBC_REST_MAX_ROWS`, …):
 | `restMaxRows` | `50000` | most rows one statement may read from a resource |
 | `restMaxParents` | `200` | most parents a child table is read for in one statement |
 | `restMaxRequests` | `2000` | most requests one statement may make for child tables or for the keys of a join |
-| `restMaxKeys` | `1000` | most keys of a DUCK table a join sends with a resource read; with more it is read without them |
+| `restMaxKeys` | `1000` | most keys of a DUCK table or FUSION subquery a join sends with a resource read; with more it is read without them |
 
 ## 8. Messages and what to do
 
@@ -264,5 +276,5 @@ variable `OFJDBC_<NAME>` (`OFJDBC_REST_MAX_ROWS`, …):
 | `The statement reads REST, but DuckDB cannot parse it` | Statements reading `REST` are DuckDB SQL; fix the syntax (Oracle-only syntax is not accepted there). |
 | `The REST schema is switched off for this connection (rest=false)` | Remove `rest=false`. |
 | `DUCK.x was imported from REST; it is refreshed by reading it again in full` | Use `REFRESH DUCK.x` without `KEY`/`SINCE`. |
-| Warning `… has more than N keys for REST.x (setting restMaxKeys); the resource is read without them` | The join still gives the right rows, only slower; narrow the DUCK table or raise `restMaxKeys`. |
+| Warning `… has more than N keys for REST.x (setting restMaxKeys); the resource is read without them` | The join still gives the right rows, only slower; narrow the DUCK table or subquery, or raise `restMaxKeys`. |
 | Warning `the keys in … do not all fit …; the resource is read without them` | The DUCK column holds values of another type than the attribute; the result is still right. |

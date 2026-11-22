@@ -124,13 +124,30 @@ FROM DUCK.je
 GROUP BY currency_code;
 ```
 
-One query can also mix both: `UNION` branches and parenthesized subqueries that read only `FUSION.*` tables are fetched from Fusion first, then the whole query runs locally. Keep the Fusion part filtered — it is fetched in full:
+One query can also mix both: `UNION` branches and parenthesized subqueries that read only `FUSION.*` tables are read from Fusion, and the whole query runs locally. Keep the Fusion part filtered. When the query has a row limit — its own `LIMIT`, or the result set size DBeaver sets — and the part reads plain Fusion columns, only the pages the query needs are read (the first 200 rows of a join in about a second instead of the whole table); otherwise the part is read in full:
 
 ```sql
 SELECT l.*, f.enabled_flag
   FROM DUCK.gcc l
   JOIN (SELECT code_combination_id, enabled_flag FROM FUSION.GL_CODE_COMBINATIONS
          WHERE segment2 = '1110') f ON f.code_combination_id = l.code_combination_id;
+```
+
+**Live views.** A view in DUCK can read Fusion or REST: it keeps no copy, and every query of it reads the source again, with column types from the Fusion dictionary or the REST description. Put the filters inside the view ([details](docs/duck_workspace.md#3-mixed-queries-and-the-next-result-page)):
+
+```sql
+CREATE VIEW DUCK.open_invoices AS
+  SELECT invoice_id, invoice_num, invoice_amount FROM ap_invoices_all WHERE payment_status_flag = 'N';
+
+CREATE VIEW DUCK.big_invoices AS
+  SELECT InvoiceId, InvoiceNumber, InvoiceAmount FROM REST.invoices WHERE InvoiceAmount > 1000;
+```
+
+**Fusion SQL and driver commands inside DuckDB queries.** `fusion('<Oracle SQL>')` returns the rows of a Fusion query, and every consultant command below is a table too — `lookup('…')`, `profile('…')`, `ess_requests(…)`, `user_access('…')`, … — to filter, join or export. With connections to two environments open in the same tool, `host := '…'` reads the other one, so one query compares them:
+
+```sql
+SELECT * FROM ess_requests(job := 'ImportPayables%', last := 200) WHERE state = 'ERROR';
+SELECT * FROM lookup('YES_NO', host := 'test') EXCEPT SELECT * FROM lookup('YES_NO');
 ```
 
 A statement prefixed with `#d` (or `#duck`) runs in DuckDB as written — its full SQL dialect and functions, CSV, Parquet, JSON and Excel files, `COPY`, `SUMMARIZE`:
@@ -174,6 +191,8 @@ The `DUCK` schema remembers where each imported table came from, can bring it up
 | I want to… | Use | Section |
 |---|---|---|
 | Read only the Fusion rows for a list I have locally | `… WHERE col IN (SELECT col FROM DUCK.ids)` | [Filter Fusion by a list](#filter-fusion-by-a-list-kept-in-duck) |
+| See current Fusion or REST data under a DUCK name, without copying it | `CREATE VIEW DUCK.x AS SELECT … FROM …` | [Views that read Fusion and REST](docs/duck_workspace.md#3-mixed-queries-and-the-next-result-page) |
+| Filter, join or export a command's result; compare DEV with TEST in one query | `lookup('…')`, `ess_requests(…)`, `fusion('…', host := 'test')` | [Commands as tables](docs/duck_workspace.md#3-mixed-queries-and-the-next-result-page) |
 | Save a big Fusion result to a file | `#d COPY (SELECT … FROM FUSION.x) TO 'f.parquet'` | [Export](#export-to-parquet-or-csv) |
 | See which tables came from which environment, and refresh them | `DUCK TABLES`, `REFRESH DUCK.x` | [Datasets](#datasets-where-a-table-came-from-and-refresh) |
 | Get a table with names instead of ids and codes | `… DECODE FLEXFIELDS, NAMES, ACCOUNTS, LOOKUP …` | [Readable imports](#readable-imports-decode) |

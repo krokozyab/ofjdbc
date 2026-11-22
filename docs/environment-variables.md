@@ -45,7 +45,7 @@ The driver reads its settings from four places. There are two kinds of settings,
 | `restMaxRows` | `ofjdbc.restMaxRows` | `OFJDBC_REST_MAX_ROWS` | `50000` | Most rows one statement may read from a REST resource |
 | `restMaxParents` | `ofjdbc.restMaxParents` | `OFJDBC_REST_MAX_PARENTS` | `200` | Most parents a REST child table is read for in one statement |
 | `restMaxRequests` | `ofjdbc.restMaxRequests` | `OFJDBC_REST_MAX_REQUESTS` | `2000` | Most REST requests of one statement for child tables or the keys of a join |
-| `restMaxKeys` | `ofjdbc.restMaxKeys` | `OFJDBC_REST_MAX_KEYS` | `1000` | Most keys of a DUCK table a join sends with a REST read |
+| `restMaxKeys` | `ofjdbc.restMaxKeys` | `OFJDBC_REST_MAX_KEYS` | `1000` | Most keys of a DUCK table or FUSION subquery a join sends with a REST read |
 | `authType` | — | — | password | `BROWSER` for SSO, `OAUTH` for OAuth ([below](#oauth-authentication)) |
 
 A connection property may also be written with the `ofjdbc.` prefix (`ofjdbc.fetchSize`), as DBeaver's driver

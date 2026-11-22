@@ -52,8 +52,8 @@ metadata, but you can query them with `#d` when you want to look inside.
 values (`BIGINT`, `DECIMAL`, `DATE`, `TIMESTAMP`, else text) and refined by Fusion's own dictionary: columns that are text
 there (segments, `ATTRIBUTEn`, codes such as `0010`) stay text; `NUMBER(18)` ids become `BIGINT`; amounts and rates
 without a declared precision become `DECIMAL(38,10)` so rows appended later are not rounded; an Oracle `DATE` becomes
-`TIMESTAMP` (it carries a time of day, even when every value read is at midnight) and `TIMESTAMP WITH TIME ZONE`
-becomes `TIMESTAMPTZ`. The dictionary type of a column is used only when the result column is that column — written
+`TIMESTAMP` with its time of day (also when every value read is at midnight) and `TIMESTAMP WITH TIME ZONE`
+becomes `TIMESTAMPTZ`. Text that only looks like a number (`'1.10'`, `'0.5'`) stays text. The dictionary type of a column is used only when the result column is that column — written
 as is, through its table alias, renamed with `AS`, or under `*` — and never for an expression that merely carries its
 name (`TO_CHAR(creation_date, 'YYYY') creation_date` stays a number). If DuckDB's parser cannot read the Oracle query
 (`(+)` joins, …) only "text" is taken from the dictionary, by name. A Fusion query that returns
@@ -95,8 +95,95 @@ SELECT l.*, f.enabled_flag
          WHERE segment2 = '1110') f ON f.code_combination_id = l.code_combination_id;
 ```
 
-Keep the Fusion part filtered — it is fetched in full. A Fusion table joined directly (`JOIN FUSION.x`) is rejected with
-a hint to use a parenthesized subquery or to import the table.
+Keep the Fusion part filtered — it is usually fetched in full. A Fusion table joined directly (`JOIN FUSION.x`) is
+rejected with a hint to use a parenthesized subquery or to import the table.
+
+**Reading only what the query needs.** When the query has a row limit — its own `LIMIT`, or the result set size a
+client such as DBeaver sets — and the Fusion dictionary gives the type of every column of a part (plain columns of
+Fusion tables), that part is not fetched in full: DuckDB reads its first page and asks for more only while it needs
+rows. A `JOIN` of a DUCK table with a large Fusion part showing the first 200 rows then takes one page instead of the
+whole part (on a test pod 1.4 s instead of 19 s). A query that needs every row anyway (`count(*)`, `GROUP BY`,
+`ORDER BY`) reads the part to the end. A part with computed columns, or a query without a row limit, is fetched in full
+as before, and its types are inferred from all its rows. A warning names each part read this way
+(`first page from Fusion …, read on as the query needs rows`); such parts are read again for the next result page.
+
+**Views that read Fusion.** A view in DUCK may read Fusion; every query of the view reads Fusion again, so it always
+shows current data (an import, `CREATE TABLE DUCK.x AS …`, is a copy you refresh yourself):
+
+```sql
+CREATE VIEW DUCK.open_invoices AS
+  SELECT invoice_id, invoice_num, invoice_amount, invoice_date FROM ap_invoices_all
+   WHERE payment_status_flag = 'N';
+
+#d CREATE VIEW gcc_flags AS SELECT * FROM FUSION.GL_CODE_COMBINATIONS WHERE segment2 = '1110';
+
+CREATE VIEW DUCK.gcc_checked AS                     -- DUCK and Fusion together: the Fusion part in parentheses
+  SELECT l.*, f.enabled_flag FROM DUCK.gcc l
+    JOIN (SELECT code_combination_id, enabled_flag FROM FUSION.GL_CODE_COMBINATIONS) f
+      ON f.code_combination_id = l.code_combination_id;
+```
+
+- **Filters belong in the view.** A condition written on the view (`SELECT … FROM DUCK.open_invoices WHERE …`) filters
+  the rows Fusion returned; Fusion reads what the view's own query asks for. A query that stops early (`LIMIT`) stops
+  reading Fusion too.
+- **Columns and types** are fixed when the view is made: Fusion is asked for one row to learn the columns, and the
+  dictionary gives their types (as for imports; a `NUMBER` without precision keeps 10 decimals). If the Fusion query
+  later returns other columns, the view says so — create it again. With an empty result the columns are known only
+  through the JSON data model (`RP_ARB2_V3`).
+- **The view's environment.** A view reads the Fusion host it was made on, through the connection that queries it; a
+  connection to another host is refused. Outside the driver (another DuckDB tool on the workspace file) the view does
+  not open.
+- **Not in a view:** `IN (SELECT … FROM DUCK.t)` filters inside the Fusion part (join the DUCK table instead).
+
+**Views that read REST.** A view may read REST resources the same way, alone or joined with DUCK tables and Fusion
+subqueries; every query of the view reads the resource again:
+
+```sql
+CREATE VIEW DUCK.big_invoices AS
+  SELECT InvoiceId, InvoiceNumber, InvoiceAmount, InvoiceCurrency FROM REST.invoices WHERE InvoiceAmount > 1000;
+
+SELECT * FROM DUCK.big_invoices LIMIT 10;      -- one request: reading stops once there are enough rows
+```
+
+- **Filters belong in the view.** The view's own conditions on queryable attributes go to REST with the view; a
+  condition written on the view filters the rows REST returned. Only the attributes a query uses are requested.
+- **Columns and types** come from the resource's description when the view is made (no rows are read then); an
+  attribute the resource no longer has makes the view ask to be created again.
+- **Limits.** A read stops with an error above `restMaxRows` rows (default 50000) — put a filter into the view, or
+  read it with a `LIMIT`. Child resources (`REST.invoices__invoiceLines`) are read per parent and cannot be in a view:
+  import them.
+
+**Fusion queries and driver commands as tables.** Inside a DuckDB query, `fusion('<Oracle SQL>')` returns the rows
+of a Fusion query (as text — cast or import for types), and the driver commands are tables too: `lookup('type')`,
+`valueset('code')`, `profile('pattern')`, `user_access('user')`, `org_structure([pattern := '…'])`,
+`ess_requests([job := '…'] [, last := n])`, `ess_request(id)`, `find_fusion_table('…')`, `find_fusion_column('…')`,
+`join_keys('table' [, other := 'table'])`, `describe_flexfield('table or code' [, context := '…'])`,
+`explain_fusion_view('view')`. A statement calling one of them in `FROM` runs in DuckDB without `#d`:
+
+```sql
+SELECT * FROM ess_requests(job := 'ImportPayables%', last := 200) WHERE state = 'ERROR';
+#d COPY (FROM profile('%DATE%FORMAT%')) TO 'profiles.csv' (HEADER);
+CREATE TABLE DUCK.yes_no AS SELECT * FROM lookup('YES_NO');
+```
+
+**Comparing environments.** `host := '…'` reads through another open connection of the same client — so connect to
+both environments first (in DBeaver: open both connections). Name the host or whole parts of its first label between
+hyphens: `dev1` and `xx-dev1` name `fa-xx-dev1-saasfaprod1.fa.ocs.oraclecloud.com`; `prod` does not (it is only a
+piece of `saasfaprod1`, which every Oracle SaaS host has), and a name matching two connected hosts is refused.
+
+```sql
+SELECT lookup_code, meaning FROM lookup('AP_PAYMENT_METHOD', host := 'test')
+EXCEPT
+SELECT lookup_code, meaning FROM lookup('AP_PAYMENT_METHOD', host := 'dev1');
+
+SELECT * FROM fusion('SELECT profile_option_name, level_value, profile_option_value FROM fnd_profile_option_values', host := 'test')
+EXCEPT
+SELECT * FROM fusion('SELECT profile_option_name, level_value, profile_option_value FROM fnd_profile_option_values', host := 'dev1');
+```
+
+Arguments are constants: a column of another table cannot be one. Conditions on the result filter what came back; put
+them into the Fusion SQL to make Fusion read less. A view may use these functions too; it reads them again on every
+query.
 
 **The next result page.** DBeaver does not keep the cursor open between pages: for page two it closes the statement
 and runs the same SQL again with a larger fetch size. For a mixed query that would mean fetching the Fusion parts again
@@ -475,6 +562,8 @@ The driver embeds DuckDB 2.0, whose files use a newer storage format.
 | `HISTORY [LAST n]`, `HISTORY SHOW n`, `HISTORY KEEP n AS DUCK.x [DECODE …]`, `HISTORY CLEAR` | kept results | 10 |
 | `… col IN (SELECT col FROM DUCK.t)` inside a Fusion subquery | send local keys to Fusion | 4 |
 | `#d COPY (SELECT … FROM FUSION.x) TO 'file'` | export to Parquet/CSV | 5 |
+| `CREATE VIEW DUCK.x AS <query reading Fusion>` | a view that reads Fusion on every query | 3 |
+| `… FROM fusion('<Oracle SQL>' [, host := '…'])`, `… FROM lookup('…')` and the other commands as tables | Fusion and the commands inside DuckDB queries; compare environments | 3 |
 | `JOIN KEYS A [B]`, `JOIN KEYS REFRESH` | how tables join, paths | 11 |
 
 Settings: `?duckDb=`, `?history=`, `?historyMaxRows=`, `?nextPageCacheSeconds=` — see
