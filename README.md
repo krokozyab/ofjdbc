@@ -50,10 +50,9 @@ Get the latest `orfujdbc-x.x.jar` from [Releases](https://github.com/krokozyab/o
 ### 2. Upload BI Publisher Catalogs
 You need permission to upload the BI Publisher catalogs, or help from your Fusion administrator.
 
-Upload `otbireport/DM_ARB.xdm.catalog` and `RP_ARB.xdo.catalog` to  
-`/Shared Folders/Custom/Financials` in your Oracle Fusion instance.
+Upload `otbireport/DM_ARB.xdmz` and `RP_ARB.xdoz` to `/Shared Folders/Custom/Financials` in your Oracle Fusion instance (Catalog → **Upload**).
 
-**Recommended:** also upload `otbireport/DM_ARB2_V3.xdmz` and `RP_ARB2_V3.xdoz` to the same folder (Catalog → **Upload**, not Unarchive). The driver finds them by itself and uses this newer data model: wide tables and large results come back several times faster with far less network traffic, and a query may be longer than 32 KB. Without them everything works as before.
+**Recommended:** also upload `otbireport/DM_ARB2_V3.xdmz` and `RP_ARB2_V3.xdoz` to the same folder. The driver finds them by itself and uses this newer data model: wide tables and large results come back several times faster with far less network traffic, and a query may be longer than 32 KB. Without them everything works as before.
 
 Using another folder? Name it in the URL (step 3), and point each report to the data model in that folder (open the report → **Edit** → data model).
 

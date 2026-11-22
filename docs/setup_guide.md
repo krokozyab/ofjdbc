@@ -14,7 +14,7 @@ This guide provides detailed instructions for setting up the OFJDBC driver in yo
     Download the latest version (`orfujdbc-1.0-SNAPSHOT.zip`) from the [Releases page](https://github.com/krokozyab/ofjdbc/releases).
 
 2.  **Setup Fusion Reports:**
-    In your Fusion instance, un-archive `DM_ARB.xdm.catalog` and `RP_ARB.xdo.catalog` (found in the `otbireport` folder of this repository) into the `/Shared Folders/Custom/Financials` folder.
+    In your Fusion instance, upload `DM_ARB.xdmz` and `RP_ARB.xdoz` (found in the `otbireport` folder of this repository) into the `/Shared Folders/Custom/Financials` folder (Catalog → **Upload**).
     **Recommended:** also upload `DM_ARB2_V3.xdmz` and `RP_ARB2_V3.xdoz` from the same `otbireport` folder into the same catalog folder (Catalog → **Upload**). The driver uses this newer data model when it finds it: wide and large results come back several times faster and queries may be longer than 32 KB. `CHECK SETUP` shows whether it is found.
     *Note: You can use a different folder; then name it in the connection URL (`jdbc:wsdl://<host>/<folder>`), and point each report to the data model in that folder (open the report → **Edit** → data model).*
 
@@ -54,7 +54,7 @@ This guide provides detailed instructions for setting up the OFJDBC driver in yo
     *   **SERVER**, **LOGIN** — where the driver connects and as whom.
     *   **REPORT** rows — whether the reports are in the folder of the URL and readable for your user.
     *   **QUERY** — `SELECT 1 FROM DUAL` and how long it took, or the error.
-2.  **Report not found** — the error names the folder and files the driver looked for. Check the folder in the URL, that the catalog files are unarchived into it, and that your role may read them.
+2.  **Report not found** — the error names the folder and files the driver looked for. Check the folder in the URL, that the report files are uploaded to it, and that your role may read them.
 3.  **`ORA-00942` / `ORA-00904`** — the error lists the tables of your query and the names it knows that are close to the one you wrote, from the local metadata cache. `FIND FUSION TABLE '%part%'` and `FIND FUSION COLUMN 'NAME'` search further.
 4.  **A query stops after 120 seconds** — it is not sent again, and the message says how to make it faster. To wait longer, add `-Dofjdbc.http.readTimeout=600` on a line after `-vmargs` in `dbeaver.ini`, or set `OFJDBC_HTTP_READ_TIMEOUT=600`.
 5.  **`HELP`** lists every driver command with an example; `HELP DUCK` or `HELP JOIN KEYS` shows one area or command.
