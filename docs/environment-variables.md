@@ -63,7 +63,7 @@ exports. Larger pages use more memory.
 | System property | Environment variable | Default | Range | Meaning |
 |---|---|---|---|---|
 | `ofjdbc.http.connectTimeout` | `OFJDBC_HTTP_CONNECT_TIMEOUT` | `30` s | `1`–`300` | Time to establish the connection |
-| `ofjdbc.http.readTimeout` | `OFJDBC_HTTP_READ_TIMEOUT` | `120` s | `5`–`1800` | Time to wait for the answer once connected — raise it for long-running queries |
+| `ofjdbc.http.readTimeout` | `OFJDBC_HTTP_READ_TIMEOUT` | `120` s | `5`–`1800` | Time to wait for the answer once connected — raise it for long-running queries; a query not answered in time is stopped and not sent again |
 | `ofjdbc.http.maxConcurrentRequests` | `OFJDBC_MAX_CONCURRENT_REQUESTS` | `1` | `1`–`16` | Requests sent to one Fusion host at the same time |
 
 The system property wins over the environment variable; values outside the range are moved to its nearest end.
@@ -278,15 +278,17 @@ java -Dofjdbc.fetchSize=1000 -Dofjdbc.http.connectTimeout=20 -Dofjdbc.http.readT
 ## Troubleshooting
 
 **Slow queries** — raise `fetchSize` to reduce round trips; raise `OFJDBC_HTTP_READ_TIMEOUT` for queries that run
-long in Fusion; `?profile=true` shows where the time goes.
+long in Fusion; `?profile=true` shows where the time goes. A query that times out is not sent again (it may still be running in
+Fusion), and its error says how to make it faster.
 
 **Memory** — lower `fetchSize`; watch the JVM heap with large pages.
 
 **Timeouts** — raise `OFJDBC_HTTP_CONNECT_TIMEOUT` for a slow network, `OFJDBC_HTTP_READ_TIMEOUT` for slow queries;
-more retries (`OFJDBC_RETRY_MAX_ATTEMPTS`) help with an unstable network.
+more retries (`OFJDBC_RETRY_MAX_ATTEMPTS`) help with an unstable network. Only network failures and temporary service errors are retried.
 
 **Fails fast after an outage** — the circuit breaker is open; it lets a trial request through after
-`OFJDBC_CIRCUIT_BREAKER_TIMEOUT_MS` (default one minute).
+`OFJDBC_CIRCUIT_BREAKER_TIMEOUT_MS` (default one minute). Only service failures open it: SQL errors (`ORA-…`), a rejected password,
+a missing report or a timed-out query do not.
 
 **Values that are wrong** — a fetch size outside `1`–`10000` is capped with a log warning; HTTP and circuit breaker
 values outside their range are moved to its nearest end; a prefetch threshold outside `0.0`–`1.0` is capped; a retry

@@ -37,7 +37,8 @@ The driver deploys a lightweight `.xdo` report template on BI Publisher that pas
 - **Stack**: Kotlin 2.2, JVM 11, Gradle 8.10
 - **SOAP endpoint**: `ExternalReportWSSService?WSDL`
 - **Driver class**: `my.jdbc.wsdl_driver.WsdlDriver`
-- **URL format**: `jdbc:wsdl://<host>/xmlpserver/services/ExternalReportWSSService?WSDL:/<report-path>`
+- **URL format**: `jdbc:wsdl://<host>[/<catalog folder> | /<report>.xdo]` (folder default `/Custom/Financials`), or the long form `jdbc:wsdl://<host>/xmlpserver/services/ExternalReportWSSService?WSDL:/<report-path>`
+- **Driver commands**: `HELP [word]` lists them all with examples; `CHECK SETUP` checks driver JAR, login, reports and a test query
 - **Response handling**: HTTP response → gzip decompress → DOM parse SOAP → extract `<reportBytes>` → Base64 decode → TagSoup XML parse
 - **Pagination**: client-side `OFFSET n ROWS FETCH NEXT m ROWS ONLY` injection
 - **Metadata**: two-tier cache (local DuckDB + remote Oracle data dictionary views)
