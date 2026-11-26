@@ -237,6 +237,10 @@ Child resources cannot be in a view. Details: [DUCK workspace](duck_workspace.md
 A description that Fusion refused (not found, no access) is remembered for an hour, so the navigator does not ask again
 on every click; `REFRESH REST x` asks again at once. The list is kept per host and API version, the descriptions also per user.
 
+Some driver commands read Fusion's REST APIs for you and work also with `rest=false`: `ESS LOG`, `AUDIT`,
+`APPROVAL TASKS`, `FEATURES`, `BUSINESS EVENTS`, `ENDPOINTS` and `FLEXFIELD DEPLOYMENT` — see the
+[Troubleshooting and Configuration Commands Reference](support_commands.md).
+
 ## 7. Settings
 
 URL parameter (`?rest=false`), connection property `ofjdbc.<name>`, system property `-Dofjdbc.<name>` or environment

@@ -170,13 +170,29 @@ The workspace `~/.ofjdbc/duck.duckdb` is shared by all your Fusion connections, 
 | `FIND FUSION COLUMN 'INVOICE_NUM'` | Tables and views having a matching column (`'%invoice number%'` searches column descriptions), with type, width and description. |
 | `JOIN KEYS AP_INVOICES_ALL [AP_INVOICE_LINES_ALL]` | How tables join, learned from Oracle's own view definitions (all `FND_VIEWS`): join condition, number of views using it, example views. For two tables with no key of their own it finds paths through up to two intermediate tables. |
 | `LOOKUP 'INVOICE TYPE'` | Values of a lookup type (code, meaning, description, enabled, dates); suggests similar type names when nothing matches. |
-| `ESS REQUESTS ['ImportPayables%'] [LAST 20]` | Latest ESS requests (job, decoded state, submitter, start/end, elapsed, error message); `ESS REQUEST 1234567` shows one request with its parameters, properties and child requests. |
+| `ESS REQUESTS ['ImportPayables%'] [LAST 20]` | Latest ESS requests (job, decoded state, submitter, start/end, elapsed, error message); `ESS REQUEST 1234567` shows one request with its parameters, properties and child requests; `TIMELINE ESS 1234567` the request and all requests below it in time order. |
 | `USER ACCESS 'john.smith'` | A user's account, roles (job/abstract/data, how provisioned) and data access (business units, ledgers, …). |
 | `ORG STRUCTURE ['AT%']` | Business units with their primary ledger (currency, chart of accounts) and legal entity, then ledgers and legal entities without a business unit. |
 | `VALUESET XX_COMPANY` | Values of an independent/dependent value set, or the validation SQL of a table-validated one. |
 | `PROFILE '%DATE%FORMAT%'` | Profile option values at site, product and user level. |
 | `EXPLAIN FUSION VIEW FND_CURRENCIES_ACTIVE_V` | Objects the view reads, the join keys between them and single-object filters, read from the full view text. |
 | `DESCRIBE FLEXFIELD AP_INVOICES_ALL` | Segment → column mapping (`ATTRIBUTE1..N` / `SEGMENT1..N`) of the descriptive or key flexfields of a table, with contexts/structures, required flags and value sets. |
+
+**Troubleshooting and Configuration Commands** — For support engineers: why an import failed, what a process logged, who changed a record, which approvals are stuck, how the instance is configured. Every rule, column and message is in the [reference](docs/support_commands.md).
+
+| Command | Result |
+|---|---|
+| `IMPORT ERRORS 1234567 [FOR AP]` | Rows an import rejected and why, one row per error in the same columns for 17 interfaces: Payables invoices, AutoInvoice, journals, suppliers, customers, purchase orders, receipts, items, bank statements, inventory, cycle counts, shipping, asset mass additions, project costs, intercompany, leases, card statements. The import is recognized from the request's jobs; without an id, the errors now in the interfaces. |
+| `ESS LOG 1234567 [OUT \| ALL]` | The log (or output) files of a scheduled process and its child requests, one row per line — search them with `SELECT … FROM ess_log(1234567) WHERE text ILIKE '%ORA-%'`. |
+| `TIMELINE ESS 1234567` | A request and every request below it in time order: submitted, scheduled, started (and how long it waited), ended with state, duration and message. |
+| `AUDIT POZ_SUPPLIERS DAYS 30` | Who changed what and when, from Fusion's audit history: one row per changed attribute with old and new value, table and column, user, time (UTC). Name a table, or an audited object to include its child objects; `FROM '…' TO '…'` (up to a year), `USER 'login'`. `AUDIT OBJECTS ['supplier']` lists what is audited. |
+| `APPROVAL TASKS ['Invoice'] [WITH ASSIGNEES]` | Approval tasks waiting for an approver (or `ERRORED`, `ALERTED`, `COMPLETED`, …), newest first, with the days each has waited and who has it; `APPROVAL TASK 1234567` shows one. |
+| `FEATURES ['payables']` | Opt-in features: the enabled ones, or those whose code or name matches, with the options chosen. |
+| `BUSINESS EVENTS ['invoice']` | ERP business events: the enabled ones, or those matching — an integration waiting for an event that is off never hears of it. |
+| `ENDPOINTS ['payment']` | Topology endpoints of applications, modules and third-party applications: those set, or those matching. |
+| `FLEXFIELD DEPLOYMENT ['AP_INVOICES']` | Descriptive and extensible flexfields not deployed (or matching), with the deployment status and error. |
+
+Every command is also a table in DUCK queries — `import_errors(request_id := 1234567)`, `audit_history('POZ_SUPPLIERS', days := 30)`, `approval_tasks(keyword := 'Invoice')`, `features(pattern := 'payables', host := 'test')` — to filter, join, keep or compare environments.
 
 **Errors That Say What to Do** — A report missing from the folder in the URL names the folder and the files to check instead of a bare HTTP 500. `ORA-00942` lists the tables of your query, which names are known and which look like a known one (`AP_INVOCES_ALL` → did you mean `AP_INVOICES_ALL`?); `ORA-00904` offers the column you probably meant (`AI.INVOICE_NUM`) or the table of your query that has it.
 
@@ -451,6 +467,7 @@ Two ways into the same data: a JDBC driver for the JVM world, and an Oracle Net 
 | [Secured Views Mappings](docs/hr_secured_views.md) | HCM secured view reference |
 | [DUCK Workspace Reference](docs/duck_workspace.md) | Datasets and `REFRESH`, `DECODE`, snapshots and `DIFF`, `HISTORY`, key pushdown, `JOIN KEYS` paths, transactions, DuckDB 2.0 upgrade, messages |
 | [REST Schema Reference](docs/rest_schema.md) | Queries and what makes them faster, child resources, finders, imports and `REFRESH`, commands, settings, messages |
+| [Troubleshooting and Configuration Commands](docs/support_commands.md) | Import errors, process logs and timelines, audit history, approval tasks, configuration checks |
 | [Environment Variables](docs/environment-variables.md) | Configuration options, OAuth, DUCK workspace, REST, query history, query profiler |
 | [Programmatic Examples](programmatically_examples/) | Java/Kotlin code samples |
 

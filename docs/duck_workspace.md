@@ -153,15 +153,36 @@ SELECT * FROM DUCK.big_invoices LIMIT 10;      -- one request: reading stops onc
   read it with a `LIMIT`. Child resources (`REST.invoices__invoiceLines`) are read per parent and cannot be in a view:
   import them.
 
+**Oracle functions.** DUCK queries also understand `NVL(a, b)`, `NVL2(a, b, c)`, `DECODE(e, s1, r1, …[, default])`,
+`ADD_MONTHS(d, n)` and `MONTHS_BETWEEN(d1, d2)`, with Oracle's results — `DECODE` matches NULL with NULL, `ADD_MONTHS`
+keeps the last day of a month the last day, `MONTHS_BETWEEN` counts parts of a month in 31sts — so expressions copied
+from Fusion SQL run on DUCK tables as they are:
+
+```sql
+SELECT invoice_num, DECODE(payment_status_flag, 'Y', 'Paid', 'N', 'Open', 'Partly') AS paid,
+       NVL(amount_paid, 0) AS amount_paid, MONTHS_BETWEEN(DATE '2026-12-31', invoice_date) AS age_months
+FROM DUCK.invoices;
+```
+
 **Fusion queries and driver commands as tables.** Inside a DuckDB query, `fusion('<Oracle SQL>')` returns the rows
 of a Fusion query (as text — cast or import for types), and the driver commands are tables too: `lookup('type')`,
 `valueset('code')`, `profile('pattern')`, `user_access('user')`, `org_structure([pattern := '…'])`,
-`ess_requests([job := '…'] [, last := n])`, `ess_request(id)`, `find_fusion_table('…')`, `find_fusion_column('…')`,
+`ess_requests([job := '…'] [, last := n])`, `ess_request(id)`, `ess_log(id [, file := 'log'|'out'|'all'])`,
+`import_errors([request_id := n] [, interface := 'AP'|'GL'|'PO'|…] [, batch := '…'])`,
+`audit_history('table or object' [, days := n] [, from_date := 'yyyy-mm-dd'] [, to_date := '…'] [, login := '…'])`,
+`audit_objects([pattern := '…'])`, `approval_tasks([state := '…'] [, keyword := '…'] [, since := 'yyyy-mm-dd'] [, last := n] [, assignees := true])`,
+`approval_task(number)`, `features([pattern := '…'] [, all := true])`, `business_events(…)`, `endpoints(…)`,
+`flexfield_deployment(…)` (the same `pattern` and `all`), `find_fusion_table('…')`, `find_fusion_column('…')`,
 `join_keys('table' [, other := 'table'])`, `describe_flexfield('table or code' [, context := '…'])`,
 `explain_fusion_view('view')`. A statement calling one of them in `FROM` runs in DuckDB without `#d`:
 
 ```sql
 SELECT * FROM ess_requests(job := 'ImportPayables%', last := 200) WHERE state = 'ERROR';
+SELECT document, message, count(*) FROM import_errors(request_id := 1234567) GROUP BY ALL ORDER BY 3 DESC;
+SELECT file_name, line, text FROM ess_log(1234567) WHERE text ILIKE '%ORA-%' OR text ILIKE '%error%';
+SELECT user_name, attribute, old_value, new_value, audit_date FROM audit_history('POZ_SUPPLIERS', days := 30) WHERE column_name = 'END_DATE_ACTIVE';
+SELECT assignees, count(*), max(days_waiting) FROM approval_tasks(keyword := 'Invoice', assignees := true) GROUP BY 1 ORDER BY 3 DESC;
+SELECT feature_code, feature_name FROM features(pattern := 'payables', host := 'test') EXCEPT SELECT feature_code, feature_name FROM features(pattern := 'payables');
 #d COPY (FROM profile('%DATE%FORMAT%')) TO 'profiles.csv' (HEADER);
 CREATE TABLE DUCK.yes_no AS SELECT * FROM lookup('YES_NO');
 ```
@@ -565,6 +586,8 @@ The driver embeds DuckDB 2.0, whose files use a newer storage format.
 | `CREATE VIEW DUCK.x AS <query reading Fusion>` | a view that reads Fusion on every query | 3 |
 | `… FROM fusion('<Oracle SQL>' [, host := '…'])`, `… FROM lookup('…')` and the other commands as tables | Fusion and the commands inside DuckDB queries; compare environments | 3 |
 | `JOIN KEYS A [B]`, `JOIN KEYS REFRESH` | how tables join, paths | 11 |
+| `NVL`, `NVL2`, `DECODE`, `ADD_MONTHS`, `MONTHS_BETWEEN` in DUCK queries | Oracle functions for expressions copied from Fusion SQL | 3 |
+| `… FROM import_errors(…)`, `ess_log(id)`, `audit_history('table')`, `approval_tasks()`, `features()` … | troubleshooting and configuration commands as tables | [reference](support_commands.md#7-the-commands-as-tables-in-duck-queries) |
 
 Settings: `?duckDb=`, `?history=`, `?historyMaxRows=`, `?nextPageCacheSeconds=` — see
 [Environment Variables](environment-variables.md).
